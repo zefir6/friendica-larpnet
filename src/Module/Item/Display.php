@@ -21,6 +21,7 @@ use Friendica\Core\Session\Capability\IHandleUserSessions;
 use Friendica\Model\Contact;
 use Friendica\Model\Item;
 use Friendica\Model\Post;
+use Friendica\Model\Post\Media;
 use Friendica\Model\Profile;
 use Friendica\Model\User;
 use Friendica\Module\Response;
@@ -253,7 +254,7 @@ class Display extends BaseModule
 
 		$condition = ["`uri-id` = ? AND `uid` IN (0, ?) " . $sql_extra, $item['uri-id'], $itemUid];
 		$fields    = [
-			'parent-uri-id', 'body', 'title', 'author-name', 'author-avatar', 'plink', 'author-id',
+			'parent-uri-id', 'body', 'title', 'author-name', 'plink', 'author-id',
 			'owner-id', 'contact-id',
 		];
 
@@ -319,7 +320,12 @@ class Display extends BaseModule
 		$title       = trim(BBCode::toPlaintext($item['title'] ?? ''));
 		$author_name = $item['author-name'];
 
-		$image = $this->baseUrl->remove($item['author-avatar']);
+		$media = Media::getByURIId($item['uri-id'], [Media::IMAGE]);
+		if (!empty($media)) {
+			$image = $media[0]['url'];
+		} else {
+			$image = $this->baseUrl . '/view/theme/larpnet/img/larpnet-og-default.png';
+		}
 
 		if ($title === '') {
 			$title = $author_name;
@@ -357,7 +363,7 @@ class Display extends BaseModule
 		$page['htmlhead'] .= "<meta name=\"twitter:card\" content=\"summary\" />\n";
 		$page['htmlhead'] .= sprintf("<meta name=\"twitter:title\" content=\"%s\" />\n", $title);
 		$page['htmlhead'] .= sprintf("<meta name=\"twitter:description\" content=\"%s\" />\n", $description);
-		$page['htmlhead'] .= sprintf("<meta name=\"twitter:image\" content=\"%s/%s\" />\n", $this->baseUrl, $image);
+		$page['htmlhead'] .= sprintf("<meta name=\"twitter:image\" content=\"%s\" />\n", $image);
 		$page['htmlhead'] .= sprintf("<meta name=\"twitter:url\" content=\"%s\" />\n", $item["plink"]);
 
 		// Dublin Core
@@ -367,7 +373,7 @@ class Display extends BaseModule
 		// Open Graph
 		$page['htmlhead'] .= "<meta property=\"og:type\" content=\"website\" />\n";
 		$page['htmlhead'] .= sprintf("<meta property=\"og:title\" content=\"%s\" />\n", $title);
-		$page['htmlhead'] .= sprintf("<meta property=\"og:image\" content=\"%s/%s\" />\n", $this->baseUrl, $image);
+		$page['htmlhead'] .= sprintf("<meta property=\"og:image\" content=\"%s\" />\n", $image);
 		$page['htmlhead'] .= sprintf("<meta property=\"og:url\" content=\"%s\" />\n", $item["plink"]);
 		$page['htmlhead'] .= sprintf("<meta property=\"og:description\" content=\"%s\" />\n", $description);
 		$page['htmlhead'] .= sprintf("<meta name=\"og:article:author\" content=\"%s\" />\n", $author_name);
