@@ -297,6 +297,14 @@ class Authentication
 			$return_path = '/security/password_too_long?' . http_build_query(['return_path' => $return_path]);
 		}
 
+		// setForUser() may redirect to /2fa (via redirectForTwoFactorAuthentication()) and
+		// never return if the account has two-factor authentication enabled. That detour
+		// through Security/TwoFactor/Verify.php and Security/TwoFactor/Trust.php ends with
+		// Trust::post()/content() redirecting to `session->pop('return_path', '')` -- so
+		// $return_path must already be in the session before that redirect fires, or it's
+		// lost and the user lands on the site root instead of back at e.g. oauth/authorize.
+		$this->session->set('return_path', $return_path);
+
 		$this->setForUser($record, true, true);
 
 		$this->baseUrl->redirect($return_path);
