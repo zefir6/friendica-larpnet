@@ -667,36 +667,34 @@ nav.navbar .nav > li > button:focus {
 	z-index: 2;
 }
 /*
- * The nav-icons column and the search/account column used to rely on the
- * nav column collapsing to zero height (float without a clearfix) so the
- * right-floated actions column could ride up beside it. That only works
- * because an earlier left float can't know a later right float exists, so
- * once the nav column got wide enough to need a second float row, it
- * claimed the full row width and pushed the actions column below it
- * entirely. Flex keeps both columns on one row regardless of how tall the
- * nav column's own (still float-based) content gets.
+ * .topbar-nav and .topbar-actions are floated siblings inside .col-lg-12
+ * (not children of .container - it only wraps .col-lg-12). They used to
+ * rely on .topbar-nav collapsing to zero height (float without a
+ * clearfix) so the right-floated actions column could ride up beside it.
+ * That only works while the nav row's right edge doesn't overlap the
+ * actions column's reserved width - an earlier left float can't know a
+ * later right float exists, so once the nav row (with labels) got wide
+ * enough to overlap that space, the actions column was pushed down to
+ * the next clear line. Flex keeps both columns on one row regardless of
+ * how wide the nav column's own (still float-based) content gets.
  */
-#topbar-first .container {
+#topbar-first .col-lg-12 {
 	display: flex;
 	align-items: flex-start;
-}
-#topbar-first .container > .col-lg-12 {
-	flex: 1 1 auto;
-	min-width: 0;
-	float: none;
-	width: auto;
-}
-#topbar-first .topbar-actions {
-	position: relative;
-	z-index: 3;
-	flex: 0 0 auto;
-	float: none;
 }
 #topbar-first .topbar-nav {
 	left: 0;
 	right: 0;
 	text-align: center;
 	z-index: 1;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+#topbar-first .topbar-actions {
+	position: relative;
+	z-index: 3;
+	flex: 0 0 auto;
+	float: none;
 }
 /* Workaround for Safari bug where the notification icon jumps on the next line */
 #topbar-first .topbar-nav .nav > li + li {
