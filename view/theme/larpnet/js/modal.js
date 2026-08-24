@@ -239,7 +239,14 @@ function editpost(url) {
 		return;
 	}
 
-	var modal = $("#jot-modal").modal();
+	var $jotModal = $("#jot-modal");
+	// Bootstrap modals must be direct children of <body> so their z-index
+	// is compared in the root stacking context (above the backdrop at 1040).
+	// Same fix as jotShow() in jot-header.tpl.
+	if (!$jotModal.parent().is("body")) {
+		$jotModal.appendTo("body");
+	}
+	var modal = $jotModal.modal();
 	url = url + " #jot-sections";
 
 	$(".jot-nav .jot-perms-lnk").parent("li").addClass("hidden");
