@@ -111,6 +111,15 @@
 							</li>
 						{{/if}}
 
+						{{if $nav.directory}}
+							<li class="nav-segment hidden-xs">
+								<a accesskey="d" id="nav-directory-link" href="{{$nav.directory.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
+									aria-label="{{$nav.directory.1}}" title="{{$nav.directory.1}}"
+									class="nav-menu {{$sel.directory}} {{$nav.directory.2}}"><i
+										class="fa fa-sitemap fa-lg fa-fw"></i></a>
+							</li>
+						{{/if}}
+
 						{{* The notifications dropdown *}}
 						{{if $nav.notifications}}
 							<li id="nav-notification" class="nav-segment dropdown">
