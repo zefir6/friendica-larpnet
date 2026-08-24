@@ -43,3 +43,4 @@ COPY src/Module/Api/Twitter/DirectMessagesEndpoint.php       /usr/src/friendica/
 COPY src/Module/Api/Mastodon/LarpnetPushConfig.php           /usr/src/friendica/src/Module/Api/Mastodon/LarpnetPushConfig.php
 COPY static/routes.config.php                                /usr/src/friendica/static/routes.config.php
 COPY view/lang/pl/strings.php                                /usr/src/friendica/view/lang/pl/strings.php
+COPY src/Security/Authentication.php                         /usr/src/friendica/src/Security/Authentication.php

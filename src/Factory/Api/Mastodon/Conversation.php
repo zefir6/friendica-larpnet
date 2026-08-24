@@ -33,9 +33,11 @@ class Conversation extends BaseFactory
 
 	/**
 	 * @param int $id  Conversation id
-	 * @param int $uid Current user id, used to exclude the caller's own contact from the
-	 *                 returned participant list (Mastodon's spec has `accounts` list the
-	 *                 *other* participants, not the caller themselves).
+	 * @param int $uid Current user id. `mail.contact-id` is the caller's own per-user contact
+	 *                 record for *the other party in the thread* (see the `mail` table's DDL
+	 *                 comment) -- resolving that per row, rather than deriving participants from
+	 *                 each message's sender (`from-url`/`author-id`), is what makes this work
+	 *                 for a one-way (never-replied-to) thread too, see bug note below.
 	 *
 	 * @return \Friendica\Object\Api\Mastodon\Conversation
 	 * @throws ImagickException|HTTPException\InternalServerErrorException|HTTPException\NotFoundException
@@ -46,32 +48,29 @@ class Conversation extends BaseFactory
 		$unread      = false;
 		$last_status = null;
 
-		$ids    = [];
-		$selfId = $uid ? Contact::getPublicIdByUserId($uid) : 0;
+		$participantIds = [];
 
-		$mails = $this->dba->select('mail', ['id', 'from-url', 'uid', 'seen'], ['convid' => $id], ['order' => ['id' => true]]);
+		$mails = $this->dba->select('mail', ['id', 'contact-id', 'seen'], ['convid' => $id], ['order' => ['id' => true]]);
 		while ($mail = $this->dba->fetch($mails)) {
 			if (!$mail['seen']) {
 				$unread = true;
 			}
 
-			// Bug fix: this used to reassign the method's own $id parameter here, so the
-			// Conversation object returned below carried the last distinct sender's contact
-			// id instead of the actual conversation id -- breaking mark-read/delete (wrong
-			// convid) and list rendering (duplicate/colliding React keys across conversations).
-			$contactId = Contact::getIdForURL($mail['from-url'], 0, false);
-			if (in_array($contactId, $ids)) {
-				continue;
-			}
-
-			$ids[] = $contactId;
-
 			if (empty($last_status)) {
 				$last_status = $this->mstdnStatusFactory->createFromMailId($mail['id']);
 			}
 
-			if ($contactId != $selfId) {
-				$accounts[] = $this->mstdnAccountFactory->createFromContactId($contactId, 0);
+			// Bug fix: this used to derive the participant from each message's *sender*
+			// (from-url/author-id) and exclude it when it matched the caller. That worked for
+			// a replied-to thread, but for a one-way thread -- every message sent by the
+			// caller, nothing yet from the other party -- the only "sender" ever seen was the
+			// caller themselves, so they got excluded and `accounts` came back empty instead
+			// of showing the actual recipient. `contact-id` is invariant across the thread and
+			// always the other party by definition, regardless of who sent which message.
+			$contactId = $uid ? Contact::getPublicContactId((int)$mail['contact-id'], $uid) : 0;
+			if ($contactId && !in_array($contactId, $participantIds)) {
+				$participantIds[] = $contactId;
+				$accounts[]       = $this->mstdnAccountFactory->createFromContactId($contactId, 0);
 			}
 		}
 
