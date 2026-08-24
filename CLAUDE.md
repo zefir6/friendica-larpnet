@@ -107,11 +107,21 @@ All files below are larpnet additions or patches. When rebasing onto a new Frien
 
 ## Building and deploying
 
+Merging to `larpnet` alone does **not** publish anything — publishing to prod requires a deliberate release. After merging:
+
 ```bash
-cp .env.example .env       # fill in REGISTRY_URL, REGISTRY_USER, REGISTRY_PASSWORD
-./build.sh                 # builds Docker image and pushes to cr.mj12.cloud
+git checkout larpnet && git pull
+git tag release-$(date +%Y.%m.%d)      # add -2, -3 suffix if releasing more than once a day
+git push origin release-$(date +%Y.%m.%d)
 ```
 
-The image is tagged `{FRIENDICA_VERSION}-{GIT_SHA}` (e.g. `2026.05-2393b52`). CI (`.github/workflows/build.yml`) builds and pushes automatically on push to `larpnet`.
+Pushing a `release-*` tag triggers CI (`.github/workflows/build.yml`), which retags the current `:prod` as `:oldprod` (a one-step rollback target), then builds and publishes the new image as `:latest`, `:prod`, and the immutable `:prod-{GIT_SHA}` (a permanent audit trail of every image ever put in prod).
+
+For a manual/local build:
+```bash
+cp .env.example .env       # fill in REGISTRY_URL, REGISTRY_USER, REGISTRY_PASSWORD
+./build.sh                 # builds and pushes only the versioned tag {FRIENDICA_VERSION}-{GIT_SHA}, e.g. 2026.05-2393b52
+./build.sh --release       # also promotes to prod (:latest/:prod/:prod-<sha>, rotating :oldprod) - must be run from larpnet; break-glass equivalent of the release-* tag flow for when CI is unavailable
+```
 
 If the registry is behind Cloudflare and upload fails, open an SSH tunnel and set `REGISTRY_PUSH_URL=localhost:5000` in `.env`.

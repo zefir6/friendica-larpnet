@@ -2,7 +2,8 @@ name: Build larpnet image
 
 on:
   push:
-    branches: [larpnet, larpnet-test]
+    branches: [larpnet-test]
+    tags: ['release-*']
   workflow_dispatch:
 
 env:
@@ -26,29 +27,63 @@ jobs:
         id: version
         run: |
           FRIENDICA=$(grep '^FROM friendica:' Dockerfile | sed 's/FROM friendica:\(.*\)-fpm/\1/')
-          LARPNET=$(git rev-parse --short HEAD)
-          echo "tag=${FRIENDICA}-${LARPNET}" >> "$GITHUB_OUTPUT"
+          SHA=$(git rev-parse --short HEAD)
+          echo "friendica=${FRIENDICA}" >> "$GITHUB_OUTPUT"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "tag=${FRIENDICA}-${SHA}" >> "$GITHUB_OUTPUT"
 
-      # larpnet-test builds only ever publish the mutable :test tag that the
-      # test-environment's watchtower polls — they must never touch :latest
-      # or the versioned tag, which are production's.
+      # A release-* tag push is the only thing that promotes to prod. Plain
+      # pushes to larpnet no longer build/publish anything - CI tests and
+      # Code Quality still validate the merge, but the image itself only
+      # moves on a deliberate release.
+      - name: Determine build kind
+        id: kind
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" && "${{ github.ref_name }}" == release-* ]]; then
+            echo "kind=release" >> "$GITHUB_OUTPUT"
+          else
+            echo "kind=test" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # A release tag must point at a commit that's actually reachable from
+      # larpnet - otherwise the prod-<sha> audit trail (and :prod itself)
+      # could end up built from a commit that was never meant to ship.
+      - name: Verify release tag is on larpnet
+        if: steps.kind.outputs.kind == 'release'
+        run: |
+          git fetch origin larpnet
+          git merge-base --is-ancestor "${{ github.sha }}" origin/larpnet
+
+      - name: Preserve previous prod image as :oldprod
+        if: steps.kind.outputs.kind == 'release'
+        run: |
+          if docker buildx imagetools inspect "${{ env.IMAGE }}:prod" >/dev/null 2>&1; then
+            docker buildx imagetools create --tag "${{ env.IMAGE }}:oldprod" "${{ env.IMAGE }}:prod"
+          else
+            echo "No existing :prod tag yet - first release, nothing to preserve."
+          fi
+
+      # larpnet-test builds (and manual dispatches) only ever publish the
+      # mutable :test tag that the test-environment's watchtower polls -
+      # they must never touch :latest/:prod, which only a release produces.
       - name: Determine image tags
         id: tags
         run: |
-          if [[ "${{ github.ref_name }}" == "larpnet-test" ]]; then
-            TAGS="${{ env.IMAGE }}:test"
-          else
+          if [[ "${{ steps.kind.outputs.kind }}" == "release" ]]; then
             TAGS="${{ env.IMAGE }}:latest
-          ${{ env.IMAGE }}:${{ steps.version.outputs.tag }}"
+          ${{ env.IMAGE }}:prod
+          ${{ env.IMAGE }}:prod-${{ steps.version.outputs.sha }}"
+          else
+            TAGS="${{ env.IMAGE }}:test"
           fi
           {
             echo "tags<<EOF"
             echo "$TAGS"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
 
       - name: Build and push
         uses: docker/build-push-action@v5
