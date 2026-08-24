@@ -123,7 +123,7 @@ $(document).ready(function () {
 		placement: "auto",
 		trigger: "hover",
 		delay: {
-			show: 500,
+			show: 0,
 			hide: 100,
 		},
 		sanitizeFn: function (content) {
