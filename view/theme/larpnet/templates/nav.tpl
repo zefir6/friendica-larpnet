@@ -84,13 +84,12 @@
 							</li>
 						{{/if}}
 
-						{{if $nav.messages}}
+						{{if $nav.directory}}
 							<li class="nav-segment hidden-xs">
-								<a accesskey="m" id="nav-messages-link" href="{{$nav.messages.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
-									aria-label="{{$nav.messages.1}}" title="{{$nav.messages.1}}"
-									class="nav-menu {{$sel.messages}}"><span class="nav-icon"><i class="fa fa-envelope fa-lg fa-fw"
-										aria-hidden="true"></i><span id="mail-update"
-										class="nav-mail-badge badge nav-notification"></span></span></a>
+								<a accesskey="d" id="nav-directory-link" href="{{$nav.directory.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
+									aria-label="{{$nav.directory.1}}" title="{{$nav.directory.1}}"
+									class="nav-menu {{$sel.directory}} {{$nav.directory.2}}"><span class="nav-icon"><i
+										class="fa fa-sitemap fa-lg fa-fw"></i></span><span class="nav-menu-label hidden-xs hidden-sm">Katalog</span></a>
 							</li>
 						{{/if}}
 
@@ -98,7 +97,17 @@
 							<li class="nav-segment hidden-xs">
 								<a accesskey="e" id="nav-calendar-link" href="{{$nav.calendar.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
 									aria-label="{{$nav.calendar.1}}" title="{{$nav.calendar.1}}" class="nav-menu"><span class="nav-icon"><i
-										class="fa fa-lg fa-calendar fa-fw"></i></span><span class="nav-menu-label hidden-xs hidden-sm">{{$nav.calendar.1}}</span></a>
+										class="fa fa-lg fa-calendar fa-fw"></i></span></a>
+							</li>
+						{{/if}}
+
+						{{if $nav.messages}}
+							<li class="nav-segment hidden-xs">
+								<a accesskey="m" id="nav-messages-link" href="{{$nav.messages.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
+									aria-label="{{$nav.messages.1}}" title="{{$nav.messages.1}}"
+									class="nav-menu {{$sel.messages}}"><span class="nav-icon"><i class="fa fa-envelope fa-lg fa-fw"
+										aria-hidden="true"></i><span id="mail-update"
+										class="nav-mail-badge badge nav-notification"></span></span></a>
 							</li>
 						{{/if}}
 
@@ -111,15 +120,6 @@
 							</li>
 						{{/if}}
 
-						{{if $nav.directory}}
-							<li class="nav-segment hidden-xs">
-								<a accesskey="d" id="nav-directory-link" href="{{$nav.directory.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
-									aria-label="{{$nav.directory.1}}" title="{{$nav.directory.1}}"
-									class="nav-menu {{$sel.directory}} {{$nav.directory.2}}"><span class="nav-icon"><i
-										class="fa fa-sitemap fa-lg fa-fw"></i></span><span class="nav-menu-label hidden-xs hidden-sm">Katalog</span></a>
-							</li>
-						{{/if}}
-
 						{{* The notifications dropdown *}}
 						{{if $nav.notifications}}
 							<li id="nav-notification" class="nav-segment dropdown">
@@ -127,8 +127,7 @@
 									type="button" aria-haspopup="true" aria-expanded="false"
 									aria-controls="nav-notifications-menu">
 									<span class="nav-icon"><span id="notification-update" class="nav-notification-badge badge nav-notification"></span>
-									<i class="fa fa-bell fa-lg" aria-label="{{$nav.notifications.1}}"></i></span><span class="nav-menu-label hidden-xs hidden-sm">{{$nav.notifications.1}}</span>
-								</button>
+									<i class="fa fa-bell fa-lg" aria-label="{{$nav.notifications.1}}"></i></span></button>
 								{{* The notifications dropdown menu. There are two parts of menu. The second is at the bottom of this file. It is loaded via js. Look at nav-notifications-template *}}
 								<ul id="nav-notifications-menu" class="dropdown-menu menu-popup" role="menu"
 									aria-labelledby="nav-notifications-menu-btn">
