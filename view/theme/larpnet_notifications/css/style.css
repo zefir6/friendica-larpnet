@@ -666,9 +666,31 @@ nav.navbar .nav > li > button:focus {
 	position: relative;
 	z-index: 2;
 }
+/*
+ * The nav-icons column and the search/account column used to rely on the
+ * nav column collapsing to zero height (float without a clearfix) so the
+ * right-floated actions column could ride up beside it. That only works
+ * because an earlier left float can't know a later right float exists, so
+ * once the nav column got wide enough to need a second float row, it
+ * claimed the full row width and pushed the actions column below it
+ * entirely. Flex keeps both columns on one row regardless of how tall the
+ * nav column's own (still float-based) content gets.
+ */
+#topbar-first .container {
+	display: flex;
+	align-items: flex-start;
+}
+#topbar-first .container > .col-lg-12 {
+	flex: 1 1 auto;
+	min-width: 0;
+	float: none;
+	width: auto;
+}
 #topbar-first .topbar-actions {
 	position: relative;
 	z-index: 3;
+	flex: 0 0 auto;
+	float: none;
 }
 #topbar-first .topbar-nav {
 	left: 0;
@@ -696,6 +718,9 @@ nav.navbar .nav > li > button:focus {
 #topbar-first .topbar-nav .nav-icon {
 	position: relative;
 	display: inline-block;
+}
+#topbar-first .topbar-nav .nav-menu-label {
+	margin-left: 6px;
 }
 #topbar-first .topbar-nav .nav-segment .nav-notification {
 	position: absolute;
@@ -928,7 +953,7 @@ nav.navbar .nav > li > button:focus {
 }
 
 #nav-search-input-field {
-	width: 296px;
+	width: 200px;
 }
 
 #nav-search-input-field::placeholder {

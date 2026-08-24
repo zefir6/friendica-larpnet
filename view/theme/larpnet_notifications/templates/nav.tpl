@@ -55,7 +55,7 @@
 								<a accesskey="n" class="nav-menu {{$sel.network}}" href="{{$nav.network.0}}"
 									data-toggle="tooltip" data-viewport="#topbar-first" aria-label="{{$nav.network.3}}" title="{{$nav.network.3}}"><span class="nav-icon"><i
 										class="fa fa-lg fa-th fa-fw" aria-hidden="true"></i><span id="net-update"
-										class="nav-network-badge badge nav-notification"></span></span></a>
+										class="nav-network-badge badge nav-notification"></span></span><span class="nav-menu-label hidden-xs hidden-sm hidden-md">Wpisy Kontaktów</span></a>
 							</li>
 						{{/if}}
 
@@ -72,7 +72,7 @@
 								<a accesskey="p" class="nav-menu {{$sel.home}}" href="{{$nav.home.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
 									aria-label="{{$nav.home.3}}" title="{{$nav.home.3}}"><span class="nav-icon"><i class="fa fa-lg fa-home fa-fw"
 										aria-hidden="true"></i><span id="home-update"
-										class="nav-home-badge badge nav-notification"></span></span></a>
+										class="nav-home-badge badge nav-notification"></span></span><span class="nav-menu-label hidden-xs hidden-sm hidden-md">Twoje wpisy</span></a>
 							</li>
 						{{/if}}
 
@@ -80,7 +80,7 @@
 							<li class="nav-segment">
 								<a accesskey="c" class="nav-menu {{$sel.community}}" href="{{$nav.community.0}}"
 									data-toggle="tooltip" data-viewport="#topbar-first" aria-label="{{$nav.community.3}}" title="{{$nav.community.3}}"><span class="nav-icon"><i
-										class="fa fa-lg fa-bullseye fa-fw" aria-hidden="true"></i></span></a>
+										class="fa fa-lg fa-bullseye fa-fw" aria-hidden="true"></i></span><span class="nav-menu-label hidden-xs hidden-sm hidden-md">Larpnet</span></a>
 							</li>
 						{{/if}}
 
@@ -89,7 +89,7 @@
 								<a accesskey="d" id="nav-directory-link" href="{{$nav.directory.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
 									aria-label="{{$nav.directory.1}}" title="{{$nav.directory.1}}"
 									class="nav-menu {{$sel.directory}} {{$nav.directory.2}}"><span class="nav-icon"><i
-										class="fa fa-sitemap fa-lg fa-fw"></i></span></a>
+										class="fa fa-sitemap fa-lg fa-fw"></i></span><span class="nav-menu-label hidden-xs hidden-sm hidden-md">Katalog</span></a>
 							</li>
 						{{/if}}
 
