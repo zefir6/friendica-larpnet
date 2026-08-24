@@ -44,6 +44,12 @@ function larpnet_init(AppHelper $appHelper)
 
 	Renderer::setActiveTemplateEngine('smarty3');
 
+	// Registered here (not just in larpnet_install()) so it self-heals on
+	// every request instead of requiring the theme to be re-installed via
+	// the admin UI after a deploy - Hook::register() is a no-op if the
+	// hook row already exists.
+	Hook::register('nav_info', 'view/theme/larpnet/theme.php', 'larpnet_nav_labels');
+
 	// if the device is a mobile device set js is_mobile
 	// variable so the js scripts can use this information
 	if (DI::mode()->isMobile() || DI::mode()->isMobile()) {
@@ -61,9 +67,32 @@ function larpnet_install()
 	Hook::register('item_photo_menu', 'view/theme/larpnet/theme.php', 'larpnet_item_photo_menu');
 	Hook::register('contact_photo_menu', 'view/theme/larpnet/theme.php', 'larpnet_contact_photo_menu');
 	Hook::register('nav_info', 'view/theme/larpnet/theme.php', 'larpnet_remote_nav');
+	Hook::register('nav_info', 'view/theme/larpnet/theme.php', 'larpnet_nav_labels');
 	Hook::register('display_item', 'view/theme/larpnet/theme.php', 'larpnet_display_item');
 
 	DI::logger()->info('installed theme larpnet');
+}
+
+/**
+ * Custom short labels for the top nav bar, translated via core l10n
+ * (view/lang/<code>/strings.php). Runs for every request, for every user
+ * state - only fills in a new array slot (index 4) on top of whatever
+ * Nav::getInfo() already set, so it never disturbs the existing url/label/
+ * tooltip fields other code relies on.
+ *
+ * @param array $nav_info The nav info array: nav, banner, userinfo, sitelocation
+ */
+function larpnet_nav_labels(array &$nav_info)
+{
+	if (!empty($nav_info['nav']['network'])) {
+		$nav_info['nav']['network'][4] = DI::l10n()->t("Contacts' posts");
+	}
+	if (!empty($nav_info['nav']['home'])) {
+		$nav_info['nav']['home'][4] = DI::l10n()->t('Your posts');
+	}
+	if (!empty($nav_info['nav']['community'])) {
+		$nav_info['nav']['community'][4] = DI::l10n()->t('Larpnet');
+	}
 }
 
 /**

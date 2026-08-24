@@ -3028,3 +3028,7 @@ $a->strings['Connect Services'] = 'Integracje z serwisami';
 $a->strings['Find Friends'] = 'Znajdź znajomych';
 $a->strings['Last users'] = 'Ostatni użytkownicy';
 $a->strings['Quick Start'] = 'Szybki start';
+
+// larpnet: custom short top-nav labels (view/theme/larpnet{,_notifications}/theme.php)
+$a->strings["Contacts' posts"] = 'Wpisy Kontaktów';
+$a->strings['Your posts'] = 'Twoje wpisy';

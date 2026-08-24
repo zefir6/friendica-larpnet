@@ -103,6 +103,7 @@ All files below are larpnet additions or patches. When rebasing onto a new Frien
 | `src/Module/Manifest.php` | Patched to serve larpnet-branded PWA icons for larpnet/larpnet_notifications themes |
 | `src/App/Page.php` | Patched to use larpnet icon as apple-touch-icon default for larpnet themes |
 | `src/Module/FriendSuggest.php` | Upstream bugfix: use the resolved user-contact id instead of the public contact id, fixing a "Contact not found" error when suggesting friends |
+| `view/lang/pl/strings.php` | Adds Polish translations for larpnet's custom top-nav labels ("Contacts' posts", "Your posts") set via the `nav_info` hook in `view/theme/larpnet{,_notifications}/theme.php` — English falls back to the literal `t()` argument, no `view/lang/en/` entry needed |
 
 ## Building and deploying
 
