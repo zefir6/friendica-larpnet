@@ -32,6 +32,7 @@ if [ -f /var/www/html/index.php ]; then
     src/Module/Api/Twitter/DirectMessagesEndpoint.php \
     src/Module/Api/Mastodon/LarpnetPushConfig.php \
     static/routes.config.php \
+    view/lang/pl/strings.php \
     src/Security/Authentication.php
   do
     cp "/usr/src/friendica/$f" "/var/www/html/$f"
