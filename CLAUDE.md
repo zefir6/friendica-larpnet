@@ -103,6 +103,7 @@ All files below are larpnet additions or patches. When rebasing onto a new Frien
 | `src/Module/Manifest.php` | Patched to serve larpnet-branded PWA icons for larpnet/larpnet_notifications themes |
 | `src/App/Page.php` | Patched to use larpnet icon as apple-touch-icon default for larpnet themes |
 | `src/Module/FriendSuggest.php` | Upstream bugfix: use the resolved user-contact id instead of the public contact id, fixing a "Contact not found" error when suggesting friends |
+| `src/Security/Authentication.php` | Upstream bugfix: persist `$return_path` to the session before `setForUser()` may redirect to `/2fa`, so OAuth authorization (and any other `return_path`-carrying login) survives the two-factor detour instead of landing on the site root |
 
 ## Building and deploying
 
