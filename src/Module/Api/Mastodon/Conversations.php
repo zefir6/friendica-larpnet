@@ -48,32 +48,41 @@ class Conversations extends BaseApi
 			'min_id'   => 0,  // Return results immediately newer than this ID. Use HTTP Link header to paginate.
 		], $request);
 
-		$params = ['order' => ['id' => true], 'limit' => $request['limit']];
+		$params = ['order' => ['convid' => true], 'limit' => $request['limit'], 'group_by' => ['convid']];
 
-		$condition = ['uid' => $uid];
+		// Bug fix: this used to query the `conv` table scoped by uid. A `conv` row is only ever
+		// created under the message *sender's* own uid (see Mail::send()) -- a recipient's own
+		// `mail` row correctly carries the shared convid, but never gets a matching uid-scoped
+		// `conv` row of their own. So the old query returned nothing for any conversation the
+		// caller didn't start themselves -- confirmed live: an account that had only *received*
+		// a DM saw an empty list here, while the Twitter-compat direct_messages endpoints (which
+		// read `mail` directly) correctly showed it. Enumerating distinct convids straight from
+		// the caller's own `mail` rows is the one place that's always correctly uid-scoped for
+		// both senders and recipients.
+		$condition = DBA::mergeConditions(['uid' => $uid], ["`convid` != ?", 0]);
 
 		if (!empty($request['max_id'])) {
-			$condition = DBA::mergeConditions($condition, ["`id` < ?", $request['max_id']]);
+			$condition = DBA::mergeConditions($condition, ["`convid` < ?", $request['max_id']]);
 		}
 
 		if (!empty($request['since_id'])) {
-			$condition = DBA::mergeConditions($condition, ["`id` > ?", $request['since_id']]);
+			$condition = DBA::mergeConditions($condition, ["`convid` > ?", $request['since_id']]);
 		}
 
 		if (!empty($request['min_id'])) {
-			$condition = DBA::mergeConditions($condition, ["`id` > ?", $request['min_id']]);
+			$condition = DBA::mergeConditions($condition, ["`convid` > ?", $request['min_id']]);
 
-			$params['order'] = ['id'];
+			$params['order'] = ['convid'];
 		}
 
-		$convs = DBA::select('conv', ['id'], $condition, $params);
+		$convs = DBA::select('mail', ['convid'], $condition, $params);
 
 		$conversations = [];
 
 		try {
 			while ($conv = DBA::fetch($convs)) {
-				self::setBoundaries($conv['id']);
-				$conversations[] = DI::mstdnConversation()->createFromConvId($conv['id'], $uid);
+				self::setBoundaries($conv['convid']);
+				$conversations[] = DI::mstdnConversation()->createFromConvId($conv['convid'], $uid);
 			}
 		} catch (NotFoundException $e) {
 			$this->logAndJsonError(404, $this->errorFactory->RecordNotFound());
