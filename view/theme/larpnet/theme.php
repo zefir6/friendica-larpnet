@@ -85,13 +85,16 @@ function larpnet_install()
 function larpnet_nav_labels(array &$nav_info)
 {
 	if (!empty($nav_info['nav']['network'])) {
-		$nav_info['nav']['network'][4] = DI::l10n()->t("Contacts' posts");
+		$nav_info['nav']['network'][4] = DI::l10n()->t('Contacts posts');
 	}
 	if (!empty($nav_info['nav']['home'])) {
 		$nav_info['nav']['home'][4] = DI::l10n()->t('Your posts');
 	}
 	if (!empty($nav_info['nav']['community'])) {
 		$nav_info['nav']['community'][4] = DI::l10n()->t('Larpnet');
+	}
+	if (!empty($nav_info['nav']['directory'])) {
+		$nav_info['nav']['directory'][4] = DI::l10n()->t('People');
 	}
 }
 
