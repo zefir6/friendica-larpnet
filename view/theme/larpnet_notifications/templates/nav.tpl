@@ -89,7 +89,7 @@
 								<a accesskey="d" id="nav-directory-link" href="{{$nav.directory.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
 									aria-label="{{$nav.directory.1}}" title="{{$nav.directory.1}}"
 									class="nav-menu {{$sel.directory}} {{$nav.directory.2}}"><span class="nav-icon"><i
-										class="fa fa-sitemap fa-lg fa-fw"></i></span><span class="nav-menu-label hidden-xs hidden-sm hidden-md">{{$nav.directory.1}}</span></a>
+										class="fa fa-sitemap fa-lg fa-fw"></i></span><span class="nav-menu-label hidden-xs hidden-sm hidden-md">{{$nav.directory.4}}</span></a>
 							</li>
 						{{/if}}
 
