@@ -53,34 +53,34 @@
 						{{if $nav.network}}
 							<li class="nav-segment">
 								<a accesskey="n" class="nav-menu {{$sel.network}}" href="{{$nav.network.0}}"
-									data-toggle="tooltip" data-viewport="#topbar-first" aria-label="{{$nav.network.3}}" title="{{$nav.network.3}}"><i
+									data-toggle="tooltip" data-viewport="#topbar-first" aria-label="{{$nav.network.3}}" title="{{$nav.network.3}}"><span class="nav-icon"><i
 										class="fa fa-lg fa-th fa-fw" aria-hidden="true"></i><span id="net-update"
-										class="nav-network-badge badge nav-notification"></span></a>
+										class="nav-network-badge badge nav-notification"></span></span><span class="nav-menu-label hidden-xs hidden-sm">{{$nav.network.3}}</span></a>
 							</li>
 						{{/if}}
 
 						{{if $nav.channel}}
 							<li class="nav-segment">
 								<a accesskey="l" class="nav-menu {{$sel.channel}}" href="{{$nav.channel.0}}"
-									data-toggle="tooltip" data-viewport="#topbar-first" aria-label="{{$nav.channel.3}}" title="{{$nav.channel.3}}"><i
-										class="fa fa-lg fa-newspaper-o fa-fw" aria-hidden="true"></i></a>
+									data-toggle="tooltip" data-viewport="#topbar-first" aria-label="{{$nav.channel.3}}" title="{{$nav.channel.3}}"><span class="nav-icon"><i
+										class="fa fa-lg fa-newspaper-o fa-fw" aria-hidden="true"></i></span><span class="nav-menu-label hidden-xs hidden-sm">{{$nav.channel.3}}</span></a>
 							</li>
 						{{/if}}
 
 						{{if $nav.home}}
 							<li class="nav-segment">
 								<a accesskey="p" class="nav-menu {{$sel.home}}" href="{{$nav.home.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
-									aria-label="{{$nav.home.3}}" title="{{$nav.home.3}}"><i class="fa fa-lg fa-home fa-fw"
+									aria-label="{{$nav.home.3}}" title="{{$nav.home.3}}"><span class="nav-icon"><i class="fa fa-lg fa-home fa-fw"
 										aria-hidden="true"></i><span id="home-update"
-										class="nav-home-badge badge nav-notification"></span></a>
+										class="nav-home-badge badge nav-notification"></span></span><span class="nav-menu-label hidden-xs hidden-sm">{{$nav.home.3}}</span></a>
 							</li>
 						{{/if}}
 
 						{{if $nav.community}}
 							<li class="nav-segment">
 								<a accesskey="c" class="nav-menu {{$sel.community}}" href="{{$nav.community.0}}"
-									data-toggle="tooltip" data-viewport="#topbar-first" aria-label="{{$nav.community.3}}" title="{{$nav.community.3}}"><i
-										class="fa fa-lg fa-bullseye fa-fw" aria-hidden="true"></i></a>
+									data-toggle="tooltip" data-viewport="#topbar-first" aria-label="{{$nav.community.3}}" title="{{$nav.community.3}}"><span class="nav-icon"><i
+										class="fa fa-lg fa-bullseye fa-fw" aria-hidden="true"></i></span><span class="nav-menu-label hidden-xs hidden-sm">{{$nav.community.3}}</span></a>
 							</li>
 						{{/if}}
 
@@ -88,17 +88,17 @@
 							<li class="nav-segment hidden-xs">
 								<a accesskey="m" id="nav-messages-link" href="{{$nav.messages.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
 									aria-label="{{$nav.messages.1}}" title="{{$nav.messages.1}}"
-									class="nav-menu {{$sel.messages}}"><i class="fa fa-envelope fa-lg fa-fw"
+									class="nav-menu {{$sel.messages}}"><span class="nav-icon"><i class="fa fa-envelope fa-lg fa-fw"
 										aria-hidden="true"></i><span id="mail-update"
-										class="nav-mail-badge badge nav-notification"></span></a>
+										class="nav-mail-badge badge nav-notification"></span></span><span class="nav-menu-label hidden-xs hidden-sm">{{$nav.messages.1}}</span></a>
 							</li>
 						{{/if}}
 
 						{{if $nav.calendar}}
 							<li class="nav-segment hidden-xs">
 								<a accesskey="e" id="nav-calendar-link" href="{{$nav.calendar.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
-									aria-label="{{$nav.calendar.1}}" title="{{$nav.calendar.1}}" class="nav-menu"><i
-										class="fa fa-lg fa-calendar fa-fw"></i></a>
+									aria-label="{{$nav.calendar.1}}" title="{{$nav.calendar.1}}" class="nav-menu"><span class="nav-icon"><i
+										class="fa fa-lg fa-calendar fa-fw"></i></span><span class="nav-menu-label hidden-xs hidden-sm">{{$nav.calendar.1}}</span></a>
 							</li>
 						{{/if}}
 
@@ -106,8 +106,8 @@
 							<li class="nav-segment hidden-xs">
 								<a accesskey="k" id="nav-contacts-link" href="{{$nav.contacts.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
 									aria-label="{{$nav.contacts.1}}" title="{{$nav.contacts.1}}"
-									class="nav-menu {{$sel.contacts}} {{$nav.contacts.2}}"><i
-										class="fa fa-users fa-lg fa-fw"></i></a>
+									class="nav-menu {{$sel.contacts}} {{$nav.contacts.2}}"><span class="nav-icon"><i
+										class="fa fa-users fa-lg fa-fw"></i></span><span class="nav-menu-label hidden-xs hidden-sm">{{$nav.contacts.1}}</span></a>
 							</li>
 						{{/if}}
 
@@ -115,8 +115,8 @@
 							<li class="nav-segment hidden-xs">
 								<a accesskey="d" id="nav-directory-link" href="{{$nav.directory.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
 									aria-label="{{$nav.directory.1}}" title="{{$nav.directory.1}}"
-									class="nav-menu {{$sel.directory}} {{$nav.directory.2}}"><i
-										class="fa fa-sitemap fa-lg fa-fw"></i></a>
+									class="nav-menu {{$sel.directory}} {{$nav.directory.2}}"><span class="nav-icon"><i
+										class="fa fa-sitemap fa-lg fa-fw"></i></span><span class="nav-menu-label hidden-xs hidden-sm">{{$nav.directory.1}}</span></a>
 							</li>
 						{{/if}}
 
@@ -126,8 +126,8 @@
 								<button id="nav-notifications-menu-btn" class="btn-link dropdown-toggle" data-toggle="dropdown"
 									type="button" aria-haspopup="true" aria-expanded="false"
 									aria-controls="nav-notifications-menu">
-									<span id="notification-update" class="nav-notification-badge badge nav-notification"></span>
-									<i class="fa fa-bell fa-lg" aria-label="{{$nav.notifications.1}}"></i>
+									<span class="nav-icon"><span id="notification-update" class="nav-notification-badge badge nav-notification"></span>
+									<i class="fa fa-bell fa-lg" aria-label="{{$nav.notifications.1}}"></i></span><span class="nav-menu-label hidden-xs hidden-sm">{{$nav.notifications.1}}</span>
 								</button>
 								{{* The notifications dropdown menu. There are two parts of menu. The second is at the bottom of this file. It is loaded via js. Look at nav-notifications-template *}}
 								<ul id="nav-notifications-menu" class="dropdown-menu menu-popup" role="menu"
