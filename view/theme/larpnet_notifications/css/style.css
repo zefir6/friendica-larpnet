@@ -693,6 +693,13 @@ nav.navbar .nav > li > button:focus {
 	text-decoration: none;
 	text-align: left;
 }
+#topbar-first .topbar-nav .nav-icon {
+	position: relative;
+	display: inline-block;
+}
+#topbar-first .topbar-nav .nav-menu-label {
+	margin-left: 6px;
+}
 #topbar-first .topbar-nav .nav-segment .nav-notification {
 	position: absolute;
 	top: 4px;
