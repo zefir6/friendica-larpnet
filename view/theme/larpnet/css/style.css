@@ -697,30 +697,30 @@ nav.navbar .nav > li > button:focus {
 	float: none;
 }
 /* Workaround for Safari bug where the notification icon jumps on the next line */
-#topbar-first .topbar-nav .nav > li + li {
+#topbar-first .nav > li + li {
 	margin-left: 1px;
 }
-#topbar-first .topbar-nav .nav > li + li > a {
+#topbar-first .nav > li + li > a {
 	margin-left: -1px;
 }
 /* End workaround */
-#topbar-first .topbar-nav .nav-segment {
+#topbar-first .nav-segment {
 	position: relative;
 	text-align: left;
 }
-#topbar-first .topbar-nav .nav-segment > a {
+#topbar-first .nav-segment > a {
 	display: inline-block;
 	text-decoration: none;
 	text-align: left;
 }
-#topbar-first .topbar-nav .nav-icon {
+#topbar-first .nav-icon {
 	position: relative;
 	display: inline-block;
 }
-#topbar-first .topbar-nav .nav-menu-label {
+#topbar-first .nav-menu-label {
 	margin-left: 6px;
 }
-#topbar-first .topbar-nav .nav-segment .nav-notification {
+#topbar-first .nav-segment .nav-notification {
 	position: absolute;
 	top: 4px;
 	right: -2px;
@@ -729,7 +729,14 @@ nav.navbar .nav > li > button:focus {
 #topbar-first #intro-update {
 	cursor: pointer;
 }
-#topbar-first .topbar-nav .arrow:after {
+/*
+ * #nav-notification (the bell) lives in .topbar-actions now, not the
+ * wrap-prone icon row - these rules key off its stable id instead of the
+ * old .topbar-nav ancestor so they still apply, and stay scoped to
+ * #nav-notification specifically (not a bare .dropdown-menu) so they
+ * don't also affect the account dropdown, which shares that class.
+ */
+#nav-notification .arrow:after {
 	position: absolute;
 	display: block;
 	width: 0;
@@ -744,7 +751,7 @@ nav.navbar .nav > li > button:focus {
 	border-bottom-color: #fff;
 	z-index: 1035;
 }
-#topbar-first .topbar-nav .arrow {
+#nav-notification .arrow {
 	position: absolute;
 	display: block;
 	width: 0;
@@ -760,33 +767,38 @@ nav.navbar .nav > li > button:focus {
 	top: -19px;
 	z-index: 1035;
 }
-#topbar-first .topbar-nav .dropdown-menu {
+/* Anchor to the right edge of the bell (like the neighboring account
+ * dropdown's pull-right) instead of the old fixed left-margin hack, which
+ * was hand-tuned for the bell's old position centered in the icon row. */
+#nav-notification .dropdown-menu {
 	width: 350px;
-	margin-left: -148px;
+	left: auto;
+	right: 0;
+	margin-left: 0;
 }
-#topbar-first .topbar-nav .dropdown-menu ul.media-list {
+#nav-notification .dropdown-menu ul.media-list {
 	max-height: 400px;
 	overflow: auto;
 }
-#topbar-first .topbar-nav .dropdown-menu li {
+#nav-notification .dropdown-menu li {
 	position: relative;
 }
-#topbar-first .topbar-nav .dropdown-menu li i.approval {
+#nav-notification .dropdown-menu li i.approval {
 	position: absolute;
 	left: 2px;
 	top: 36px;
 	font-size: 14px;
 }
-#topbar-first .topbar-nav .dropdown-menu li i.accepted {
+#nav-notification .dropdown-menu li i.accepted {
 	color: #5cb85c;
 }
-#topbar-first .topbar-nav .dropdown-menu li i.declined {
+#nav-notification .dropdown-menu li i.declined {
 	color: #d9534f;
 }
-#topbar-first .topbar-nav .dropdown-menu li .media {
+#nav-notification .dropdown-menu li .media {
 	position: relative;
 }
-#topbar-first .topbar-nav .dropdown-menu li .media .img-space {
+#nav-notification .dropdown-menu li .media .img-space {
 	position: absolute;
 	top: 14px;
 	left: 14px;
@@ -812,7 +824,7 @@ nav.navbar .nav > li > button:focus {
 }
 
 /* Notification Menu */
-#topbar-first .topbar-nav #nav-notifications-menu {
+#topbar-first #nav-notifications-menu {
 	max-height: 600px;
 	width: clamp(200px, 100vw, 350px);
 }
