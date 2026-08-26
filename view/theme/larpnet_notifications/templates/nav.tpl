@@ -120,7 +120,32 @@
 							</li>
 						{{/if}}
 
-						{{* The notifications dropdown *}}
+					</ul>
+				</div>
+
+				{{* This is the right part of the NavBar. It includes the search, notifications and the user menu *}}
+				<div class="topbar-actions pull-right">
+					<ul class="nav">
+
+						{{* The search box *}}
+						{{if $nav.search}}
+							<li id="search-box" class="hidden-xs">
+								<form class="navbar-form" role="search" method="get" action="{{$nav.search.0}}">
+									<div class="form-group form-group-search">
+										<input accesskey="s" id="nav-search-input-field" class="form-control form-search"
+											type="search" name="q" placeholder="{{$search_placeholder}}">
+										<button class="btn btn-primary btn-md form-button-search" type="submit">
+											<i class="fa fa-search" aria-hidden="true"></i>
+											<span class="sr-only">{{$nav.search.1}}</span>
+										</button>
+									</div>
+								</form>
+							</li>
+						{{/if}}
+
+						{{* The notifications dropdown - kept in topbar-actions (a flex item that
+						never shrinks) rather than the icon row, so it can never be pushed off
+						the visible bar the way a wrapping icon row can *}}
 						{{if $nav.notifications}}
 							<li id="nav-notification" class="nav-segment dropdown">
 								<button id="nav-notifications-menu-btn" class="btn-link dropdown-toggle" data-toggle="dropdown"
@@ -153,29 +178,6 @@
 								<p role="menuitem" class="text-muted text-center"><i>{{$emptynotifications}}</i></p>
 							</li>
 								</ul>
-							</li>
-						{{/if}}
-
-					</ul>
-				</div>
-
-				{{* This is the right part of the NavBar. It includes the search and the user menu *}}
-				<div class="topbar-actions pull-right">
-					<ul class="nav">
-
-						{{* The search box *}}
-						{{if $nav.search}}
-							<li id="search-box" class="hidden-xs">
-								<form class="navbar-form" role="search" method="get" action="{{$nav.search.0}}">
-									<div class="form-group form-group-search">
-										<input accesskey="s" id="nav-search-input-field" class="form-control form-search"
-											type="search" name="q" placeholder="{{$search_placeholder}}">
-										<button class="btn btn-primary btn-md form-button-search" type="submit">
-											<i class="fa fa-search" aria-hidden="true"></i>
-											<span class="sr-only">{{$nav.search.1}}</span>
-										</button>
-									</div>
-								</form>
 							</li>
 						{{/if}}
 
