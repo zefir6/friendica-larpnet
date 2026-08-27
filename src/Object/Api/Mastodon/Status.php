@@ -111,8 +111,10 @@ class Status extends BaseDataTransferObject
 		$this->sensitive    = $sensitive;
 		$this->spoiler_text = $item['title'] ?: $item['content-warning'] ?: '';
 
-		$visibility       = ['public', 'private', 'unlisted'];
-		$this->visibility = $visibility[$item['private']];
+		// larpnet: index 3 is SERVER_ONLY -- 'local' matches the string Content\Item::getACL()
+		// already treats as magic for the same visibility level on the classic web form.
+		$visibility       = ['public', 'private', 'unlisted', 'local'];
+		$this->visibility = $visibility[$item['private']] ?? 'public';
 
 		$languages = json_decode($item['language'] ?? '', true);
 		if (is_array($languages)) {
