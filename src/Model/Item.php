@@ -147,7 +147,7 @@ class Item
 	public const PUBLIC      = 0;
 	public const PRIVATE     = 1;
 	public const UNLISTED    = 2;
-	public const SERVER_ONLY = 3; // visible to all local users, never federated
+	public const SERVER_ONLY = 3; // "Only Larpnet": visible to everyone, including anonymous visitors, never federated
 
 	// Item weight for query ordering
 	public const GRAVITY_PARENT   = 0;
@@ -2787,24 +2787,24 @@ class Item
 			// Profile owner - everything is visible
 			$condition = [];
 		} elseif ($remote_user) {
-			// Remote federated visitor - cannot see server-only posts
+			// Remote federated visitor - server-only posts are publicly visible, just not PRIVATE ones
 			$permissionSets = DI::permissionSet()->selectByContactId($remote_user, $owner_id);
 			if (count($permissionSets) > 0) {
 				$condition = [
-					"(`private` NOT IN (?, ?) OR (`private` = ? AND `wall`
+					"(`private` != ? OR (`private` = ? AND `wall`
 					AND `psid` IN (" . implode(', ', array_fill(0, count($permissionSets), '?')) . ")))",
-					self::PRIVATE, self::SERVER_ONLY, self::PRIVATE,
+					self::PRIVATE, self::PRIVATE,
 				];
 				$condition = array_merge($condition, $permissionSets->column('id'));
 			} else {
-				$condition = ["`private` NOT IN (?, ?)", self::PRIVATE, self::SERVER_ONLY];
+				$condition = ["`private` != ?", self::PRIVATE];
 			}
 		} elseif ($local_user) {
 			// Logged-in local user (not owner) - can see server-only posts
 			$condition = ["`private` != ?", self::PRIVATE];
 		} else {
-			// Anonymous user - cannot see server-only posts
-			$condition = ["`private` NOT IN (?, ?)", self::PRIVATE, self::SERVER_ONLY];
+			// Anonymous user - server-only posts are publicly visible, just not PRIVATE ones
+			$condition = ["`private` != ?", self::PRIVATE];
 		}
 
 		return $condition;
@@ -2833,7 +2833,7 @@ class Item
 
 		if ($remote_user) {
 			/*
-			 * Remote federated visitor - cannot see server-only posts.
+			 * Remote federated visitor - server-only posts are publicly visible, just not PRIVATE ones.
 			 * Unless pre-verified, check that the contact belongs to this $owner_id
 			 * and load the circles the visitor belongs to.
 			 */
@@ -2845,7 +2845,7 @@ class Item
 				$sql_set = sprintf(" OR (" . $table . "`private` = %d AND " . $table . "`wall` AND " . $table . "`psid` IN (", self::PRIVATE) . implode(',', $permissionSets->column('id')) . "))";
 			}
 
-			return sprintf(" AND (" . $table . "`private` NOT IN (%d, %d)", self::PRIVATE, self::SERVER_ONLY) . $sql_set . ")";
+			return sprintf(" AND (" . $table . "`private` != %d", self::PRIVATE) . $sql_set . ")";
 		}
 
 		// Logged-in local user (not owner) - can see server-only posts
@@ -2853,8 +2853,8 @@ class Item
 			return sprintf(" AND " . $table . "`private` != %d", self::PRIVATE);
 		}
 
-		// Anonymous user - cannot see server-only posts
-		return sprintf(" AND " . $table . "`private` NOT IN (%d, %d)", self::PRIVATE, self::SERVER_ONLY);
+		// Anonymous user - server-only posts are publicly visible, just not PRIVATE ones
+		return sprintf(" AND " . $table . "`private` != %d", self::PRIVATE);
 	}
 
 	/**

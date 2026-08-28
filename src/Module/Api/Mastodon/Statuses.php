@@ -264,9 +264,9 @@ class Statuses extends BaseApi
 				$item['private'] = Item::PRIVATE;
 				break;
 			case 'local':
-				// larpnet: server-only post -- visible to all local logged-in users, never
-				// federated. Mirrors Content\Item::getACL()'s handling of the same submitted
-				// value from the classic web compose form.
+				// larpnet: "Only Larpnet" post -- visible to everyone, including anonymous
+				// visitors, never federated. Mirrors Content\Item::getACL()'s handling of the
+				// same submitted value from the classic web compose form.
 				$item['allow_cid'] = '';
 				$item['allow_gid'] = '';
 				$item['deny_cid']  = '';

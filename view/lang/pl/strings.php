@@ -3033,3 +3033,9 @@ $a->strings['Quick Start'] = 'Szybki start';
 $a->strings['Contacts posts'] = 'Wpisy Kontaktów';
 $a->strings['Your posts'] = 'Twoje wpisy';
 $a->strings['People'] = 'Ludzie';
+
+// larpnet: "Only Larpnet" post visibility (src/Core/ACL.php, src/Object/Post.php, src/Module/Privacy/PermissionTooltip.php)
+$a->strings['Only Larpnet'] = 'Tylko Larpnet';
+$a->strings['Visible to everyone, even without logging in. Never shared through federation.'] = 'Widoczne dla wszystkich, nawet bez logowania. Nigdy nie jest udostępniane w federacji.';
+$a->strings['Larpnet-only Message'] = 'Wiadomość tylko na Larpnecie';
+$a->strings['Larpnet-only'] = 'Tylko Larpnet';

@@ -136,7 +136,7 @@ class PermissionTooltip extends BaseModule
 				$privacy = $this->t('Limited/Private');
 				break;
 			case Model\Item::SERVER_ONLY:
-				$privacy = $this->t('Server-only');
+				$privacy = $this->t('Larpnet-only');
 				break;
 		}
 

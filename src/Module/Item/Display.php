@@ -115,9 +115,8 @@ class Display extends BaseModule
 
 		// Is it an item with uid = 0?
 		if (empty($item)) {
-			$allowedPrivacy = $this->session->getLocalUserId()
-				? [Item::PUBLIC, Item::UNLISTED, Item::SERVER_ONLY]
-				: [Item::PUBLIC, Item::UNLISTED];
+			// larpnet: SERVER_ONLY ("Only Larpnet") posts are publicly visible, so no login check here
+			$allowedPrivacy = [Item::PUBLIC, Item::UNLISTED, Item::SERVER_ONLY];
 
 			$item = Post::selectFirstForUser($this->session->getLocalUserId(), $fields, [
 				'guid'    => $guid,
