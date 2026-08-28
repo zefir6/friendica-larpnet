@@ -689,6 +689,22 @@ nav.navbar .nav > li > button:focus {
 	z-index: 1;
 	flex: 1 1 auto;
 	min-width: 0;
+	/*
+	 * As a flex item, .topbar-nav now properly sizes to its real content
+	 * height instead of float-collapsing to zero - if the icon row still
+	 * needs to wrap onto a second line, that would grow .col-lg-12's own
+	 * box (it spans the full topbar width) past 50px, and since it sits in
+	 * #topbar-first's higher stacking context, its own (invisible) box
+	 * would intercept clicks on whatever is underneath the bar - this hit
+	 * #topbar-second entirely, not just a small area near the wrapped
+	 * icons. Capping height here keeps .topbar-nav (and so .col-lg-12) at
+	 * the bar's actual 50px, clipping any overflow icons instead. Safe to
+	 * clip: nothing in .topbar-nav opens a dropdown anymore (notifications
+	 * moved to .topbar-actions) and Bootstrap tooltips render outside this
+	 * subtree, so nothing here needs to escape this box.
+	 */
+	height: 50px;
+	overflow: hidden;
 }
 #topbar-first .topbar-actions {
 	position: relative;
