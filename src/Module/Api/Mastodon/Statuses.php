@@ -263,6 +263,16 @@ class Statuses extends BaseApi
 				}
 				$item['private'] = Item::PRIVATE;
 				break;
+			case 'local':
+				// larpnet: server-only post -- visible to all local logged-in users, never
+				// federated. Mirrors Content\Item::getACL()'s handling of the same submitted
+				// value from the classic web compose form.
+				$item['allow_cid'] = '';
+				$item['allow_gid'] = '';
+				$item['deny_cid']  = '';
+				$item['deny_gid']  = '';
+				$item['private']   = Item::SERVER_ONLY;
+				break;
 			case 'direct':
 				$item['private'] = Item::PRIVATE;
 				// The permissions are assigned in "expandTags"

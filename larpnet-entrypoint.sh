@@ -31,6 +31,8 @@ if [ -f /var/www/html/index.php ]; then
     src/Factory/Api/Mastodon/Conversation.php \
     src/Module/Api/Twitter/DirectMessagesEndpoint.php \
     src/Module/Api/Mastodon/LarpnetPushConfig.php \
+    src/Module/Api/Mastodon/Statuses.php \
+    src/Object/Api/Mastodon/Status.php \
     static/routes.config.php \
     view/lang/pl/strings.php \
     src/Security/Authentication.php
