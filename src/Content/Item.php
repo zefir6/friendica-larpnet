@@ -899,7 +899,7 @@ class Item
 			// The ACL selector introduced in version 2019.12 sends ACL input data even when the Public visibility is selected
 			$post['allow_cid'] = $post['allow_gid'] = $post['deny_cid'] = $post['deny_gid'] = '';
 		} elseif ($visibility === 'local') {
-			// larpnet: server-only post — visible to all logged-in local users, never federated
+			// larpnet: "Only Larpnet" post — visible to everyone, including anonymous visitors, never federated
 			$post['allow_cid'] = $post['allow_gid'] = $post['deny_cid'] = $post['deny_gid'] = '';
 			$post['private']   = ItemModel::SERVER_ONLY;
 			return $post;
