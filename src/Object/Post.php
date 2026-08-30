@@ -131,7 +131,7 @@ class Post
 				break;
 
 			case Item::SERVER_ONLY:
-				$output = DI::l10n()->t('Server-only Message');
+				$output = DI::l10n()->t('Larpnet-only Message');
 				break;
 
 			default:

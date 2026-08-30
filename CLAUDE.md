@@ -74,7 +74,7 @@ Addons in `addon/<name>/` register callbacks with `Hook::register()`. The main h
 | `Item::PUBLIC` | 0 | Visible to everyone, federated |
 | `Item::PRIVATE` | 1 | Visible to explicitly listed recipients |
 | `Item::UNLISTED` | 2 | Unlisted, federated |
-| `Item::SERVER_ONLY` | 3 | (**larpnet custom**) Visible to all local logged-in users, never federated |
+| `Item::SERVER_ONLY` | 3 | (**larpnet custom**) "Only Larpnet" — publicly visible, including to anonymous visitors, never federated |
 
 ## LARPnet-specific files
 
@@ -97,7 +97,7 @@ All files below are larpnet additions or patches. When rebasing onto a new Frien
 | `src/Model/Item.php` | Patched to add `SERVER_ONLY = 3` privacy constant |
 | `src/Object/Post.php` | Patched `fetchPrivacy()` to handle `SERVER_ONLY` |
 | `src/Module/Item/Compose.php` | Patched to allow the compose page with themes that extend Frio (not just Frio itself) |
-| `src/Module/Item/Display.php` | Patched to allow logged-in users to view `SERVER_ONLY` posts |
+| `src/Module/Item/Display.php` | Patched to allow anonymous/logged-out visitors to view `SERVER_ONLY` posts |
 | `src/Module/Post/Share.php` | Patched to block sharing of `SERVER_ONLY` posts |
 | `src/Module/Privacy/PermissionTooltip.php` | Patched to label `SERVER_ONLY` posts |
 | `src/Module/Manifest.php` | Patched to serve larpnet-branded PWA icons for larpnet/larpnet_notifications themes |
