@@ -7,6 +7,7 @@
 
 namespace Friendica\Model;
 
+use Friendica\Core\Hook;
 use Friendica\Core\Worker;
 use Friendica\Database\DBA;
 use Friendica\DI;
@@ -126,6 +127,9 @@ class Subscription
 		}
 
 		Worker::add(Worker::PRIORITY_HIGH, 'NtfyPush', $notification->uid, $notification->id);
+
+		// Lets addons (e.g. larpnet_fcm) hook into every notification, mirroring NtfyPush above
+		Hook::callAll('push_notification', ['uid' => $notification->uid, 'nid' => $notification->id]);
 
 		if (empty($type)) {
 			return;
