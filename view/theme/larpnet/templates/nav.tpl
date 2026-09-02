@@ -171,7 +171,7 @@
 
 									</li>
 
-							<li id="nav-notifications-loading" class="loading" style="font-weight: bold; color: #555; padding-left: 10px;">
+						<li id="nav-notifications-loading" class="loading" style="font-weight: bold; color: #555; padding-left: 10px;">
 								<i class="fa fa-spinner fa-spin" aria-hidden="true" style="vertical-align: middle;"></i> {{$loadingnotifications}}
 							</li>
 							<li id="nav-notifications-empty" class="empty" style="display: none;">

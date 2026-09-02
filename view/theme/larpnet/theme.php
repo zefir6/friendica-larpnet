@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * Name: Larpnet
- * Description: Responsywny motyw dla społeczności Larpnet. Bazuje na Bootstrap i frio.
- * Version: 1.0
+ * Description: Responsywny motyw dla społeczności Larpnet z obsługą Web Push, powiadomień przeglądarkowych i PWA. Wymaga serwera ntfy.
+ * Version: 2.0
  * Author: larpnet admin <https://larpnet.pl>
  */
 
@@ -21,6 +21,10 @@ use Friendica\Database\DBA;
 use Friendica\DI;
 use Friendica\Model\Contact;
 use Friendica\Model\Item;
+use Friendica\Model\LarpnetPush;
+use Friendica\Model\Subscription;
+use Friendica\Util\DateTimeFormat;
+use Friendica\Util\Strings;
 
 const LARPNET_SCHEME_ACCENT_BLUE   = '#1e87c2';
 const LARPNET_SCHEME_ACCENT_RED    = '#b50404';
@@ -31,10 +35,6 @@ const LARPNET_SCHEME_ACCENT_PINK   = '#d900a9';
 const LARPNET_DEFAULT_SCHEME = 'light';
 const LARPNET_CUSTOM_SCHEME  = '---';
 
-/*
- * This script can be included even when the app is in maintenance mode which requires us to avoid any config call
- */
-
 function larpnet_init(AppHelper $appHelper)
 {
 	global $larpnet;
@@ -44,14 +44,12 @@ function larpnet_init(AppHelper $appHelper)
 
 	Renderer::setActiveTemplateEngine('smarty3');
 
-	// Registered here (not just in larpnet_install()) so it self-heals on
-	// every request instead of requiring the theme to be re-installed via
-	// the admin UI after a deploy - Hook::register() is a no-op if the
-	// hook row already exists.
+	// Registered here (not just in larpnet_install()) so it
+	// self-heals on every request instead of requiring the theme to be
+	// re-installed via the admin UI after a deploy - Hook::register() is a
+	// no-op if the hook row already exists.
 	Hook::register('nav_info', 'view/theme/larpnet/theme.php', 'larpnet_nav_labels');
 
-	// if the device is a mobile device set js is_mobile
-	// variable so the js scripts can use this information
 	if (DI::mode()->isMobile() || DI::mode()->isMobile()) {
 		DI::page()['htmlhead'] .= <<< EOT
 			<script type="text/javascript">
@@ -64,11 +62,12 @@ EOT;
 function larpnet_install()
 {
 	Hook::register('prepare_body_final', 'view/theme/larpnet/theme.php', 'larpnet_item_photo_links');
-	Hook::register('item_photo_menu', 'view/theme/larpnet/theme.php', 'larpnet_item_photo_menu');
+	Hook::register('item_photo_menu',    'view/theme/larpnet/theme.php', 'larpnet_item_photo_menu');
 	Hook::register('contact_photo_menu', 'view/theme/larpnet/theme.php', 'larpnet_contact_photo_menu');
-	Hook::register('nav_info', 'view/theme/larpnet/theme.php', 'larpnet_remote_nav');
-	Hook::register('nav_info', 'view/theme/larpnet/theme.php', 'larpnet_nav_labels');
-	Hook::register('display_item', 'view/theme/larpnet/theme.php', 'larpnet_display_item');
+	Hook::register('nav_info',           'view/theme/larpnet/theme.php', 'larpnet_remote_nav');
+	Hook::register('nav_info',           'view/theme/larpnet/theme.php', 'larpnet_nav_labels');
+	Hook::register('display_item',       'view/theme/larpnet/theme.php', 'larpnet_display_item');
+	Hook::register('head',               'view/theme/larpnet/theme.php', 'larpnet_head');
 
 	DI::logger()->info('installed theme larpnet');
 }
@@ -98,17 +97,176 @@ function larpnet_nav_labels(array &$nav_info)
 	}
 }
 
-/**
- * Replace friendica photo links hook
- *
- *  This function does replace the links to photos
- *  of other friendica users. Original the photos are
- *  linked to the photo page. Now they will linked directly
- *  to the photo file. This function is necessary to use colorbox
- *  in the network stream
- *
- * @param array $body_info The item and its html output
- */
+// ---------------------------------------------------------------------------
+// Push notification helpers
+
+function larpnet_get_or_create_app(): ?array
+{
+	$app = DBA::selectFirst('application', [], ['name' => 'larpnet_web_push']);
+	if (DBA::isResult($app)) {
+		return $app;
+	}
+
+	DBA::insert('application', [
+		'name'          => 'larpnet_web_push',
+		'redirect_uri'  => (string) DI::baseUrl(),
+		'website'       => (string) DI::baseUrl(),
+		'client_id'     => Strings::getRandomHex(32),
+		'client_secret' => Strings::getRandomHex(32),
+		'scopes'        => 'push',
+		'push'          => true,
+	]);
+
+	return DBA::selectFirst('application', [], ['name' => 'larpnet_web_push']);
+}
+
+function larpnet_get_or_create_token(int $uid, int $appId): ?string
+{
+	$row = DBA::selectFirst('application-token', ['access_token'], [
+		'application-id' => $appId,
+		'uid'            => $uid,
+	]);
+	if (DBA::isResult($row)) {
+		return $row['access_token'];
+	}
+
+	$token = Strings::getRandomHex(32);
+	DBA::insert('application-token', [
+		'application-id' => $appId,
+		'uid'            => $uid,
+		'code'           => Strings::getRandomHex(32),
+		'access_token'   => $token,
+		'created_at'     => DateTimeFormat::utcNow(),
+		'scopes'         => 'push',
+		'push'           => true,
+	]);
+
+	return $token;
+}
+
+function larpnet_get_or_create_ntfy_topic(int $uid): string
+{
+	return LarpnetPush::getOrCreateTopic($uid);
+}
+
+function larpnet_head(string &$b)
+{
+	if (DI::appHelper()->getCurrentTheme() !== 'larpnet') {
+		return;
+	}
+
+	$uid = DI::userSession()->getLocalUserId();
+	if (!$uid) {
+		return;
+	}
+
+	$b .= <<<'JS'
+<script>
+(function() {
+	function isPwa() {
+		return window.matchMedia('(display-mode: standalone)').matches
+			|| !!navigator.standalone;
+	}
+
+	function needsEnable() {
+		if (typeof Notification === 'undefined') return false;
+		// Need to request browser permission
+		if (Notification.permission === 'default') return true;
+		// Browser granted permission but app-level disabled:
+		// getNotificationPermission() (main.js) returns 'denied' when localStorage
+		// is null or 'denied', even though the browser already granted permission.
+		if (Notification.permission === 'granted'
+			&& typeof getNotificationPermission === 'function'
+			&& getNotificationPermission() !== 'granted') return true;
+		return false;
+	}
+
+	function injectEnableBtn(menu) {
+		if (!needsEnable()) return;
+		if (document.getElementById('nav-notification-enable')) return;
+		var markAll = menu.querySelector('#nav-notifications-mark-all');
+		if (!markAll) return;
+
+		var li = document.createElement('li');
+		li.id = 'nav-notification-enable';
+
+		var btn = document.createElement('button');
+		btn.id = 'nav-notification-enable-btn';
+		btn.type = 'button';
+		btn.className = 'btn btn-primary btn-sm';
+		btn.textContent = isPwa()
+			? 'Aktywuj powiadomienia z aplikacji'
+			: 'Włącz powiadomienia na pulpicie';
+
+		btn.addEventListener('click', function() {
+			if (Notification.permission === 'granted') {
+				// Permission already granted — just set localStorage and reload
+				// so push.js can complete the ntfy subscription
+				localStorage.setItem('notification-permissions', 'granted');
+				li.remove();
+				window.location.reload();
+			} else {
+				Notification.requestPermission().then(function(result) {
+					if (result === 'granted') {
+						localStorage.setItem('notification-permissions', 'granted');
+						li.remove();
+						if (window.LarpnetPush) { window.location.reload(); }
+					}
+				});
+			}
+		});
+
+		li.appendChild(btn);
+		markAll.insertAdjacentElement('afterend', li);
+	}
+
+	function setup() {
+		var menu = document.getElementById('nav-notifications-menu');
+		if (!menu) return;
+		injectEnableBtn(menu);
+		new MutationObserver(function() {
+			injectEnableBtn(menu);
+		}).observe(menu, { childList: true });
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', setup);
+	} else {
+		setup();
+	}
+})();
+</script>
+JS;
+
+	$ntfyUrl          = DI::config()->get('larpnet_notifications', 'ntfy_url');
+	$ntfyVapidKey     = DI::config()->get('larpnet_notifications', 'ntfy_vapid_public_key');
+	// Use read-only token for the browser — never expose the write token client-side
+	$ntfyToken        = DI::config()->get('larpnet_notifications', 'ntfy_ro_token');
+
+	if (empty($ntfyUrl) || empty($ntfyVapidKey)) {
+		return;
+	}
+
+	$topic   = larpnet_get_or_create_ntfy_topic($uid);
+	$baseUrl = (string) DI::baseUrl();
+	$swUrl   = $baseUrl . '/sw.js';
+
+	$config = json_encode([
+		'vapidKey'  => $ntfyVapidKey,
+		'ntfyUrl'   => rtrim($ntfyUrl, '/'),
+		'ntfyToken' => (string) $ntfyToken,
+		'ntfyTopic' => $topic,
+		'swUrl'     => $swUrl,
+	]);
+
+	$b .= "<script>window.LarpnetPush = {$config};</script>\n";
+
+	DI::page()->registerFooterScript(__DIR__ . '/js/push.js?v=2026.03');
+}
+
+// ---------------------------------------------------------------------------
+// Content/nav hooks
+
 function larpnet_item_photo_links(&$body_info)
 {
 	$occurence = 0;
@@ -119,13 +277,8 @@ function larpnet_item_photo_links(&$body_info)
 
 		preg_match('/\/photos\/[\w]+\/image\/([\w]+)/', $link, $matches);
 		if ($matches) {
-			// Replace the link for the photo's page with a direct link to the photo itself
 			$newlink = str_replace($matches[0], "/photo/{$matches[1]}", $link);
-
-			// Add a "quiet" parameter to any redir links to prevent the "XX welcomes YY" info boxes
 			$newlink = preg_replace('#href="([^"]+)/contact/redir/(\d+)&url=([^"]+)"#', 'href="$1/contact/redir/$2&quiet=1&url=$3"', $newlink);
-
-			// Having any arguments to the link for Colorbox causes it to fetch base64 code instead of the image
 			$newlink = preg_replace('/\/[?&]zrl=([^&"]+)/', '', $newlink);
 
 			$body_info['html'] = str_replace($link, $newlink, $body_info['html']);
@@ -135,15 +288,6 @@ function larpnet_item_photo_links(&$body_info)
 	}
 }
 
-/**
- * Replace links of the item_photo_menu hook
- *
- *  This function replaces the original message links
- *  to call the addToModal javascript function so this pages can
- *  be loaded in a bootstrap modal
- *
- * @param array $arr Contains item data and the original photo_menu
- */
 function larpnet_item_photo_menu(&$arr)
 {
 	foreach ($arr['menu'] as $k => $v) {
@@ -154,36 +298,12 @@ function larpnet_item_photo_menu(&$arr)
 	}
 }
 
-/**
- * Replace links of the contact_photo_menu
- *
- *  This function replaces the original message link
- *  to call the addToModal javascript function so this pages can
- *  be loaded in a bootstrap modal
- *  Additionally the profile, status and photo page links  will be changed
- *  to don't open in a new tab if the contact is a friendica contact.
- *
- * @param array $args Contains contact data and the original photo_menu
- */
 function larpnet_contact_photo_menu(&$args)
 {
 	$cid = $args['contact']['id'];
 
-	if (!empty($args['menu']['pm'])) {
-		$pmlink = $args['menu']['pm'][1];
-	} else {
-		$pmlink = '';
-	}
+	$pmlink = $args['menu']['pm'][1] ?? '';
 
-	// Set the indicator for opening the status, profile and photo pages
-	// in a new tab to false if the contact a dfrn (friendica) contact
-	// We do this because we can go back on foreign friendica pages through
-	// friendicas "magic-link" which indicates a friendica user on foreign
-	// friendica servers as remote user or visitor
-	//
-	// The value for opening in a new tab is e.g. when
-	// $args['menu']['status'][2] is true. If the value of the [2] key is true
-	// and if it's a friendica contact we set it to false
 	foreach ($args['menu'] as $k => $v) {
 		if ($k === 'status' || $k === 'profile' || $k === 'photos') {
 			$v[2]                = (($args['contact']['network'] === 'dfrn') ? false : true);
@@ -191,39 +311,19 @@ function larpnet_contact_photo_menu(&$args)
 		}
 	}
 
-	// Add to pm link a new key with the value 'modal'.
-	// Later we can make conditions in the corresponding templates (e.g.
-	// contact/entry.tpl)
 	if (strpos($pmlink, 'message/new/' . $cid) !== false) {
 		$args['menu']['pm'][3] = 'modal';
 	}
 }
 
-/**
- * Construct remote nav menu
- *
- *  It creates a remote baseurl form $_SESSION for remote users and friendica
- *  visitors. This url will be added to some of the nav links. With this behaviour
- *  the user will come back to her/his own pages on his/her friendica server.
- *  Not all possible links are available (notifications, administrator, manage,
- *  notes aren't available because we have no way the check remote permissions)..
- *  Some links will point to the local pages because the user would expect
- *  local page (these pages are: search, community, help, apps, directory).
- *
- * @param array $nav_info The original nav info array: nav, banner, userinfo, sitelocation
- * @throws Exception
- */
 function larpnet_remote_nav(array &$nav_info)
 {
 	if (DI::mode()->has(Mode::MAINTENANCEDISABLED)) {
-		// get the homelink from $_SESSION
 		$homelink = DI::userSession()->getMyUrl();
 		if (!$homelink) {
 			$homelink = DI::session()->get('visitor_home', '');
 		}
 
-		// since $userinfo isn't available for the hook we write it to the nav array
-		// this isn't optimal because the contact query will be done now twice
 		$fields = ['id', 'url', 'avatar', 'micro', 'name', 'nick', 'baseurl', 'updated'];
 		if (DI::userSession()->isAuthenticated()) {
 			$remoteUser = Contact::selectFirst($fields, ['uid' => DI::userSession()->getLocalUserId(), 'self' => true]);
@@ -246,17 +346,12 @@ function larpnet_remote_nav(array &$nav_info)
 		}
 
 		if (!DI::userSession()->getLocalUserId() && !empty($server_url) && !is_null($remoteUser)) {
-			// user menu
 			$nav_info['nav']['usermenu'][] = [$server_url . '/profile/' . $remoteUser['nick'], DI::l10n()->t('Status'), '', DI::l10n()->t('Your posts and conversations')];
 			$nav_info['nav']['usermenu'][] = [$server_url . '/profile/' . $remoteUser['nick'] . '/profile', DI::l10n()->t('Profile'), '', DI::l10n()->t('Your profile page')];
-			// Kept for backwards-compatibility reasons, the remote server may not have updated to version 2022.12 yet
-			// @TODO Switch with the new routes by version 2023.12
-			//$nav_info['nav']['usermenu'][] = [$server_url . '/profile/' . $remoteUser['nick'] . '/photos', DI::l10n()->t('Photos'), '', DI::l10n()->t('Your photos')];
 			$nav_info['nav']['usermenu'][] = [$server_url . '/photos/' . $remoteUser['nick'], DI::l10n()->t('Photos'), '', DI::l10n()->t('Your photos')];
 			$nav_info['nav']['usermenu'][] = [$server_url . '/profile/' . $remoteUser['nick'] . '/media', DI::l10n()->t('Media'), '', DI::l10n()->t('Your postings with media')];
 			$nav_info['nav']['usermenu'][] = [$server_url . '/calendar/', DI::l10n()->t('Calendar'), '', DI::l10n()->t('Your calendar')];
 
-			// navbar links
 			$nav_info['nav']['network']  = [$server_url . '/network', DI::l10n()->t('Network'), '', DI::l10n()->t('Conversations from your friends')];
 			$nav_info['nav']['calendar'] = [$server_url . '/calendar', DI::l10n()->t('Calendar'), '', DI::l10n()->t('Calendar')];
 			$nav_info['nav']['messages'] = [$server_url . '/message', DI::l10n()->t('Messages'), '', DI::l10n()->t('Private mail')];
@@ -269,7 +364,6 @@ function larpnet_remote_nav(array &$nav_info)
 
 function larpnet_display_item(&$arr)
 {
-	// Add follow to the item menu
 	$followThread = [];
 	if (
 		DI::userSession()->getLocalUserId()

@@ -70,7 +70,7 @@ class Manifest extends BaseModule
 					'type'  => 'image/png',
 				],
 			];
-		} elseif (in_array($theme, ['larpnet', 'larpnet_notifications'])) {
+		} elseif ($theme === 'larpnet') {
 			$base = DI::baseUrl() . '/view/theme/' . $theme . '/img/';
 			$manifest['icons'] = [
 				[

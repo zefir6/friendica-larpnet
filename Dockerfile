@@ -7,9 +7,8 @@ RUN chmod +x /larpnet-entrypoint.sh
 ENTRYPOINT ["/larpnet-entrypoint.sh"]
 CMD ["php-fpm"]
 
-# Custom themes
-COPY view/theme/larpnet               /usr/src/friendica/view/theme/larpnet
-COPY view/theme/larpnet_notifications /usr/src/friendica/view/theme/larpnet_notifications
+# Custom theme
+COPY view/theme/larpnet /usr/src/friendica/view/theme/larpnet
 
 # Custom addons
 COPY addon/larpnet_banner    /usr/src/friendica/addon/larpnet_banner
