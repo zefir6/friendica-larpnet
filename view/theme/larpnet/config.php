@@ -38,12 +38,14 @@ function theme_post(AppHelper $appHelper)
 			'login_bg_image',
 			'login_bg_color',
 			'always_open_compose',
+			'profile_banner',
 		] as $field) {
 			if (isset($_POST['larpnet_' . $field])) {
 				DI::pConfig()->set(DI::userSession()->getLocalUserId(), 'larpnet', $field, $_POST['larpnet_' . $field]);
 			}
 
 		}
+
 		DI::pConfig()->set(DI::userSession()->getLocalUserId(), 'larpnet', 'css_modified', time());
 
 		$current_scheme = DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'larpnet', 'scheme');
@@ -83,6 +85,7 @@ function theme_admin_post()
 			'login_bg_image',
 			'login_bg_color',
 			'always_open_compose',
+			'profile_banner',
 		] as $field) {
 			if (isset($_POST['larpnet_' . $field])) {
 				DI::config()->set('larpnet', $field, $_POST['larpnet_' . $field]);
@@ -111,6 +114,7 @@ function theme_content(AppHelper $appHelper): string
 		'background_image'    => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'larpnet', 'background_image', DI::config()->get('larpnet', 'background_image')),
 		'bg_image_option'     => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'larpnet', 'bg_image_option', DI::config()->get('larpnet', 'bg_image_option')),
 		'always_open_compose' => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'larpnet', 'always_open_compose', DI::config()->get('larpnet', 'always_open_compose', false)),
+		'profile_banner'      => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'larpnet', 'profile_banner', DI::config()->get('larpnet', 'profile_banner', 1)),
 	];
 
 	return larpnet_form($arr);
@@ -125,7 +129,7 @@ function theme_admin(AppHelper $appHelper): string
 	$arr = [
 		'admin_theme_settings' => true,
 		'scheme'               => larpnet_scheme_get_current(),
-		'scheme_accent'        => DI::config()->get('larpnet', 'scheme_accent') ?: LARPNET_SCHEME_ACCENT_BLUE,
+		'scheme_accent'        => DI::config()->get('larpnet', 'scheme_accent') ?: LARPNET_SCHEME_ACCENT_PURPLE,
 		'share_string'         => '',
 		'nav_bg'               => DI::config()->get('larpnet', 'nav_bg'),
 		'nav_icon_color'       => DI::config()->get('larpnet', 'nav_icon_color'),
@@ -137,6 +141,7 @@ function theme_admin(AppHelper $appHelper): string
 		'login_bg_image'       => DI::config()->get('larpnet', 'login_bg_image'),
 		'login_bg_color'       => DI::config()->get('larpnet', 'login_bg_color'),
 		'always_open_compose'  => DI::config()->get('larpnet', 'always_open_compose', false),
+		'profile_banner'       => DI::config()->get('larpnet', 'profile_banner', 1),
 	];
 
 	return larpnet_form($arr);
@@ -147,7 +152,7 @@ function larpnet_form($arr)
 	require_once 'view/theme/larpnet/php/scheme.php';
 	require_once 'view/theme/larpnet/theme.php';
 
-	$scheme_info = get_scheme_info($arr['scheme']);
+	$scheme_info = larpnet_get_scheme_info($arr['scheme']);
 	$disable     = $scheme_info['overwrites'];
 
 	$background_image_help = '<strong>' . DI::l10n()->t('Note') . ': </strong>' . DI::l10n()->t('Check image permissions if all users are allowed to see the image');
@@ -170,6 +175,9 @@ function larpnet_form($arr)
 		'$bg_image_options'       => Image::get_options($arr),
 
 		'$always_open_compose' => ['larpnet_always_open_compose', DI::l10n()->t('Always open Compose page'), $arr['always_open_compose'], DI::l10n()->t('The New Post button always open the <a href="/compose">Compose page</a> instead of the modal form. When this is disabled, the Compose page can be accessed with a middle click on the link or from the modal.')],
+		'$profile_banner'      => array_key_exists('profile_banner', $arr)
+			? ['larpnet_profile_banner', DI::l10n()->t('Show profile banner'), $arr['profile_banner'], DI::l10n()->t('Display a header image banner on profile pages. Upload banners via Settings → Addons → Baner profilu.')]
+			: '',
 	];
 
 	if (array_key_exists('login_bg_image', $arr) && !array_key_exists('login_bg_image', $disable)) {

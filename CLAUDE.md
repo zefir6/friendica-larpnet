@@ -86,10 +86,9 @@ All files below are larpnet additions or patches. When rebasing onto a new Frien
 |---|---|
 | `addon/larpnet_banner/` | Per-user profile banner image (uploaded via addon settings, injected as CSS background on profile pages) |
 | `addon/larpnet_calendar/` | Generates private iCal subscription URL for each user's events |
-| `src/Worker/NtfyPush.php` | Background worker: sends push notification via [ntfy](https://ntfy.sh) when a notification is created. Configured with admin-level `larpnet_notifications/ntfy_url` + `ntfy_token`, per-user `ntfy_topic`. |
+| `src/Worker/NtfyPush.php` | Background worker: sends push notification via [ntfy](https://ntfy.sh) when a notification is created. Configured with admin-level `larpnet_notifications/ntfy_url` + `ntfy_token`, per-user `ntfy_topic`. (The `larpnet_notifications` config/pconfig namespace is a settings bucket name, independent of the theme name below.) |
 | `src/Model/Subscription.php` | One-line patch: dispatches `NtfyPush` worker on push subscription notification |
-| `view/theme/larpnet/` | Main custom theme (based on Frio) |
-| `view/theme/larpnet_notifications/` | Stripped-down theme for notification emails |
+| `view/theme/larpnet/` | Main custom theme (based on Frio). Includes Web Push/PWA browser notifications via ntfy (service worker, "Enable notifications" nav button), the "Only Larpnet" ACL visibility panel, and profile-banner integration with `addon/larpnet_banner/`. |
 | `src/Protocol/ActivityPub/Transmitter.php` | Patched `createPermissionBlockForItem()` to exclude `SERVER_ONLY` from followers/PUBLIC_COLLECTION recipients |
 | `src/Worker/Notifier.php` | Patched `activityPubDelivery()` to skip AP delivery for `SERVER_ONLY` posts entirely |
 | `src/Content/Item.php` | Patched `getACL()` to handle `visibility=local` → `private = SERVER_ONLY` |
@@ -100,10 +99,10 @@ All files below are larpnet additions or patches. When rebasing onto a new Frien
 | `src/Module/Item/Display.php` | Patched to allow anonymous/logged-out visitors to view `SERVER_ONLY` posts |
 | `src/Module/Post/Share.php` | Patched to block sharing of `SERVER_ONLY` posts |
 | `src/Module/Privacy/PermissionTooltip.php` | Patched to label `SERVER_ONLY` posts |
-| `src/Module/Manifest.php` | Patched to serve larpnet-branded PWA icons for larpnet/larpnet_notifications themes |
-| `src/App/Page.php` | Patched to use larpnet icon as apple-touch-icon default for larpnet themes |
+| `src/Module/Manifest.php` | Patched to serve larpnet-branded PWA icons for the larpnet theme |
+| `src/App/Page.php` | Patched to use larpnet icon as apple-touch-icon default for the larpnet theme |
 | `src/Module/FriendSuggest.php` | Upstream bugfix: use the resolved user-contact id instead of the public contact id, fixing a "Contact not found" error when suggesting friends |
-| `view/lang/pl/strings.php` | Adds Polish translations for larpnet's custom top-nav labels ("Contacts posts", "Your posts", "People") set via the `nav_info` hook in `view/theme/larpnet{,_notifications}/theme.php` — English falls back to the literal `t()` argument, no `view/lang/en/` entry needed |
+| `view/lang/pl/strings.php` | Adds Polish translations for larpnet's custom top-nav labels ("Contacts posts", "Your posts", "People") set via the `nav_info` hook in `view/theme/larpnet/theme.php` — English falls back to the literal `t()` argument, no `view/lang/en/` entry needed |
 | `src/Security/Authentication.php` | Upstream bugfix: persist `$return_path` to the session before `setForUser()` may redirect to `/2fa`, so OAuth authorization (and any other `return_path`-carrying login) survives the two-factor detour instead of landing on the site root |
 
 ## Building and deploying

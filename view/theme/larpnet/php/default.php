@@ -12,7 +12,9 @@
 <!DOCTYPE html>
 <?php
 
+use Friendica\Database\DBA;
 use Friendica\DI;
+use Friendica\Model\Contact;
 use Friendica\Model\Profile;
 
 require_once 'view/theme/larpnet/theme.php';
@@ -55,7 +57,7 @@ if ($scheme != LARPNET_CUSTOM_SCHEME) {
 	if (file_exists('view/theme/larpnet/scheme/' . $scheme . '.php')) {
 		$schemefile    = 'view/theme/larpnet/scheme/' . $scheme . '.php';
 		$scheme_accent = DI::pConfig()->get($uid, 'larpnet', 'scheme_accent') ?:
-				DI::config()->get('larpnet', 'scheme_accent') ?: LARPNET_SCHEME_ACCENT_BLUE;
+				DI::config()->get('larpnet', 'scheme_accent') ?: LARPNET_SCHEME_ACCENT_PURPLE;
 
 		require_once $schemefile;
 	}
@@ -80,6 +82,53 @@ echo '<meta name="theme-color" content="' . $nav_bg . '" />';
 			)
 		);
 	};
+
+// Full-width profile banner (profile pages only, toggleable via theme admin settings)
+$profileBannerHtml = '';
+if (!$minimal && DI::config()->get('larpnet', 'profile_banner', 1) && DI::args()->get(0) === 'profile') {
+	$profileNick      = DI::args()->get(1);
+	$profileBannerUrl = '';
+	$isOwnProfile     = false;
+	$showBanner       = true;
+
+	if ($profileNick) {
+		$profileUser = DBA::selectFirst('user', ['uid'], ['nickname' => $profileNick]);
+		if (DBA::isResult($profileUser)) {
+			$profileUid = $profileUser['uid'];
+			// Respect the profile owner's own banner preference
+			if (!DI::pConfig()->get($profileUid, 'larpnet', 'profile_banner', 1)) {
+				$showBanner = false;
+			} else {
+				if (DBA::exists('photo', ['uid' => $profileUid, 'photo-type' => 11])) {
+					$selfContact = Contact::selectFirst(['id'], ['uid' => $profileUid, 'self' => true]);
+					if ($selfContact) {
+						$profileBannerUrl = '/photo/header/' . $selfContact['id'];
+					}
+				}
+				$isOwnProfile = (DI::userSession()->getLocalUserId() == $profileUid);
+			}
+		} else {
+			$remoteContact = Contact::selectFirst(['id', 'header'], ['nick' => $profileNick, 'uid' => 0]);
+			if (DBA::isResult($remoteContact) && !empty($remoteContact['header'])) {
+				$scheme = parse_url($remoteContact['header'], PHP_URL_SCHEME);
+				if (in_array($scheme, ['http', 'https'], true)) {
+					$profileBannerUrl = $remoteContact['header'];
+				}
+			}
+		}
+	}
+
+	if ($showBanner) {
+		$bannerStyle = $profileBannerUrl
+			? ' style="background-image: url(\'' . htmlspecialchars($profileBannerUrl) . '\')"'
+			: '';
+		$editBtn = $isOwnProfile
+			? '<a href="/settings/addons" id="change-profile-banner" target="_top" title="Zmień baner profilu"><i class="fa fa-picture-o"></i></a>'
+			: '';
+		$profileBannerHtml = '<div id="profile-page-banner"' . $bannerStyle . '>' . $editBtn . '</div>';
+	}
+}
+echo $profileBannerHtml;
 
 // special minimal style for modal dialogs
 if ($minimal) {

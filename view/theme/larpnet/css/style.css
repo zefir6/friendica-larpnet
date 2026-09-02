@@ -1292,6 +1292,39 @@ aside > .help-aside-wrapper h2 {
 	padding: 2px 3px;
 }
 
+/* Full-width profile banner (rendered in default.php before the grid) */
+#profile-page-banner {
+	width: 100%;
+	height: 220px;
+	background-size: cover;
+	background-position: center;
+	background-color: #fff;
+	position: relative;
+	z-index: 0;
+	margin-bottom: -80px; /* pull sidebar + content up to overlay banner */
+}
+#change-profile-banner {
+	position: absolute;
+	top: 10px;
+	right: 14px;
+	background: rgba(0, 0, 0, 0.45);
+	color: #fff;
+	padding: 6px 10px;
+	border-radius: 4px;
+	font-size: 15px;
+	text-decoration: none;
+	line-height: 1;
+}
+#change-profile-banner:hover {
+	background: rgba(0, 0, 0, 0.7);
+	color: #fff;
+}
+/* When banner is present: content paints over banner */
+#profile-page-banner ~ main {
+	position: relative;
+	z-index: 1;
+}
+
 /* vcard / h-card */
 aside .vcard #profile-photo-wrapper {
 	text-align: center;
@@ -4348,4 +4381,12 @@ div.login-form, .login-content-wrapper,
 		padding-right: 3px;
 		padding-left: 3px;
 	}
+}
+
+#nav-notification-enable {
+	padding: 4px 16px 8px;
+	border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+#nav-notification-enable-btn {
+	width: 100%;
 }

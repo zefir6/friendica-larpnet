@@ -27,7 +27,7 @@ use Friendica\Util\Strings;
 
 require_once 'view/theme/larpnet/theme.php';
 
-function get_scheme_info($scheme)
+function larpnet_get_scheme_info($scheme)
 {
 	$theme = DI::appHelper()->getCurrentTheme();
 	$themepath = 'view/theme/' . $theme . '/';
@@ -98,7 +98,7 @@ function larpnet_scheme_get_list(): array
 	foreach (glob('view/theme/larpnet/scheme/*.php') ?: [] as $file) {
 		$scheme = basename($file, '.php');
 		if (!in_array($scheme, ['default', 'light', 'dark', 'black'])) {
-			$scheme_info = get_scheme_info($scheme);
+			$scheme_info = larpnet_get_scheme_info($scheme);
 			$schemes[$scheme] = $scheme_info['name'] ?? ucfirst($scheme);
 		}
 	}

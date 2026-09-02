@@ -12,8 +12,8 @@ use Friendica\Util\Strings;
 
 /**
  * Shared helpers for the larpnet ntfy push integration, used by both the
- * larpnet_notifications theme (browser/PWA Web Push) and native API clients
- * (e.g. the Android app) that provision/consume the same per-user ntfy topic.
+ * larpnet theme (browser/PWA Web Push) and native API clients (e.g. the
+ * Android app) that provision/consume the same per-user ntfy topic.
  */
 class LarpnetPush
 {
