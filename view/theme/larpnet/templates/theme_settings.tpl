@@ -208,9 +208,9 @@
 
 {{include file="field_checkbox.tpl" field=$always_open_compose}}
 
-{{if $admin_theme_settings}}
+{{if $profile_banner}}{{include file="field_checkbox.tpl" field=$profile_banner}}{{/if}}
+
 <div class="settings-submit-wrapper pull-right">
 	<button type="submit" value="{{$submit}}" class="settings-submit btn btn-primary" name="larpnet-settings-submit">{{$submit}}</button>
 </div>
-{{/if}}
 <div class="clearfix"></div>

@@ -44,9 +44,7 @@ if [ -f /var/www/html/index.php ]; then
     cp -r "/usr/src/friendica/addon/${addon}" "/var/www/html/addon/"
   done
 
-  for theme in larpnet larpnet_notifications; do
-    cp -r "/usr/src/friendica/view/theme/${theme}" "/var/www/html/view/theme/"
-  done
+  cp -r "/usr/src/friendica/view/theme/larpnet" "/var/www/html/view/theme/"
 fi
 
 exec /entrypoint.sh "$@"

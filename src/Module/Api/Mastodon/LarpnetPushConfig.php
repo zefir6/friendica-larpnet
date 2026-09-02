@@ -16,7 +16,7 @@ use Friendica\Module\BaseApi;
  * directly to the larpnet ntfy relay: the server URL, the caller's
  * (auto-provisioned) per-user topic, and a read-only ntfy token.
  *
- * This is the native-client equivalent of what larpnet_notifications/theme.php
+ * This is the native-client equivalent of what view/theme/larpnet/theme.php
  * injects into the browser via window.LarpnetPush.
  */
 class LarpnetPushConfig extends BaseApi
