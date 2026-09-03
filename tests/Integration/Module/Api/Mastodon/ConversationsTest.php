@@ -56,6 +56,11 @@ final class ConversationsTest extends ApiTestCase
 			'updated' => '2020-01-01 12:00:00',
 			'subject' => 'Second conversation',
 		]);
+		// larpnet: the endpoint enumerates convids from the caller's own `mail` rows (see
+		// Conversations::rawContent()), not from `conv` directly, so a `conv` row alone
+		// isn't enough -- a matching `mail` row is required for the conversation to show up.
+		DI::dba()->insert('mail', ['uid' => 42, 'convid' => 1, 'author-id' => 44, 'contact-id' => 44, 'uri-id' => 44, 'parent-uri-id' => 44, 'thr-parent-id' => 44, 'guid' => 'mail-1', 'from-name' => 'Tester', 'body' => 'mail body', 'seen' => true]);
+		DI::dba()->insert('mail', ['uid' => 42, 'convid' => 2, 'author-id' => 44, 'contact-id' => 44, 'uri-id' => 44, 'parent-uri-id' => 44, 'thr-parent-id' => 44, 'guid' => 'mail-2', 'from-name' => 'Tester', 'body' => 'mail body', 'seen' => true]);
 
 		$module = $this->createModule();
 
@@ -69,9 +74,13 @@ final class ConversationsTest extends ApiTestCase
 
 			self::assertCount(2, $conversations);
 			self::assertEquals(['2', '1'], array_column($conversations, 'id'));
-			self::assertSame([], $conversations[0]->accounts);
+			// larpnet: `accounts` is resolved from `mail.contact-id`, which is invariant across
+			// the thread and always the other party -- not from message senders (see the bug fix
+			// note on Conversation::createFromConvId()).
+			self::assertCount(1, $conversations[0]->accounts);
+			self::assertSame('friendcontact', $conversations[0]->accounts[0]->username);
 			self::assertFalse($conversations[0]->unread);
-			self::assertNull($conversations[0]->last_status);
+			self::assertNotNull($conversations[0]->last_status);
 		}
 	}
 
@@ -97,6 +106,8 @@ final class ConversationsTest extends ApiTestCase
 			'updated' => '2020-01-01 12:00:00',
 			'subject' => 'Second conversation',
 		]);
+		DI::dba()->insert('mail', ['uid' => 42, 'convid' => 1, 'author-id' => 44, 'contact-id' => 44, 'uri-id' => 44, 'parent-uri-id' => 44, 'thr-parent-id' => 44, 'guid' => 'mail-1', 'from-name' => 'Tester', 'body' => 'mail body', 'seen' => true]);
+		DI::dba()->insert('mail', ['uid' => 42, 'convid' => 2, 'author-id' => 44, 'contact-id' => 44, 'uri-id' => 44, 'parent-uri-id' => 44, 'thr-parent-id' => 44, 'guid' => 'mail-2', 'from-name' => 'Tester', 'body' => 'mail body', 'seen' => true]);
 
 		$module = $this->createModule();
 
@@ -136,6 +147,8 @@ final class ConversationsTest extends ApiTestCase
 			'updated' => '2020-01-01 12:00:00',
 			'subject' => 'Second conversation',
 		]);
+		DI::dba()->insert('mail', ['uid' => 42, 'convid' => 1, 'author-id' => 44, 'contact-id' => 44, 'uri-id' => 44, 'parent-uri-id' => 44, 'thr-parent-id' => 44, 'guid' => 'mail-1', 'from-name' => 'Tester', 'body' => 'mail body', 'seen' => true]);
+		DI::dba()->insert('mail', ['uid' => 42, 'convid' => 2, 'author-id' => 44, 'contact-id' => 44, 'uri-id' => 44, 'parent-uri-id' => 44, 'thr-parent-id' => 44, 'guid' => 'mail-2', 'from-name' => 'Tester', 'body' => 'mail body', 'seen' => true]);
 
 		$module = $this->createModule();
 

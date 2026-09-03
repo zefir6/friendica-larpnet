@@ -254,6 +254,7 @@ class ACL
 			'allow_gid' => $default_permissions['allow_gid'] ?? [],
 			'deny_cid'  => $default_permissions['deny_cid']  ?? [],
 			'deny_gid'  => $default_permissions['deny_gid']  ?? [],
+			'private'   => $default_permissions['private']   ?? null,
 		];
 
 		if (($default_permissions['private'] ?? null) === \Friendica\Model\Item::SERVER_ONLY) {

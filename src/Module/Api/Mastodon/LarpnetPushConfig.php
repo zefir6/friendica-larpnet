@@ -28,13 +28,13 @@ class LarpnetPushConfig extends BaseApi
 
 		$ntfyUrl = DI::config()->get('larpnet_notifications', 'ntfy_url');
 		if (empty($ntfyUrl)) {
-			$this->jsonExit(['enabled' => false]);
+			$this->earlyJsonExit(['enabled' => false]);
 		}
 
 		// Never expose the write-capable token to a client, only the read-only one.
 		$ntfyToken = (string) DI::config()->get('larpnet_notifications', 'ntfy_ro_token');
 
-		$this->jsonExit([
+		$this->earlyJsonExit([
 			'enabled'    => true,
 			'ntfy_url'   => rtrim($ntfyUrl, '/'),
 			'ntfy_topic' => LarpnetPush::getOrCreateTopic($uid),
