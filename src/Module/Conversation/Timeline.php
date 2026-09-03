@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -85,10 +85,25 @@ class Timeline extends BaseModule
 	protected $cache;
 	/** @var UserDefinedChannel */
 	protected $channelRepository;
-	protected ActivityFactory $activityFactory;
 
-	public function __construct(UserDefinedChannel $channel, Mode $mode, IHandleUserSessions $session, Database $database, IManagePersonalConfigValues $pConfig, IManageConfigValues $config, ICanCache $cache, ActivityFactory $activityFactory, L10n $l10n, BaseURL $baseUrl, Arguments $args, LoggerInterface $logger, Profiler $profiler, Response $response, array $server = [], array $parameters = [])
-	{
+	public function __construct(
+		UserDefinedChannel $channel,
+		Mode $mode,
+		IHandleUserSessions $session,
+		Database $database,
+		IManagePersonalConfigValues $pConfig,
+		IManageConfigValues $config,
+		ICanCache $cache,
+		protected ActivityFactory $activityFactory,
+		L10n $l10n,
+		BaseURL $baseUrl,
+		Arguments $args,
+		LoggerInterface $logger,
+		Profiler $profiler,
+		Response $response,
+		array $server = [],
+		array $parameters = [],
+	) {
 		parent::__construct($l10n, $baseUrl, $args, $logger, $profiler, $response, $server, $parameters);
 
 		$this->channelRepository = $channel;
@@ -98,7 +113,6 @@ class Timeline extends BaseModule
 		$this->pConfig           = $pConfig;
 		$this->config            = $config;
 		$this->cache             = $cache;
-		$this->activityFactory   = $activityFactory;
 	}
 
 	/**
@@ -222,7 +236,7 @@ class Timeline extends BaseModule
 		return $tabs;
 	}
 
-	public function getChannelItemsForAPI(string $channel, int $uid, int $limit, int $min = null, int $max = null): array
+	public function getChannelItemsForAPI(string $channel, int $uid, int $limit, ?int $min = null, ?int $max = null): array
 	{
 		$this->itemsPerPage = $limit;
 		$this->itemUriId    = 0;
@@ -399,7 +413,7 @@ class Timeline extends BaseModule
 			if (!$cache) {
 				$condition = ["`language` = ?", User::getLanguageCode($uid)];
 			}
-		} elseif (is_numeric($this->selectedTab) && !empty($channel = $this->channelRepository->selectById($this->selectedTab, $uid))) {
+		} elseif (is_numeric($this->selectedTab) && !empty($channel = $this->channelRepository->selectById((int) $this->selectedTab, $uid))) {
 			if (!$this->config->get('system', 'channel_cache')) {
 				$condition = $this->channelRepository->getCondition($channel, $uid);
 				if (in_array($channel->circle, [EntityUserDefinedChannel::CIRCLE_CREATION, EntityUserDefinedChannel::CIRCLE_POSTS, EntityUserDefinedChannel::CIRCLE_ACTIVITY])) {

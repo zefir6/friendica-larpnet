@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -106,16 +106,16 @@ class Directory extends BaseModule
 		$about = (($contact['about']) ? $contact['about'] . '<br />' : '');
 
 		$details = '';
-		if (strlen($contact['locality'])) {
+		if (strlen((string) $contact['locality'])) {
 			$details .= $contact['locality'];
 		}
-		if (strlen($contact['region'])) {
-			if (strlen($contact['locality'])) {
+		if (strlen((string) $contact['region'])) {
+			if (strlen((string) $contact['locality'])) {
 				$details .= ', ';
 			}
 			$details .= $contact['region'];
 		}
-		if (strlen($contact['country-name'])) {
+		if (strlen((string) $contact['country-name'])) {
 			if (strlen($details)) {
 				$details .= ', ';
 			}

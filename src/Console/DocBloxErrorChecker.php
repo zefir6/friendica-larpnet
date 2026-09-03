@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -35,8 +35,10 @@ class DocBloxErrorChecker extends \Asika\SimpleConsole\Console
 	/** @var string */
 	private $basePath;
 
-	public function __construct(AppHelper $appHelper, array $argv = null)
-	{
+	public function __construct(
+		AppHelper $appHelper,
+		?array $argv = null,
+	) {
 		parent::__construct($argv);
 
 		$this->basePath = $appHelper->getBasePath();
@@ -84,7 +86,7 @@ HELP;
 			while ($file = readdir($dh)) {
 				if (is_dir($dir . "/" . $file)) {
 					//add to directory stack
-					if (strpos($file, '.') !== 0) {
+					if (!str_starts_with($file, '.')) {
 						array_push($dirstack, $dir . "/" . $file);
 						$this->out('dir ' . $dir . '/' . $file);
 					}
@@ -188,12 +190,9 @@ HELP;
 		//split array...
 		$parts = array_chunk($fileset, $ps);
 		//filter working subsets...
-		$parts = array_filter($parts, [$this, 'runs']);
+		$parts = array_filter($parts, $this->runs(...));
 		//melt remaining parts together
-		if (is_array($parts)) {
-			return array_reduce($parts, "array_merge", []);
-		}
-		return [];
+		return array_reduce($parts, array_merge(...), []);
 	}
 
 }

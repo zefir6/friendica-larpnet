@@ -1,15 +1,9 @@
-# SPDX-FileCopyrightText: 2010 - 2024 the Friendica project
+# SPDX-FileCopyrightText: 2010-2026 the Friendica project
 #
 # SPDX-License-Identifier: CC0-1.0
 
 matrix:
   include:
-    - PHP_MAJOR_VERSION: 7.4
-      PHP_VERSION: 7.4.33
-    - PHP_MAJOR_VERSION: 8.0
-      PHP_VERSION: 8.0.30
-    - PHP_MAJOR_VERSION: 8.1
-      PHP_VERSION: 8.1.34
     - PHP_MAJOR_VERSION: 8.2
       PHP_VERSION: 8.2.30
     - PHP_MAJOR_VERSION: 8.3
@@ -33,6 +27,7 @@ steps:
     image: php:${PHP_MAJOR_VERSION}
     commands:
       - find . -name \*.php -not -path './vendor/*' -not -path './view/asset/*' -print0 | xargs -0 -n1 php -l
+
   restore_cache:
     image: meltwater/drone-cache:dev
     settings:
@@ -44,15 +39,17 @@ steps:
         - '.composer'
     volumes:
       - /tmp/drone-cache:/tmp/cache
+
   composer_install:
     image: friendicaci/php${PHP_MAJOR_VERSION}:php${PHP_VERSION}
     commands:
-      - git clone -b 2026.04-rc --single-branch https://git.friendi.ca/friendica/friendica-addons.git addon
+      - git clone -b develop --single-branch https://git.friendi.ca/friendica/friendica-addons.git addon
       - export COMPOSER_HOME=.composer
       - ./bin/composer.phar validate
       - ./bin/composer.phar install --prefer-dist
     volumes:
       - /etc/hosts:/etc/hosts
+
   rebuild_cache:
     image: meltwater/drone-cache:dev
     settings:
@@ -64,20 +61,7 @@ steps:
         - '.composer'
     volumes:
       - /tmp/drone-cache:/tmp/cache
-  phpstan:
-    image: friendicaci/php${PHP_MAJOR_VERSION}:php${PHP_VERSION}
-    when:
-      matrix:
-        PHP_MAJOR_VERSION: 8.5
-    commands:
-      - bin/composer.phar run phpstan;
-  phpstan-addons:
-    image: friendicaci/php${PHP_MAJOR_VERSION}:php${PHP_VERSION}
-    when:
-      matrix:
-        PHP_MAJOR_VERSION: 8.5
-    commands:
-      - bin/composer.phar run phpstan-addons;
+
   test:
     image: friendicaci/php${PHP_MAJOR_VERSION}:php${PHP_VERSION}
     environment:
@@ -96,10 +80,11 @@ steps:
       - if [ "${PHP_MAJOR_VERSION}" = "8.5" -a "${CI_REPO}" = "friendica/friendica" ]; then
           phpenmod xdebug;
           export XDEBUG_MODE=coverage;
-          phpunit --configuration tests/phpunit.xml -d memory_limit=-1 --coverage-clover clover.xml;
+          vendor/bin/phpunit --configuration tests/phpunit.xml -d memory_limit=-1 --coverage-clover clover.xml;
         else
-          phpunit --configuration tests/phpunit.xml -d memory_limit=-1;
+          vendor/bin/phpunit --configuration tests/phpunit.xml -d memory_limit=-1;
         fi
+
   codecov:
     image: friendicaci/codecov
     when:

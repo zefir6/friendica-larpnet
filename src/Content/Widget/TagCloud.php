@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -44,7 +44,7 @@ class TagCloud
 			foreach ($r as $rr) {
 				$tags[] = [
 					'level' => $rr[2],
-					'url'   => $url . '/conversations?tag=' . urlencode($rr[0]),
+					'url'   => $url . '/conversations?tag=' . urlencode((string) $rr[0]),
 					'name'  => $rr[0],
 				];
 			}
@@ -131,7 +131,7 @@ class TagCloud
 			$x++;
 		}
 
-		usort($tags, [self::class, 'tagsSort']);
+		usort($tags, self::tagsSort(...));
 		$range = max(0.01, $max - $min) * 1.0001;
 
 		for ($x = 0; $x < count($tags); $x++) {
@@ -144,13 +144,13 @@ class TagCloud
 	/**
 	 * Compare function to sort tags/terms alphabetically.
 	 *
-	 * @param string $a
-	 * @param string $b
+	 * @param array $a
+	 * @param array $b
 	 *
 	 * @return int
 	 */
-	private static function tagsSort($a, $b)
+	private static function tagsSort($a, $b): int
 	{
-		return strtolower($a[0]) <=> strtolower($b[0]);
+		return strtolower((string) $a[0]) <=> strtolower((string) $b[0]);
 	}
 }

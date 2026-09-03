@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -59,8 +59,14 @@ class Notification extends BaseDataTransferObject
 	 *
 	 * @throws HttpException\InternalServerErrorException|Exception
 	 */
-	public function __construct(int $id, string $type, \DateTime $created_at, Account $account = null, Status $status = null, bool $dismissed = false)
-	{
+	public function __construct(
+		int $id,
+		string $type,
+		\DateTime $created_at,
+		?Account $account = null,
+		?Status $status = null,
+		bool $dismissed = false,
+	) {
 		$this->id         = (string) $id;
 		$this->type       = $type;
 		$this->created_at = $created_at->format(DateTimeFormat::JSON);

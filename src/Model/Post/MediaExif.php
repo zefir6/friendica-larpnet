@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -46,8 +46,8 @@ class MediaExif
 			'DateTime'          => self::getDateTime($exif),
 			'DateTimeOriginal'  => self::getDateTimeOriginal($exif),
 			'DateTimeDigitized' => self::getDateTimeDigitized($exif),
-			'BodySerialNumber'  => $exif['BodySerialNumber']      ?? null,
-			'Orientation'       => $exif['Orientation']           ?? null,
+			'BodySerialNumber'  => $exif['BodySerialNumber'] ?? null,
+			'Orientation'       => self::getOrientation($exif),
 			'Artist'            => $exif['Artist']                ?? null,
 			'Copyright'         => $data['COMPUTED']['Copyright'] ?? null,
 			'ExpandFilm'        => $exif['ExpandFilm']            ?? null,
@@ -90,7 +90,7 @@ class MediaExif
 
 		$vals = [];
 		foreach ($exif['LensSpecification'] as $val) {
-			$parts = explode('/', $val);
+			$parts = explode('/', (string) $val);
 			if (count($parts) == 2 && is_numeric($parts[0]) && is_numeric($parts[1]) && $parts[1] != 0) {
 				$vals[] = (float) $parts[0] / (float) $parts[1];
 			} else {
@@ -113,6 +113,26 @@ class MediaExif
 		}
 
 		return $LensSpecification;
+	}
+
+	/**
+	 * Get the orientation from exif data
+	 *
+	 * Exif defines the orientation as a value between 1 and 8. Some images carry
+	 * values outside of that range, these are discarded.
+	 *
+	 * @param array $exif
+	 * @return int|null
+	 */
+	private static function getOrientation(array $exif): ?int
+	{
+		if (!isset($exif['Orientation']) || !is_numeric($exif['Orientation'])) {
+			return null;
+		}
+
+		$orientation = (int) $exif['Orientation'];
+
+		return ($orientation >= 1 && $orientation <= 8) ? $orientation : null;
 	}
 
 	/**

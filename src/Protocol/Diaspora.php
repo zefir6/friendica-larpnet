@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -40,6 +40,7 @@ use Friendica\Util\Strings;
 use Friendica\Util\XML;
 use GuzzleHttp\Psr7\Uri;
 use SimpleXMLElement;
+use Friendica\Content\Post\Entity\PostMedia;
 
 /**
  * This class contains functions to communicate via the Diaspora protocol
@@ -161,7 +162,7 @@ class Diaspora
 			if ($key == '') {
 				throw new \InvalidArgumentException();
 			}
-		} catch (\InvalidArgumentException $e) {
+		} catch (\InvalidArgumentException) {
 			DI::logger()->notice("Couldn't get a key for handle " . $handle . ". Discarding.");
 			return false;
 		}
@@ -234,7 +235,7 @@ class Diaspora
 
 				$outer_key_bundle = '';
 				@openssl_private_decrypt($encrypted_aes_key_bundle, $outer_key_bundle, $privKey);
-				$j_outer_key_bundle = json_decode($outer_key_bundle);
+				$j_outer_key_bundle = json_decode((string) $outer_key_bundle);
 
 				if (!is_object($j_outer_key_bundle)) {
 					DI::logger()->info('Unable to decode outer key bundle', ['outer_key_bundle' => $outer_key_bundle]);
@@ -250,7 +251,7 @@ class Diaspora
 				$outer_key = base64_decode($j_outer_key_bundle->key);
 
 				$xml = self::aesDecrypt($outer_key, $outer_iv, $ciphertext);
-			} catch (\Throwable $e) {
+			} catch (\Throwable) {
 				DI::logger()->notice('Outer Salmon did not verify. Discarding.');
 				if ($no_exit) {
 					return false;
@@ -305,7 +306,7 @@ class Diaspora
 			if ($key == '') {
 				throw new \InvalidArgumentException();
 			}
-		} catch (\InvalidArgumentException $e) {
+		} catch (\InvalidArgumentException) {
 			DI::logger()->notice("Couldn't get a key for handle " . $author_addr . ". Discarding.");
 			if ($no_exit) {
 				return false;
@@ -370,16 +371,16 @@ class Diaspora
 
 			$encrypted_header = json_decode(base64_decode($children->encrypted_header));
 
-			$encrypted_aes_key_bundle = base64_decode($encrypted_header->aes_key);
-			$ciphertext               = base64_decode($encrypted_header->ciphertext);
+			$encrypted_aes_key_bundle = base64_decode((string) $encrypted_header->aes_key);
+			$ciphertext               = base64_decode((string) $encrypted_header->ciphertext);
 
 			$outer_key_bundle = '';
 			openssl_private_decrypt($encrypted_aes_key_bundle, $outer_key_bundle, $privKey);
 
-			$j_outer_key_bundle = json_decode($outer_key_bundle);
+			$j_outer_key_bundle = json_decode((string) $outer_key_bundle);
 
-			$outer_iv  = base64_decode($j_outer_key_bundle->iv);
-			$outer_key = base64_decode($j_outer_key_bundle->key);
+			$outer_iv  = base64_decode((string) $j_outer_key_bundle->iv);
+			$outer_key = base64_decode((string) $j_outer_key_bundle->key);
 
 			$decrypted = self::aesDecrypt($outer_key, $outer_iv, $ciphertext);
 
@@ -392,7 +393,7 @@ class Diaspora
 
 		try {
 			$author = WebFingerUri::fromString($idom->author_id);
-		} catch (\Throwable $e) {
+		} catch (\Throwable) {
 			DI::logger()->notice('Could not retrieve author URI.', ['idom' => $idom]);
 			throw new \Friendica\Network\HTTPException\BadRequestException();
 		}
@@ -515,7 +516,7 @@ class Diaspora
 	 * @throws \Friendica\Network\HTTPException\InternalServerErrorException
 	 * @throws \ImagickException
 	 */
-	public static function dispatch(array $importer, array $msg, SimpleXMLElement $fields = null, int $direction = self::PUSHED)
+	public static function dispatch(array $importer, array $msg, ?SimpleXMLElement $fields = null, int $direction = self::PUSHED)
 	{
 		// The sender is the handle of the contact that sent the message.
 		// This will often be different with relayed messages (for example "like" and "comment")
@@ -760,7 +761,7 @@ class Diaspora
 			if (empty($key)) {
 				throw new \InvalidArgumentException();
 			}
-		} catch (\Throwable $e) {
+		} catch (\Throwable) {
 			DI::logger()->info('No key found', ['author' => $fields->author]);
 			return false;
 		}
@@ -787,7 +788,7 @@ class Diaspora
 		DI::logger()->info('Fetching diaspora key', ['handle' => $uri->getAddr()]);
 		try {
 			return DI::dsprContact()->getByAddr($uri)->pubKey;
-		} catch (NotFoundException|\InvalidArgumentException $e) {
+		} catch (NotFoundException|\InvalidArgumentException) {
 			return '';
 		}
 	}
@@ -859,7 +860,7 @@ class Diaspora
 		//}
 
 		// Contact server is blocked
-		if (Network::isUrlBlocked($contact['url'])) {
+		if (Network::isUriBlocked(new Uri($contact['url']))) {
 			return false;
 			// We don't seem to like that person
 		} elseif ($contact['blocked']) {
@@ -942,18 +943,20 @@ class Diaspora
 	{
 		preg_replace_callback(
 			"=diaspora://.*?/post/([0-9A-Za-z\-_@.:]{15,254}[0-9A-Za-z])=ism",
-			function ($match) use ($item) {
+			function ($match) use ($item): string {
 				self::fetchGuidSub($match, $item);
+				return $match[0];
 			},
-			$item['body'],
+			(string) $item['body'],
 		);
 
 		preg_replace_callback(
 			"&\[url=/?posts/([^\[\]]*)\](.*)\[\/url\]&Usi",
-			function ($match) use ($item) {
+			function ($match) use ($item): string {
 				self::fetchGuidSub($match, $item);
+				return $match[0];
 			},
-			$item['body'],
+			(string) $item['body'],
 		);
 	}
 
@@ -1112,7 +1115,7 @@ class Diaspora
 
 		try {
 			$author = WebFingerUri::fromString($author_handle);
-		} catch (\InvalidArgumentException $e) {
+		} catch (\InvalidArgumentException) {
 			// If this isn't a "status_message" then quit
 			DI::logger()->info("Message doesn't seem to be a status message");
 			return false;
@@ -1202,7 +1205,7 @@ class Diaspora
 
 					$item = Post::selectFirst($fields, $condition);
 				}
-			} catch (HTTPException\NotFoundException $e) {
+			} catch (HTTPException\NotFoundException) {
 				DI::logger()->notice('Unable to retrieve author details', ['author' => $author->getAddr()]);
 			}
 		}
@@ -1285,7 +1288,7 @@ class Diaspora
 		$platform = '';
 		$gserver  = DBA::selectFirst('gserver', ['platform'], ['nurl' => Strings::normaliseLink($contact['baseurl'])]);
 		if (!empty($gserver['platform'])) {
-			$platform = strtolower($gserver['platform']);
+			$platform = strtolower((string) $gserver['platform']);
 			DI::logger()->info('Detected platform', ['platform' => $platform, 'url' => $contact['url']]);
 		}
 
@@ -1338,7 +1341,7 @@ class Diaspora
 		try {
 			$old_author = WebFingerUri::fromString(XML::unescape($data->author));
 			$new_author = WebFingerUri::fromString(XML::unescape($data->profile->author));
-		} catch (\Throwable $e) {
+		} catch (\Throwable) {
 			DI::logger()->notice('Cannot find handles for sender and user', ['data' => $data]);
 			return false;
 		}
@@ -1423,7 +1426,7 @@ class Diaspora
 	 * @throws \Friendica\Network\HTTPException\InternalServerErrorException
 	 * @throws \ImagickException
 	 */
-	private static function getUriFromGuid(string $guid, WebFingerUri $person_uri = null): string
+	private static function getUriFromGuid(string $guid, ?WebFingerUri $person_uri = null): string
 	{
 		$item = Post::selectFirst(['uri'], ['guid' => $guid]);
 		if ($item) {
@@ -1431,7 +1434,7 @@ class Diaspora
 		} elseif ($person_uri) {
 			try {
 				return DI::dsprContact()->selectOneByAddr($person_uri)->baseurl . '/objects/' . $guid;
-			} catch (HTTPException\NotFoundException|\InvalidArgumentException $e) {
+			} catch (HTTPException\NotFoundException|\InvalidArgumentException) {
 				return '';
 			}
 		}
@@ -1458,16 +1461,11 @@ class Diaspora
 		 * [2] = name (optional)
 		 * [3] = profile URL
 		 */
-
 		foreach ($matches as $match) {
-			if ($match === '') {
-				continue;
-			}
-
 			try {
 				$contact = DI::dsprContact()->getByUrl(new Uri($match[3]));
 				Tag::storeByHash($uriid, $match[1], $contact->name ?: $contact->nick, $contact->url);
-			} catch (\Throwable $e) {
+			} catch (\Throwable) {
 			}
 		}
 	}
@@ -1526,7 +1524,7 @@ class Diaspora
 
 		try {
 			$author_url = (string) DI::dsprContact()->getByAddr($author)->url;
-		} catch (HTTPException\NotFoundException|\InvalidArgumentException $e) {
+		} catch (HTTPException\NotFoundException|\InvalidArgumentException) {
 			DI::logger()->notice('Unable to find author details', ['author' => $author->getAddr()]);
 			return false;
 		}
@@ -1601,11 +1599,9 @@ class Diaspora
 			return false;
 		}
 
-		if ($message_id) {
-			DI::logger()->info('Stored comment ' . $datarray['guid'] . ' with message id ' . $message_id);
-			if ($datarray['uid'] == 0) {
-				Item::distribute($message_id, json_encode($data));
-			}
+		DI::logger()->info('Stored comment ' . $datarray['guid'] . ' with message id ' . $message_id);
+		if ($datarray['uid'] == 0) {
+			Item::distribute($message_id, json_encode($data));
 		}
 
 		return true;
@@ -1643,7 +1639,7 @@ class Diaspora
 
 		try {
 			$msg_author_uri = WebFingerUri::fromString($msg_author_handle);
-		} catch (\InvalidArgumentException $e) {
+		} catch (\InvalidArgumentException) {
 			return false;
 		}
 
@@ -1784,7 +1780,7 @@ class Diaspora
 
 		try {
 			$author_url = (string) DI::dsprContact()->getByAddr($author)->url;
-		} catch (HTTPException\NotFoundException|\InvalidArgumentException $e) {
+		} catch (HTTPException\NotFoundException|\InvalidArgumentException) {
 			DI::logger()->notice('Unable to find author details', ['author' => $author->getAddr()]);
 			return false;
 		}
@@ -1859,11 +1855,9 @@ class Diaspora
 			return false;
 		}
 
-		if ($message_id) {
-			DI::logger()->info('Stored like ' . $datarray['guid'] . ' with message id ' . $message_id);
-			if ($datarray['uid'] == 0) {
-				Item::distribute($message_id, json_encode($data));
-			}
+		DI::logger()->info('Stored like ' . $datarray['guid'] . ' with message id ' . $message_id);
+		if ($datarray['uid'] == 0) {
+			Item::distribute($message_id, json_encode($data));
 		}
 
 		return true;
@@ -1904,7 +1898,7 @@ class Diaspora
 
 		try {
 			$author = DI::dsprContact()->getByAddr($author_uri);
-		} catch (HTTPException\NotFoundException|\InvalidArgumentException $e) {
+		} catch (HTTPException\NotFoundException|\InvalidArgumentException) {
 			DI::logger()->notice('Unable to find author details', ['author' => $author_uri->getAddr()]);
 			return false;
 		}
@@ -1976,7 +1970,7 @@ class Diaspora
 
 		try {
 			$author_url = (string) DI::dsprContact()->getByAddr($author)->url;
-		} catch (HTTPException\NotFoundException|\InvalidArgumentException $e) {
+		} catch (HTTPException\NotFoundException|\InvalidArgumentException) {
 			DI::logger()->notice('unable to find author details', ['author' => $author->getAddr()]);
 			return false;
 		}
@@ -2142,7 +2136,7 @@ class Diaspora
 		// this is to prevent multiple birthday notifications in a single year
 		// if we already have a stored birthday and the 'm-d' part hasn't changed, preserve the entry, which will preserve the notify year
 
-		if (substr($birthday, 5) === substr($contact['bd'], 5)) {
+		if (substr($birthday, 5) === substr((string) $contact['bd'], 5)) {
 			$birthday = $contact['bd'];
 		}
 
@@ -2247,21 +2241,31 @@ class Diaspora
 
 		if (!$following && $sharing && in_array($importer['page-flags'], [User::PAGE_FLAGS_SOAPBOX, User::PAGE_FLAGS_NORMAL])) {
 			DI::logger()->info("Author " . $author . " wants to share with us - but doesn't want to listen. Request is ignored.");
+
 			return false;
-		} elseif (!$following && !$sharing) {
+		}
+
+		if (!$following && !$sharing) {
 			DI::logger()->info("Author " . $author . " doesn't want anything - and we don't know the author. Request is ignored.");
+
 			return false;
-		} elseif (!$following && $sharing) {
+		}
+
+		if (!$following && $sharing) {
 			DI::logger()->info("Author " . $author . " wants to share with us.");
-		} elseif ($following && $sharing) {
+		}
+
+		if ($following && $sharing) {
 			DI::logger()->info("Author " . $author . " wants to have a bidirectional connection.");
-		} elseif ($following && !$sharing) {
+		}
+
+		if ($following && !$sharing) {
 			DI::logger()->info("Author " . $author . " wants to listen to us.");
 		}
 
 		try {
 			$author_url = (string) DI::dsprContact()->getByAddr($author)->url;
-		} catch (HTTPException\NotFoundException|\InvalidArgumentException $e) {
+		} catch (HTTPException\NotFoundException|\InvalidArgumentException) {
 			DI::logger()->notice('Cannot resolve diaspora handle for recipient', ['author' => $author->getAddr(), 'recipient' => $recipient]);
 			return false;
 		}
@@ -2317,7 +2321,7 @@ class Diaspora
 		$created_at = DateTimeFormat::utc(XML::unescape($data->created_at));
 		try {
 			$root_author = WebFingerUri::fromString(XML::unescape($data->root_author));
-		} catch (\InvalidArgumentException $e) {
+		} catch (\InvalidArgumentException) {
 			return false;
 		}
 
@@ -2341,7 +2345,7 @@ class Diaspora
 
 		try {
 			$original_person = DI::dsprContact()->getByAddr($root_author);
-		} catch (HTTPException\NotFoundException $e) {
+		} catch (HTTPException\NotFoundException) {
 			return false;
 		}
 
@@ -2439,7 +2443,7 @@ class Diaspora
 
 		try {
 			$author = DI::dsprContact()->getByAddr($author_uri);
-		} catch (HTTPException\NotFoundException|\InvalidArgumentException $e) {
+		} catch (HTTPException\NotFoundException|\InvalidArgumentException) {
 			DI::logger()->notice('Unable to find details for author', ['author' => $author_uri->getAddr()]);
 			return false;
 		}
@@ -2575,10 +2579,10 @@ class Diaspora
 	private static function storePhotoAsMedia(int $uriid, $photo)
 	{
 		// @TODO Need to find object type, roland@f.haeder.net
-		DI::logger()->debug('photo=' . get_class($photo));
+		DI::logger()->debug('photo=' . $photo::class);
 		$data = [
 			'uri-id'      => $uriid,
-			'type'        => Post\Media::IMAGE,
+			'type'        => PostMedia::TYPE_IMAGE,
 			'url'         => XML::unescape($photo->remote_photo_path) . XML::unescape($photo->remote_photo_name),
 			'height'      => (int) XML::unescape($photo->height ?? 0),
 			'width'       => (int) XML::unescape($photo->width ?? 0),
@@ -2619,7 +2623,7 @@ class Diaspora
 	 * @param string           $xml       The original XML of the message
 	 * @param int              $direction Indicates if the message had been fetched or pushed (self::PUSHED, self::FETCHED, self::FORCED_FETCH)
 	 *
-	 * @return int|bool The message id of the newly created item or false on error
+	 * @return bool True if the item was created or false on error
 	 * @throws \Friendica\Network\HTTPException\InternalServerErrorException
 	 * @throws \ImagickException
 	 */
@@ -2816,7 +2820,7 @@ class Diaspora
 
 		$json_object = json_encode(
 			[
-				'aes_key'                  => base64_encode($encrypted_key_bundle),
+				'aes_key'                  => base64_encode((string) $encrypted_key_bundle),
 				'encrypted_magic_envelope' => base64_encode($ciphertext),
 			],
 		);
@@ -2939,7 +2943,7 @@ class Diaspora
 		try {
 			$target   = DI::dsprContact()->getByAddr(WebFingerUri::fromString($contact['addr']));
 			$dest_url = $public_batch ? $target->batch : $target->notify;
-		} catch (HTTPException\NotFoundException|\InvalidArgumentException $e) {
+		} catch (HTTPException\NotFoundException|\InvalidArgumentException) {
 		}
 
 		if (empty($dest_url)) {
@@ -3025,7 +3029,7 @@ class Diaspora
 		if (!empty($contact['addr'])) {
 			try {
 				$pubkey = DI::dsprContact()->getByAddr(WebFingerUri::fromString($contact['addr']))->pubKey;
-			} catch (HTTPException\NotFoundException|\InvalidArgumentException $e) {
+			} catch (HTTPException\NotFoundException|\InvalidArgumentException) {
 			}
 		} else {
 			// The "addr" field should always be filled.
@@ -3216,7 +3220,7 @@ class Diaspora
 		}
 
 		return [
-			'root_handle' => strtolower($reshared['post']['author-addr']),
+			'root_handle' => strtolower((string) $reshared['post']['author-addr']),
 			'root_guid'   => $reshared['post']['guid'],
 		];
 	}
@@ -3271,7 +3275,7 @@ class Diaspora
 			$eventdata['description'] = html_entity_decode(BBCode::toMarkdown($event['desc']));
 		}
 		if ($event['location']) {
-			$event['location'] = preg_replace("/\[map\](.*?)\[\/map\]/ism", '$1', $event['location']);
+			$event['location'] = preg_replace("/\[map\](.*?)\[\/map\]/ism", '$1', (string) $event['location']);
 			$coord             = Map::getCoordinates($event['location']);
 
 			$location            = [];
@@ -3333,9 +3337,9 @@ class Diaspora
 			$native_photos = DI::config()->get('diaspora', 'native_photos');
 			if ($native_photos) {
 				$item['body'] = Post\Media::removeFromEndOfBody($item['body']);
-				$attach_media = [Post\Media::AUDIO, Post\Media::VIDEO];
+				$attach_media = [PostMedia::TYPE_AUDIO, PostMedia::TYPE_VIDEO];
 			} else {
-				$attach_media = [Post\Media::AUDIO, Post\Media::IMAGE, Post\Media::VIDEO];
+				$attach_media = [PostMedia::TYPE_AUDIO, PostMedia::TYPE_IMAGE, PostMedia::TYPE_VIDEO];
 			}
 
 			$title = $item['title'];
@@ -3344,13 +3348,13 @@ class Diaspora
 
 			// Fetch the title from an attached link - if there is one
 			if (empty($item['title']) && DI::pConfig()->get($owner['uid'], 'system', 'attach_link_title')) {
-				$media = Post\Media::getByURIId($item['uri-id'], [Post\Media::HTML]);
+				$media = Post\Media::getByURIId($item['uri-id'], [PostMedia::TYPE_HTML]);
 				if (!empty($media) && !empty($media[0]['name']) && ($media[0]['name'] != $media[0]['url'])) {
 					$title = $media[0]['name'];
 				}
 			}
 
-			$attachments = Post\Media::getByURIId($item['uri-id'], [Post\Media::DOCUMENT, Post\Media::TORRENT]);
+			$attachments = Post\Media::getByURIId($item['uri-id'], [PostMedia::TYPE_DOCUMENT, PostMedia::TYPE_TORRENT]);
 			if (!empty($attachments)) {
 				$body .= "\n[hr]\n";
 				foreach ($attachments as $attachment) {
@@ -3362,8 +3366,8 @@ class Diaspora
 			$body = BBCode::toMarkdown($body);
 
 			// Adding the title
-			if (strlen($title)) {
-				$body = '### ' . html_entity_decode($title) . "\n\n" . $body;
+			if (strlen((string) $title)) {
+				$body = '### ' . html_entity_decode((string) $title) . "\n\n" . $body;
 			}
 
 			$location = [];
@@ -3373,7 +3377,7 @@ class Diaspora
 			}
 
 			if ($item['coord'] != '') {
-				$coord           = explode(' ', $item['coord']);
+				$coord           = explode(' ', (string) $item['coord']);
 				$location['lat'] = $coord[0];
 				$location['lng'] = $coord[1];
 			}
@@ -3394,7 +3398,7 @@ class Diaspora
 			}
 
 			// Diaspora rejects messages when they contain a location without "lat" or "lng"
-			if (!isset($location['lat']) || !isset($location['lng'])) {
+			if ($location['lat'] === '' || $location['lng'] === '') {
 				unset($message['location']);
 			}
 
@@ -3438,7 +3442,7 @@ class Diaspora
 	 */
 	private static function addPhotos(array $item, array $message): array
 	{
-		$medias = Post\Media::getByURIId($item['uri-id'], [Post\Media::IMAGE]);
+		$medias = Post\Media::getByURIId($item['uri-id'], [PostMedia::TYPE_IMAGE]);
 		$public = ($item['private'] == Item::PRIVATE ? 'false' : 'true');
 
 		$counter = 0;
@@ -3447,7 +3451,7 @@ class Diaspora
 				continue;
 			}
 
-			$name = basename($media['url']);
+			$name = basename((string) $media['url']);
 			$path = str_replace($name, '', $media['url']);
 
 			$message[++$counter . ':photo'] = [
@@ -3694,7 +3698,9 @@ class Diaspora
 	{
 		if ($item['deleted']) {
 			return self::sendRetraction($item, $owner, $contact, $public_batch, true);
-		} elseif (in_array($item['verb'], [Activity::LIKE, Activity::DISLIKE])) {
+		}
+
+		if (in_array($item['verb'], [Activity::LIKE, Activity::DISLIKE])) {
 			$type = 'like';
 		} else {
 			$type = 'comment';
@@ -3707,13 +3713,12 @@ class Diaspora
 		$message = [];
 		if (is_array($msg)) {
 			foreach ($msg as $field => $data) {
-				if (!$item['deleted']) {
-					if ($field == 'diaspora_handle') {
-						$field = 'author';
-					}
-					if ($field == 'target_type') {
-						$field = 'parent_type';
-					}
+				if ($field === 'diaspora_handle') {
+					$field = 'author';
+				}
+
+				if ($field === 'target_type') {
+					$field = 'parent_type';
 				}
 
 				$message[$field] = $data;
@@ -3743,7 +3748,7 @@ class Diaspora
 	 */
 	public static function sendRetraction(array $item, array $owner, array $contact, bool $public_batch = false, bool $relay = false): int
 	{
-		$itemaddr = strtolower($item['author-addr']);
+		$itemaddr = strtolower((string) $item['author-addr']);
 
 		$msg_type = 'retraction';
 
@@ -3830,7 +3835,7 @@ class Diaspora
 
 		// Is the name longer than 64 characters? Then cut the rest of it.
 		if (strlen($name) > 64) {
-			if ((strpos($name, ' ') <= 64) && (strpos($name, ' ') !== false)) {
+			if ((strpos($name, ' ') <= 64) && (str_contains($name, ' '))) {
 				$name = trim(substr($name, 0, strrpos(substr($name, 0, 65), ' ')));
 			} else {
 				$name = substr($name, 0, 64);
@@ -3853,7 +3858,7 @@ class Diaspora
 		}
 
 		// Take the first 32 characters if there is no space in the first 32 characters
-		if ((strpos($name, ' ') > 32) || (strpos($name, ' ') === false)) {
+		if ((strpos($name, ' ') > 32) || (!str_contains($name, ' '))) {
 			$first = substr($name, 0, 32);
 			$last  = substr($name, 32);
 			return ['first' => $first, 'last' => $last];
@@ -4139,6 +4144,6 @@ class Diaspora
 		// Don't trigger the addons
 		$item['api_source'] = false;
 
-		return Item::insert($item, true);
+		return Item::insert($item, Worker::PRIORITY_HIGH);
 	}
 }

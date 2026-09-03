@@ -1,6 +1,6 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
@@ -18,7 +18,7 @@
 
 	<div id="photo-edit-perms">
 		<button class="btn btn-default" data-toggle="modal" data-target="#photo-edit-permission-acl" onclick="return false;">
-			<i id="jot-perms-icon" class="fa {{$lockstate}}"></i> {{$permissions}}
+			<i id="jot-perms-icon" class="ri {{$lockstate}}"></i> {{$permissions}}
 		</button>
 	</div>
 

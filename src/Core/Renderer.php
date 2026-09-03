@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -40,11 +40,11 @@ class Renderer
 
 	private static $ldelim = [
 		'internal' => '',
-		'smarty3'  => '{{'
+		'smarty3'  => '{{',
 	];
 	private static $rdelim = [
 		'internal' => '',
-		'smarty3'  => '}}'
+		'smarty3'  => '}}',
 	];
 
 	/**
@@ -71,9 +71,9 @@ class Renderer
 			$output = $t->replaceMacros($template, $vars);
 		} catch (Exception $e) {
 			DI::logger()->critical($e->getMessage(), ['template' => $template, 'vars' => $vars]);
-			$message = DI::userSession()->isSiteAdmin() ?
-				$e->getMessage() :
-				DI::l10n()->t('Friendica can\'t display this page at the moment, please contact the administrator.');
+			$message = DI::userSession()->isSiteAdmin()
+				? $e->getMessage()
+				: DI::l10n()->t('Friendica can\'t display this page at the moment, please contact the administrator.');
 			throw new ServiceUnavailableException($message);
 		}
 
@@ -100,9 +100,9 @@ class Renderer
 			$template = $t->getTemplateFile($file, $subDir);
 		} catch (Exception $e) {
 			DI::logger()->critical($e->getMessage(), ['file' => $file, 'subDir' => $subDir]);
-			$message = DI::userSession()->isSiteAdmin() ?
-				$e->getMessage() :
-				DI::l10n()->t('Friendica can\'t display this page at the moment, please contact the administrator.');
+			$message = DI::userSession()->isSiteAdmin()
+				? $e->getMessage()
+				: DI::l10n()->t('Friendica can\'t display this page at the moment, please contact the administrator.');
 			throw new ServiceUnavailableException($message);
 		}
 
@@ -130,9 +130,9 @@ class Renderer
 		} else {
 			$admin_message = DI::l10n()->t('template engine cannot be registered without a name.');
 			DI::logger()->critical($admin_message, ['class' => $class]);
-			$message = DI::userSession()->isSiteAdmin() ?
-				$admin_message :
-				DI::l10n()->t('Friendica can\'t display this page at the moment, please contact the administrator.');
+			$message = DI::userSession()->isSiteAdmin()
+				? $admin_message
+				: DI::l10n()->t('Friendica can\'t display this page at the moment, please contact the administrator.');
 			throw new ServiceUnavailableException($message);
 		}
 	}
@@ -165,9 +165,9 @@ class Renderer
 
 		$admin_message = DI::l10n()->t('template engine is not registered!');
 		DI::logger()->critical($admin_message, ['template_engine' => $template_engine]);
-		$message = DI::userSession()->isSiteAdmin() ?
-			$admin_message :
-			DI::l10n()->t('Friendica can\'t display this page at the moment, please contact the administrator.');
+		$message = DI::userSession()->isSiteAdmin()
+			? $admin_message
+			: DI::l10n()->t('Friendica can\'t display this page at the moment, please contact the administrator.');
 		throw new ServiceUnavailableException($message);
 	}
 

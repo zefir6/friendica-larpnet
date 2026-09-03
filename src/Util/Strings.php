@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -26,7 +26,7 @@ class Strings
 	 */
 	public static function getRandomHex(int $size = 64): string
 	{
-		$byte_size = ceil($size / 2);
+		$byte_size = (int) ceil($size / 2);
 
 		$bytes = random_bytes($byte_size);
 
@@ -156,7 +156,7 @@ class Strings
 	{
 		if ($network != '') {
 			if ($url != '') {
-				$gsid         = $gsid ?? ContactSelector::getServerIdForProfile($url);
+				$gsid ??= ContactSelector::getServerIdForProfile($url);
 				$network_name = '<a href="' . $url . '">' . ContactSelector::networkToName($network, '', $gsid) . '</a>';
 			} else {
 				$network_name = ContactSelector::networkToName($network);
@@ -177,7 +177,7 @@ class Strings
 	 *
 	 * @return string		Transformed string.
 	 */
-	public static function deindent(string $text, string $chr = "[\t ]", int $count = null): string
+	public static function deindent(string $text, string $chr = "[\t ]", ?int $count = null): string
 	{
 		$lines = explode("\n", $text);
 
@@ -192,7 +192,7 @@ class Strings
 		}
 
 		for ($k = 0; $k < count($lines); $k++) {
-			$lines[$k] = preg_replace("|^" . $chr . "{" . $count . "}|", "", $lines[$k]);
+			$lines[$k] = preg_replace("|^" . $chr . "{" . $count . "}|", "", (string) $lines[$k]);
 		}
 
 		return implode("\n", $lines);
@@ -312,7 +312,7 @@ class Strings
 	 */
 	public static function ensureQueryParameter(string $uri): string
 	{
-		if (strpos($uri, '?') === false && ($pos = strpos($uri, '&')) !== false) {
+		if (!str_contains($uri, '?') && ($pos = strpos($uri, '&')) !== false) {
 			$uri = substr($uri, 0, $pos) . '?' . substr($uri, $pos + 1);
 		}
 
@@ -360,7 +360,7 @@ class Strings
 	 */
 	public static function endsWith(string $string, string $end): bool
 	{
-		return (substr_compare($string, $end, -strlen($end)) === 0);
+		return (str_ends_with($string, $end));
 	}
 
 	/**
@@ -441,7 +441,7 @@ class Strings
 	 * @return string
 	 * @see substr_replace()
 	 */
-	public static function substringReplace(string $string, string $replacement, int $start, int $length = null): string
+	public static function substringReplace(string $string, string $replacement, int $start, ?int $length = null): string
 	{
 		$string_length = mb_strlen($string);
 
@@ -482,7 +482,7 @@ class Strings
 	public static function performWithEscapedBlocks(string $text, string $regex, callable $callback): string
 	{
 		// Enables nested use
-		$executionId = random_int(PHP_INT_MAX / 10, PHP_INT_MAX);
+		$executionId = random_int((int) (PHP_INT_MAX / 10), PHP_INT_MAX);
 
 		$blocks = [];
 
@@ -540,7 +540,7 @@ class Strings
 		}
 
 		$last      = strtolower($shorthand[strlen($shorthand) - 1]);
-		$shorthand = substr($shorthand, 0, -1);
+		$shorthand = (int) substr($shorthand, 0, -1);
 
 		switch ($last) {
 			case 'g':

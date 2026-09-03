@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -126,7 +126,7 @@ class Avatar
 	private static function storeAvatarCache(Image $image, string $filename, int $size, int $timestamp): string
 	{
 		$image->scaleDown($size);
-		if (is_null($image) || !$image->isValid()) {
+		if (!$image->isValid()) {
 			return '';
 		}
 
@@ -271,11 +271,11 @@ class Avatar
 		if (empty($basepath)) {
 			$basepath = DI::basePath() . self::BASE_PATH;
 		}
-		$basepath = rtrim($basepath, '/') . '/';
+		$basepath = rtrim((string) $basepath, '/') . '/';
 
 		if (!file_exists($basepath)) {
 			// We only automatically create the folder when it is in the web root
-			if (strpos($basepath, DI::basePath()) !== 0) {
+			if (!str_starts_with($basepath, DI::basePath())) {
 				DI::logger()->warning('Base directory does not exist', ['directory' => $basepath]);
 				return '';
 			}
@@ -297,7 +297,7 @@ class Avatar
 	{
 		$baseurl = DI::config()->get('system', 'avatar_cache_url');
 		if (!empty($baseurl)) {
-			return rtrim($baseurl, '/') . '/';
+			return rtrim((string) $baseurl, '/') . '/';
 		}
 
 		return DI::baseUrl() . self::BASE_PATH;

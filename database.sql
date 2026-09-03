@@ -1,6 +1,6 @@
 -- ------------------------------------------
--- Friendica 2026.05 (Blutwurz)
--- DB_UPDATE_VERSION 1595
+-- Friendica 2026.08-rc (Blutwurz)
+-- DB_UPDATE_VERSION 1598
 -- ------------------------------------------
 
 
@@ -393,6 +393,7 @@ CREATE TABLE IF NOT EXISTS `apcontact` (
 	`featured-tags` varbinary(383) COMMENT 'Address for the collection of featured tags',
 	`manually-approve` boolean COMMENT '',
 	`discoverable` boolean COMMENT 'Mastodon extension: true if profile is published in their directory',
+	`indexable` boolean COMMENT 'Mastodon extension: true if public posts may appear in search results',
 	`suspended` boolean COMMENT 'Mastodon extension: true if profile is suspended',
 	`posting-restricted` boolean COMMENT 'lemmy:postingRestrictedToMods',
 	`nick` varchar(255) NOT NULL DEFAULT '' COMMENT '',
@@ -785,6 +786,7 @@ CREATE TABLE IF NOT EXISTS `group` (
 	`id` int unsigned NOT NULL auto_increment COMMENT 'sequential ID',
 	`uid` mediumint unsigned NOT NULL DEFAULT 0 COMMENT 'Owner User id',
 	`visible` boolean NOT NULL DEFAULT '0' COMMENT '1 indicates the member list is not private',
+	`public` boolean NOT NULL DEFAULT '0' COMMENT '1 indicates the circle is public and can be exported',
 	`deleted` boolean NOT NULL DEFAULT '0' COMMENT '1 indicates the circle has been deleted',
 	`cid` int unsigned COMMENT 'Contact id of group. When this field is filled then the members are synced automatically.',
 	`name` varchar(255) NOT NULL DEFAULT '' COMMENT 'human readable name of circle',
@@ -2157,7 +2159,7 @@ CREATE TABLE IF NOT EXISTS `worker-ipc` (
 -- VIEW application-view
 --
 DROP VIEW IF EXISTS `application-view`;
-CREATE VIEW `application-view` AS SELECT 
+CREATE VIEW `application-view` AS SELECT
 	`application`.`id` AS `id`,
 	`application-token`.`uid` AS `uid`,
 	`application`.`name` AS `name`,
@@ -2181,11 +2183,12 @@ CREATE VIEW `application-view` AS SELECT
 -- VIEW channel-post-view
 --
 DROP VIEW IF EXISTS `channel-post-view`;
-CREATE VIEW `channel-post-view` AS SELECT 
+CREATE VIEW `channel-post-view` AS SELECT
 	`channel-post`.`channel` AS `channel`,
 	`channel-post`.`uid` AS `uid`,
 	`channel-post`.`uri-id` AS `uri-id`,
 	`channel-post`.`in-timeline` AS `in-timeline`,
+	`post-thread`.`author-id` AS `author-id`,
 	`post-engagement`.`owner-id` AS `contact-id`,
 	`post-engagement`.`owner-id` AS `owner-id`,
 	`post-engagement`.`media-type` AS `media-type`,
@@ -2212,11 +2215,12 @@ CREATE VIEW `channel-post-view` AS SELECT
 -- VIEW system-channel-post-view
 --
 DROP VIEW IF EXISTS `system-channel-post-view`;
-CREATE VIEW `system-channel-post-view` AS SELECT 
+CREATE VIEW `system-channel-post-view` AS SELECT
 	`system-channel-post`.`channel` AS `channel`,
 	`system-channel-post`.`uid` AS `uid`,
 	`system-channel-post`.`uri-id` AS `uri-id`,
 	`system-channel-post`.`in-timeline` AS `in-timeline`,
+	`post-thread`.`author-id` AS `author-id`,
 	`post-engagement`.`owner-id` AS `contact-id`,
 	`post-engagement`.`owner-id` AS `owner-id`,
 	`post-engagement`.`media-type` AS `media-type`,
@@ -2243,7 +2247,7 @@ CREATE VIEW `system-channel-post-view` AS SELECT
 -- VIEW circle-member-view
 --
 DROP VIEW IF EXISTS `circle-member-view`;
-CREATE VIEW `circle-member-view` AS SELECT 
+CREATE VIEW `circle-member-view` AS SELECT
 	`group_member`.`id` AS `id`,
 	`group`.`uid` AS `uid`,
 	`group_member`.`contact-id` AS `contact-id`,
@@ -2264,6 +2268,7 @@ CREATE VIEW `circle-member-view` AS SELECT
 	`contact`.`contact-type` AS `contact-contact-type`,
 	`group_member`.`gid` AS `circle-id`,
 	`group`.`visible` AS `circle-visible`,
+	`group`.`public` AS `circle-public`,
 	`group`.`deleted` AS `circle-deleted`,
 	`group`.`name` AS `circle-name`
 	FROM `group_member`
@@ -2274,7 +2279,7 @@ CREATE VIEW `circle-member-view` AS SELECT
 -- VIEW post-counts-view
 --
 DROP VIEW IF EXISTS `post-counts-view`;
-CREATE VIEW `post-counts-view` AS SELECT 
+CREATE VIEW `post-counts-view` AS SELECT
 	`post-counts`.`uri-id` AS `uri-id`,
 	`post-counts`.`vid` AS `vid`,
 	`verb`.`name` AS `verb`,
@@ -2288,7 +2293,7 @@ CREATE VIEW `post-counts-view` AS SELECT
 -- VIEW post-engagement-user-view
 --
 DROP VIEW IF EXISTS `post-engagement-user-view`;
-CREATE VIEW `post-engagement-user-view` AS SELECT 
+CREATE VIEW `post-engagement-user-view` AS SELECT
 	`post-thread-user`.`uid` AS `uid`,
 	`post-engagement`.`uri-id` AS `uri-id`,
 	`post-engagement`.`owner-id` AS `owner-id`,
@@ -2315,6 +2320,7 @@ CREATE VIEW `post-engagement-user-view` AS SELECT
 			AND (NOT `contact`.`readonly` AND NOT `contact`.`blocked` AND NOT `contact`.`pending`)
 			AND (`post-thread-user`.`hidden` IS NULL OR NOT `post-thread-user`.`hidden`)
 			AND NOT `authorcontact`.`blocked` AND NOT `ownercontact`.`blocked`
+			AND NOT `authorcontact`.`unsearchable` AND NOT `ownercontact`.`unsearchable`
 			AND NOT EXISTS(SELECT `cid`  FROM `user-contact` WHERE `uid` = `post-thread-user`.`uid` AND `cid` IN (`authorcontact`.`id`, `ownercontact`.`id`) AND (`blocked` OR `ignored` OR `is-blocked`))
 			AND NOT EXISTS(SELECT `gsid` FROM `user-gserver` WHERE `uid` = `post-thread-user`.`uid` AND `gsid` IN (`authorcontact`.`gsid`, `ownercontact`.`gsid`) AND `ignored`);
 
@@ -2322,7 +2328,7 @@ CREATE VIEW `post-engagement-user-view` AS SELECT
 -- VIEW post-timeline-view
 --
 DROP VIEW IF EXISTS `post-timeline-view`;
-CREATE VIEW `post-timeline-view` AS SELECT 
+CREATE VIEW `post-timeline-view` AS SELECT
 	`post-user`.`uid` AS `uid`,
 	`post-user`.`uri-id` AS `uri-id`,
 	`post-user`.`gravity` AS `gravity`,
@@ -2370,7 +2376,7 @@ CREATE VIEW `post-timeline-view` AS SELECT
 -- VIEW post-timeline-origin-view
 --
 DROP VIEW IF EXISTS `post-timeline-origin-view`;
-CREATE VIEW `post-timeline-origin-view` AS SELECT 
+CREATE VIEW `post-timeline-origin-view` AS SELECT
 	`post-origin`.`uid` AS `uid`,
 	`post-origin`.`uri-id` AS `uri-id`,
 	`post-origin`.`gravity` AS `gravity`,
@@ -2416,7 +2422,7 @@ CREATE VIEW `post-timeline-origin-view` AS SELECT
 -- VIEW post-timeline-thread-view
 --
 DROP VIEW IF EXISTS `post-timeline-thread-view`;
-CREATE VIEW `post-timeline-thread-view` AS SELECT 
+CREATE VIEW `post-timeline-thread-view` AS SELECT
 	`post-thread-user`.`uid` AS `uid`,
 	`post-thread-user`.`uri-id` AS `uri-id`,
 	0 AS `gravity`,
@@ -2464,7 +2470,7 @@ CREATE VIEW `post-timeline-thread-view` AS SELECT
 -- VIEW post-searchindex-user-view
 --
 DROP VIEW IF EXISTS `post-searchindex-user-view`;
-CREATE VIEW `post-searchindex-user-view` AS SELECT 
+CREATE VIEW `post-searchindex-user-view` AS SELECT
 	`post-thread-user`.`uid` AS `uid`,
 	`post-searchindex`.`uri-id` AS `uri-id`,
 	`post-searchindex`.`owner-id` AS `owner-id`,
@@ -2491,6 +2497,7 @@ CREATE VIEW `post-searchindex-user-view` AS SELECT
 			AND (NOT `contact`.`readonly` AND NOT `contact`.`blocked` AND NOT `contact`.`pending`)
 			AND (`post-thread-user`.`hidden` IS NULL OR NOT `post-thread-user`.`hidden`)
 			AND NOT `authorcontact`.`blocked` AND NOT `ownercontact`.`blocked`
+			AND NOT `authorcontact`.`unsearchable` AND NOT `ownercontact`.`unsearchable`
 			AND NOT EXISTS(SELECT `cid`  FROM `user-contact` WHERE `uid` = `post-thread-user`.`uid` AND `cid` IN (`authorcontact`.`id`, `ownercontact`.`id`) AND (`blocked` OR `ignored` OR `is-blocked`))
 			AND NOT EXISTS(SELECT `gsid` FROM `user-gserver` WHERE `uid` = `post-thread-user`.`uid` AND `gsid` IN (`authorcontact`.`gsid`, `ownercontact`.`gsid`) AND `ignored`);
 
@@ -2498,7 +2505,7 @@ CREATE VIEW `post-searchindex-user-view` AS SELECT
 -- VIEW post-origin-view
 --
 DROP VIEW IF EXISTS `post-origin-view`;
-CREATE VIEW `post-origin-view` AS SELECT 
+CREATE VIEW `post-origin-view` AS SELECT
 	`post-origin`.`id` AS `id`,
 	`post-origin`.`id` AS `post-user-id`,
 	`post-origin`.`uid` AS `uid`,
@@ -2694,7 +2701,7 @@ CREATE VIEW `post-origin-view` AS SELECT
 -- VIEW post-thread-origin-view
 --
 DROP VIEW IF EXISTS `post-thread-origin-view`;
-CREATE VIEW `post-thread-origin-view` AS SELECT 
+CREATE VIEW `post-thread-origin-view` AS SELECT
 	`post-origin`.`id` AS `id`,
 	`post-origin`.`id` AS `post-user-id`,
 	`post-origin`.`uid` AS `uid`,
@@ -2889,7 +2896,7 @@ CREATE VIEW `post-thread-origin-view` AS SELECT
 -- VIEW post-user-view
 --
 DROP VIEW IF EXISTS `post-user-view`;
-CREATE VIEW `post-user-view` AS SELECT 
+CREATE VIEW `post-user-view` AS SELECT
 	`post-user`.`id` AS `id`,
 	`post-user`.`id` AS `post-user-id`,
 	`post-user`.`uid` AS `uid`,
@@ -3085,7 +3092,7 @@ CREATE VIEW `post-user-view` AS SELECT
 -- VIEW post-thread-user-view
 --
 DROP VIEW IF EXISTS `post-thread-user-view`;
-CREATE VIEW `post-thread-user-view` AS SELECT 
+CREATE VIEW `post-thread-user-view` AS SELECT
 	`post-user`.`id` AS `id`,
 	`post-user`.`id` AS `post-user-id`,
 	`post-thread-user`.`uid` AS `uid`,
@@ -3279,7 +3286,7 @@ CREATE VIEW `post-thread-user-view` AS SELECT
 -- VIEW post-view
 --
 DROP VIEW IF EXISTS `post-view`;
-CREATE VIEW `post-view` AS SELECT 
+CREATE VIEW `post-view` AS SELECT
 	`item-uri`.`uri` AS `uri`,
 	`post`.`uri-id` AS `uri-id`,
 	`parent-item-uri`.`uri` AS `parent-uri`,
@@ -3435,7 +3442,7 @@ CREATE VIEW `post-view` AS SELECT
 -- VIEW post-thread-view
 --
 DROP VIEW IF EXISTS `post-thread-view`;
-CREATE VIEW `post-thread-view` AS SELECT 
+CREATE VIEW `post-thread-view` AS SELECT
 	`item-uri`.`uri` AS `uri`,
 	`post-thread`.`uri-id` AS `uri-id`,
 	`parent-item-uri`.`uri` AS `parent-uri`,
@@ -3592,7 +3599,7 @@ CREATE VIEW `post-thread-view` AS SELECT
 -- VIEW category-view
 --
 DROP VIEW IF EXISTS `category-view`;
-CREATE VIEW `category-view` AS SELECT 
+CREATE VIEW `category-view` AS SELECT
 	`post-category`.`uri-id` AS `uri-id`,
 	`post-category`.`uid` AS `uid`,
 	`post-category`.`type` AS `type`,
@@ -3606,7 +3613,7 @@ CREATE VIEW `category-view` AS SELECT
 -- VIEW collection-view
 --
 DROP VIEW IF EXISTS `collection-view`;
-CREATE VIEW `collection-view` AS SELECT 
+CREATE VIEW `collection-view` AS SELECT
 	`post-collection`.`uri-id` AS `uri-id`,
 	`post-collection`.`type` AS `type`,
 	`post-collection`.`author-id` AS `cid`,
@@ -3627,7 +3634,7 @@ CREATE VIEW `collection-view` AS SELECT
 -- VIEW media-view
 --
 DROP VIEW IF EXISTS `media-view`;
-CREATE VIEW `media-view` AS SELECT 
+CREATE VIEW `media-view` AS SELECT
 	`post-media`.`uri-id` AS `uri-id`,
 	`post-media`.`type` AS `type`,
 	`post`.`received` AS `received`,
@@ -3645,7 +3652,7 @@ CREATE VIEW `media-view` AS SELECT
 -- VIEW tag-view
 --
 DROP VIEW IF EXISTS `tag-view`;
-CREATE VIEW `tag-view` AS SELECT 
+CREATE VIEW `tag-view` AS SELECT
 	`post-tag`.`uri-id` AS `uri-id`,
 	`post-tag`.`type` AS `type`,
 	`post-tag`.`tid` AS `tid`,
@@ -3661,7 +3668,7 @@ CREATE VIEW `tag-view` AS SELECT
 -- VIEW network-thread-view
 --
 DROP VIEW IF EXISTS `network-thread-view`;
-CREATE VIEW `network-thread-view` AS SELECT 
+CREATE VIEW `network-thread-view` AS SELECT
 	'' AS `channel`,
 	`post-thread-user`.`uri-id` AS `uri-id`,
 	`post-thread-user`.`post-user-id` AS `parent`,
@@ -3673,6 +3680,7 @@ CREATE VIEW `network-thread-view` AS SELECT
 	`post-thread-user`.`mention` AS `mention`,
 	`post-thread-user`.`network` AS `network`,
 	`post-user`.`protocol` AS `protocol`,
+	`post-thread-user`.`author-id` AS `author-id`,
 	`post-thread-user`.`contact-id` AS `contact-id`,
 	`ownercontact`.`contact-type` AS `contact-type`
 	FROM `post-thread-user`
@@ -3691,7 +3699,7 @@ CREATE VIEW `network-thread-view` AS SELECT
 -- VIEW network-thread-circle-view
 --
 DROP VIEW IF EXISTS `network-thread-circle-view`;
-CREATE VIEW `network-thread-circle-view` AS SELECT 
+CREATE VIEW `network-thread-circle-view` AS SELECT
 	'' AS `channel`,
 	`post-thread-user`.`uri-id` AS `uri-id`,
 	`post-thread-user`.`post-user-id` AS `parent`,
@@ -3703,6 +3711,7 @@ CREATE VIEW `network-thread-circle-view` AS SELECT
 	`post-thread-user`.`mention` AS `mention`,
 	`post-thread-user`.`network` AS `network`,
 	`post-user`.`protocol` AS `protocol`,
+	`post-thread-user`.`author-id` AS `author-id`,
 	`post-thread-user`.`contact-id` AS `contact-id`,
 	`ownercontact`.`contact-type` AS `contact-type`
 	FROM `post-thread-user`
@@ -3721,7 +3730,7 @@ CREATE VIEW `network-thread-circle-view` AS SELECT
 -- VIEW owner-view
 --
 DROP VIEW IF EXISTS `owner-view`;
-CREATE VIEW `owner-view` AS SELECT 
+CREATE VIEW `owner-view` AS SELECT
 	`contact`.`id` AS `id`,
 	`contact`.`uid` AS `uid`,
 	`contact`.`created` AS `created`,
@@ -3847,7 +3856,7 @@ CREATE VIEW `owner-view` AS SELECT
 -- VIEW account-view
 --
 DROP VIEW IF EXISTS `account-view`;
-CREATE VIEW `account-view` AS SELECT 
+CREATE VIEW `account-view` AS SELECT
 	`contact`.`id` AS `id`,
 	`contact`.`url` AS `url`,
 	`contact`.`nurl` AS `nurl`,
@@ -3936,7 +3945,7 @@ CREATE VIEW `account-view` AS SELECT
 -- VIEW account-user-view
 --
 DROP VIEW IF EXISTS `account-user-view`;
-CREATE VIEW `account-user-view` AS SELECT 
+CREATE VIEW `account-user-view` AS SELECT
 	`ucontact`.`id` AS `id`,
 	`contact`.`id` AS `pid`,
 	`ucontact`.`uid` AS `uid`,
@@ -4042,7 +4051,7 @@ CREATE VIEW `account-user-view` AS SELECT
 -- VIEW pending-view
 --
 DROP VIEW IF EXISTS `pending-view`;
-CREATE VIEW `pending-view` AS SELECT 
+CREATE VIEW `pending-view` AS SELECT
 	`register`.`id` AS `id`,
 	`register`.`hash` AS `hash`,
 	`register`.`created` AS `created`,
@@ -4065,7 +4074,7 @@ CREATE VIEW `pending-view` AS SELECT
 -- VIEW tag-search-view
 --
 DROP VIEW IF EXISTS `tag-search-view`;
-CREATE VIEW `tag-search-view` AS SELECT 
+CREATE VIEW `tag-search-view` AS SELECT
 	`post-tag`.`uri-id` AS `uri-id`,
 	`post-user`.`uid` AS `uid`,
 	`post-user`.`id` AS `iid`,
@@ -4088,7 +4097,7 @@ CREATE VIEW `tag-search-view` AS SELECT
 -- VIEW workerqueue-view
 --
 DROP VIEW IF EXISTS `workerqueue-view`;
-CREATE VIEW `workerqueue-view` AS SELECT 
+CREATE VIEW `workerqueue-view` AS SELECT
 	`process`.`pid` AS `pid`,
 	`workerqueue`.`priority` AS `priority`
 	FROM `process`
@@ -4099,7 +4108,7 @@ CREATE VIEW `workerqueue-view` AS SELECT
 -- VIEW profile_field-view
 --
 DROP VIEW IF EXISTS `profile_field-view`;
-CREATE VIEW `profile_field-view` AS SELECT 
+CREATE VIEW `profile_field-view` AS SELECT
 	`profile_field`.`id` AS `id`,
 	`profile_field`.`uid` AS `uid`,
 	`profile_field`.`label` AS `label`,
@@ -4119,7 +4128,7 @@ CREATE VIEW `profile_field-view` AS SELECT
 -- VIEW diaspora-contact-view
 --
 DROP VIEW IF EXISTS `diaspora-contact-view`;
-CREATE VIEW `diaspora-contact-view` AS SELECT 
+CREATE VIEW `diaspora-contact-view` AS SELECT
 	`diaspora-contact`.`uri-id` AS `uri-id`,
 	`item-uri`.`uri` AS `url`,
 	`item-uri`.`guid` AS `guid`,

@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -11,25 +11,17 @@ use Friendica\App\BaseURL;
 use Friendica\Core\Config\Capability\IManageConfigValues;
 use Friendica\Core\L10n;
 use Friendica\Core\PConfig\Capability\IManagePersonalConfigValues;
-use Friendica\Object\EMail\IEmail;
+use Friendica\Event\EventDispatcher;
 use Friendica\Test\MockedTestCase;
 use Friendica\Test\Util\EmailerSpy;
-use Friendica\Test\Util\HookMockTrait;
 use Friendica\Test\Util\SampleMailBuilder;
 use Friendica\Test\Util\VFSTrait;
 use Mockery\MockInterface;
 use Psr\Log\NullLogger;
 
-/**
- * Annotation necessary because of Hook calls
- *
- * @runTestsInSeparateProcesses
- * @preserveGlobalState disabled
- */
 class EMailerTest extends MockedTestCase
 {
 	use VFSTrait;
-	use HookMockTrait;
 
 	/** @var IManageConfigValues|MockInterface */
 	private $config;
@@ -46,7 +38,7 @@ class EMailerTest extends MockedTestCase
 
 		$this->setUpVfsDir();
 
-		$this->config  = \Mockery::mock(IManageConfigValues::class);
+		$this->config = \Mockery::mock(IManageConfigValues::class);
 		$this->config->shouldReceive('get')->withArgs(['config', 'sender_email'])->andReturn('test@friendica.local')->once();
 		$this->config->shouldReceive('get')->withArgs(['config', 'sitename', 'Friendica Social Network'])->andReturn('Friendica Social Network')->once();
 		$this->config->shouldReceive('get')->withArgs(['system', 'sendmail_params', true])->andReturn(true);
@@ -65,7 +57,7 @@ class EMailerTest extends MockedTestCase
 		parent::tearDown();
 	}
 
-	public function testEmail()
+	public function testEmail(): void
 	{
 		$this->pConfig->shouldReceive('get')->withArgs(['1', 'system', 'email_textonly'])->andReturn(false)->once();
 
@@ -79,7 +71,7 @@ class EMailerTest extends MockedTestCase
 			->addHeader('Message-ID', 'first Id')
 			->build(true);
 
-		$emailer = new EmailerSpy($this->config, $this->pConfig, $this->baseUrl, new NullLogger(), $this->l10n);
+		$emailer = new EmailerSpy($this->config, $this->pConfig, $this->baseUrl, new NullLogger(), $this->l10n, new EventDispatcher());
 
 		self::assertTrue($emailer->send($testEmail));
 
@@ -98,17 +90,9 @@ class EMailerTest extends MockedTestCase
 		self::assertEquals("-f sender@friendica.local", EmailerSpy::$MAIL_DATA['parameters']);
 	}
 
-	public function testTwoMessageIds()
+	public function testTwoMessageIds(): void
 	{
 		$this->pConfig->shouldReceive('get')->withArgs(['1', 'system', 'email_textonly'])->andReturn(false)->once();
-
-		/** @var IEmail $preparedEmail */
-		$preparedEmail = null;
-		/** @var IEmail $sentEMail */
-		$sentEMail = null;
-
-		$this->mockHookCallAll('emailer_send_prepare', $preparedEmail);
-		$this->mockHookCallAll('emailer_send', $sentEMail);
 
 		$builder = new SampleMailBuilder($this->l10n, $this->baseUrl, $this->config, new NullLogger());
 
@@ -121,7 +105,7 @@ class EMailerTest extends MockedTestCase
 			->addHeader('Message-Id', 'second Id')
 			->build(true);
 
-		$emailer = new EmailerSpy($this->config, $this->pConfig, $this->baseUrl, new NullLogger(), $this->l10n);
+		$emailer = new EmailerSpy($this->config, $this->pConfig, $this->baseUrl, new NullLogger(), $this->l10n, new EventDispatcher());
 
 		// even in case there are two message ids, send the mail anyway
 		self::assertTrue($emailer->send($testEmail));

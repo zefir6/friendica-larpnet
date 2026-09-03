@@ -2,8 +2,8 @@
 /**
  * Filebrowser - Friendica Communications Server
  *
- * Copyright (C) 2010-2024, the Friendica pro*ject
- * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+ * Copyright (C) 2010-2026, the Friendica pro*ject
+ * SPDX-FileCopyrightText: 2010-2026 the Friendica project
  *
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
@@ -131,8 +131,6 @@ var Browser = {
 					$('#comment-edit-submit-' + Browser.id).attr('tabindex', '10');
 				}
 			}
-
-			console.log(Browser.event, this.dataset.filename, embed, Browser.id);
 
 			$('body').trigger(Browser.event, [this.dataset.filename, embed, Browser.id, this.dataset.img]);
 

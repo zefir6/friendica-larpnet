@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -152,7 +152,7 @@ class DateTimeFormat
 
 		try {
 			$to_obj = new DateTimeZone($tz_to);
-		} catch (Exception $e) {
+		} catch (Exception) {
 			$to_obj = new DateTimeZone('UTC');
 		}
 
@@ -195,7 +195,7 @@ class DateTimeFormat
 		];
 
 		foreach ($pregPatterns as $pattern) {
-			$dateString = preg_replace($pattern[0], $pattern[1], $dateString);
+			$dateString = preg_replace($pattern[0], $pattern[1], (string) $dateString);
 		}
 
 		return $dateString;
@@ -221,13 +221,7 @@ class DateTimeFormat
 			return false;
 		}
 
-		try {
-			$now = new DateTime();
-		} catch (\Throwable $t) {
-			return false;
-		}
-
-		if ($date > $now) {
+		if ($date > new DateTime()) {
 			return false;
 		}
 

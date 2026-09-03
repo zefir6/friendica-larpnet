@@ -1,7 +1,7 @@
 <?php
 
 /**
- * SPDX-FileCopyrightText: 2010 - 2024 the Friendica project
+ * SPDX-FileCopyrightText: 2010-2026 the Friendica project
  *
  * SPDX-License-Identifier: CC0-1.0
  */
@@ -31,9 +31,11 @@ $finder = PhpCsFixer\Finder::create()
 $config = new PhpCsFixer\Config();
 return $config
 	->setRules([
-		'@PER-CS3x0'              => true,
-		'align_multiline_comment' => true,
-		'binary_operator_spaces'  => [
+		'@PER-CS3x0'                  => true,
+		'@PER-CS3x0:risky'            => true,
+		'@PHPUnit10x0Migration:risky' => true,
+		'align_multiline_comment'     => true,
+		'binary_operator_spaces'      => [
 			'default'   => 'single_space',
 			'operators' => [
 				'=>' => 'align_single_space_minimal',
@@ -56,16 +58,7 @@ return $config
 		'no_unused_imports'           => true,
 		'single_import_per_statement' => true,
 		'ternary_operator_spaces'     => false,
-		'trailing_comma_in_multiline' => [
-			'after_heredoc' => true,
-			'elements'      => [
-				'arguments',
-				'array_destructuring',
-				'arrays',
-				// 'match', /* activate `match` after PHP 7.4 support is dropped */
-				// 'parameters', /* activate `arguments` after PHP 7.4 support is dropped */
-			],
-		],
 	])
+	->setRiskyAllowed(true)
 	->setFinder($finder)
 	->setIndent("\t");

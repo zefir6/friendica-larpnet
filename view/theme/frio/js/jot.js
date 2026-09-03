@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -18,8 +18,7 @@
  */
 
 // Global linkPreview instance for cross-module access
-// eslint-disable-next-line no-var
-var linkPreview;
+var linkPreview = null;
 
 (function ($, window) {
 	"use strict";

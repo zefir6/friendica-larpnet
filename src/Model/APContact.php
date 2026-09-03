@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -107,7 +107,7 @@ class APContact
 	 */
 	public static function getByURL(string $url, ?bool $update = null): array
 	{
-		if (empty($url) || Network::isUrlBlocked($url)) {
+		if (empty($url) || Network::isUriBlocked(new Uri($url))) {
 			DI::logger()->info('Domain is blocked', ['url' => $url]);
 			return [];
 		}
@@ -159,7 +159,7 @@ class APContact
 			$apcontact['addr'] = '';
 		}
 
-		if (!isset($apcontact['baseurl']) && empty(parse_url($url, PHP_URL_PATH))) {
+		if (!isset($apcontact['baseurl']) && empty(parse_url((string) $url, PHP_URL_PATH))) {
 			$apcontact['baseurl'] = $url;
 		}
 
@@ -182,7 +182,7 @@ class APContact
 			try {
 				$data        = Transmitter::getProfile($local_uid);
 				$local_owner = User::getOwnerDataById($local_uid);
-			} catch (HTTPException\NotFoundException $e) {
+			} catch (HTTPException\NotFoundException) {
 				$data = null;
 			}
 		}
@@ -263,11 +263,11 @@ class APContact
 
 		if (!empty($ims)) {
 			foreach ($ims as $link) {
-				if (substr($link, 0, 5) == 'xmpp:') {
-					$apcontact['xmpp'] = substr($link, 5);
+				if (str_starts_with((string) $link, 'xmpp:')) {
+					$apcontact['xmpp'] = substr((string) $link, 5);
 				}
-				if (substr($link, 0, 7) == 'matrix:') {
-					$apcontact['matrix'] = substr($link, 7);
+				if (str_starts_with((string) $link, 'matrix:')) {
+					$apcontact['matrix'] = substr((string) $link, 7);
 				}
 			}
 		}
@@ -353,7 +353,7 @@ class APContact
 		$apcontact['pubkey'] = null;
 		if (!empty($compacted['w3id:publicKey'])) {
 			$apcontact['pubkey'] = trim(JsonLD::fetchElement($compacted['w3id:publicKey'], 'w3id:publicKeyPem', '@value') ?? '');
-			if (strpos($apcontact['pubkey'], 'RSA ') !== false) {
+			if (str_contains($apcontact['pubkey'], 'RSA ')) {
 				$apcontact['pubkey'] = Crypto::rsaToPem($apcontact['pubkey']);
 			}
 		}
@@ -416,6 +416,7 @@ class APContact
 			}
 		}
 
+		$apcontact['indexable']    = JsonLD::fetchElement($compacted, 'toot:indexable', '@value');
 		$apcontact['discoverable'] = JsonLD::fetchElement($compacted, 'toot:discoverable', '@value');
 		if (is_null($apcontact['discoverable']) && in_array($apcontact['type'], ['Application', 'Service'])) {
 			$apcontact['discoverable'] = false;
@@ -432,7 +433,7 @@ class APContact
 
 		// When the photo is too large, try to shorten it by removing parts
 		if (strlen($apcontact['photo'] ?? '') > 383) {
-			$parts = parse_url($apcontact['photo']);
+			$parts = parse_url((string) $apcontact['photo']);
 			unset($parts['fragment']);
 			$apcontact['photo'] = (string) Uri::fromParts((array) $parts);
 
@@ -612,7 +613,7 @@ class APContact
 	 * @param int     $gsid   Global server id
 	 * @return void
 	 */
-	private static function unarchiveInbox(string $url, bool $shared, int $gsid = null)
+	private static function unarchiveInbox(string $url, bool $shared, ?int $gsid = null)
 	{
 		if (empty($url)) {
 			return;
@@ -634,7 +635,11 @@ class APContact
 			return false;
 		}
 
-		$path = parse_url($apcontact['url'], PHP_URL_PATH);
+		if ($apcontact['baseurl'] === 'https://tags.pub') {
+			return true;
+		}
+
+		$path = parse_url((string) $apcontact['url'], PHP_URL_PATH);
 		if (($apcontact['type'] == 'Group') && !empty($apcontact['followers']) && ($apcontact['nick'] == 'relay') && ($path == '/actor')) {
 			return true;
 		}

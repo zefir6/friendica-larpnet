@@ -11,7 +11,7 @@ Sobald das Addon aktiviert ist, kannst Du den Chat unter [deineSeite.de/irc](../
 Beachte aber, dass dieser Chat auch ohne Anmeldung auf Deiner Seite zugänglich ist und somit auch Fremde diesen Chat mitnutzen können.
 
 Wenn Du dem Link folgst, dann kommst Du zum Anmeldefenster des IR-Chats.
-Wähle nun einen Spitznamen (Nickname) und wähle einen Raum aus, in dem Du chatten willst.
+Wähle nun einen Spitznamen (Username) und wähle einen Raum aus, in dem Du chatten willst.
 Hier kannst Du jeden Namen eingeben.
 Es kann also auch #tollerChatdessenNamenurichkenne sein.
 Gib als nächstes noch die Captchas ein, um zu zeigen, dass es sich bei Dir um einen Menschen handelt und klicke auf "Connect".

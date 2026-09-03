@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -27,6 +27,7 @@ class Feature
 	public const CHANNELS      = 'channels';
 	public const FOLDERS       = 'folders';
 	public const GROUPS        = 'forumlist_profile';
+	public const PAGES         = 'pages';
 	public const NETWORKS      = 'networks';
 	public const NOSHARER      = 'nosharer';
 	public const SEARCHES      = 'searches';
@@ -126,6 +127,7 @@ class Feature
 				$l10n->t('Network Widgets'),
 				[self::CIRCLES, $l10n->t('Circles'), $l10n->t('Display posts that have been created by accounts of the selected circle.'), true, $config->get('feature_lock', self::CIRCLES, false)],
 				[self::GROUPS, $l10n->t('Groups'), $l10n->t('Display posts that have been distributed by the selected group.'), true, $config->get('feature_lock', self::GROUPS, false)],
+				[self::PAGES, $l10n->t('Pages'), $l10n->t('Display posts from Organization and News Pages.'), true, $config->get('feature_lock', self::PAGES, false)],
 				[self::ARCHIVE, $l10n->t('Archives'), $l10n->t('Display an archive where posts can be selected by month and year.'), true, $config->get('feature_lock', self::ARCHIVE, false)],
 				[self::NETWORKS, $l10n->t('Protocols'), $l10n->t('Display posts with the selected protocols.'), true, $config->get('feature_lock', self::NETWORKS, false)],
 				[self::ACCOUNTS, $l10n->t('Account Types'), $l10n->t('Display posts done by accounts with the selected account type.'), true, $config->get('feature_lock', self::ACCOUNTS, false)],

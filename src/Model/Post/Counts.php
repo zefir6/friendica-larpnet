@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -22,7 +22,7 @@ class Counts
 	 *
 	 * @param int $uri_id
 	 */
-	public static function update(int $uri_id, int $parent_uri_id, int $vid, string $verb, string $body = null)
+	public static function update(int $uri_id, int $parent_uri_id, int $vid, string $verb, ?string $body = null)
 	{
 		if (!in_array($verb, [Activity::POST, Activity::LIKE, Activity::DISLIKE,
 			Activity::ATTEND, Activity::ATTENDMAYBE, Activity::ATTENDNO,
@@ -107,7 +107,7 @@ class Counts
 			}
 			$counts[] = $count;
 		}
-		DBA::close($counts);
+		DBA::close($countquery);
 		return $counts;
 	}
 }

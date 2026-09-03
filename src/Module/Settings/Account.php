@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -86,7 +86,7 @@ class Account extends BaseSettings
 				//  check for the correct password
 				try {
 					User::getIdFromPasswordAuthentication(DI::userSession()->getLocalUserId(), $request['mpassword']);
-				} catch (Exception $ex) {
+				} catch (Exception) {
 					$err .= DI::l10n()->t('Wrong Password.');
 					$email = $user['email'];
 				}
@@ -95,7 +95,7 @@ class Account extends BaseSettings
 					$err .= DI::l10n()->t('Invalid email.');
 				}
 				//  ensure new email is not the admin mail
-				if (in_array(strtolower($email), User::getAdminEmailList())) {
+				if (in_array(strtolower((string) $email), User::getAdminEmailList())) {
 					$err .= DI::l10n()->t('Cannot change to that email.');
 					$email = $user['email'];
 				}
@@ -152,6 +152,7 @@ class Account extends BaseSettings
 			$str_circle_deny   = !empty($request['circle_deny'])   ? $aclFormatter->toString($request['circle_deny'])   : '';
 
 			DI::pConfig()->set(DI::userSession()->getLocalUserId(), 'system', 'unlisted', !empty($request['unlisted']));
+			DI::pConfig()->set(DI::userSession()->getLocalUserId(), 'system', 'prevent-relay', !empty($request['prevent_relay']));
 			DI::pConfig()->set(DI::userSession()->getLocalUserId(), 'system', 'accessible-photos', !empty($request['accessible-photos']));
 			DI::pConfig()->set(DI::userSession()->getLocalUserId(), 'system', 'default-group-gid', intval($request['circle-selection-group'] ?? $def_gid));
 
@@ -170,7 +171,7 @@ class Account extends BaseSettings
 			$profile_fields = [
 				'publish'      => $publish,
 				'net-publish'  => $net_publish,
-				'hide-friends' => $hide_friends
+				'hide-friends' => $hide_friends,
 			];
 
 			if (!User::update($fields, DI::userSession()->getLocalUserId()) || !Profile::update($profile_fields, DI::userSession()->getLocalUserId())) {
@@ -361,7 +362,7 @@ class Account extends BaseSettings
 		$expire_starred      = DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'expire', 'starred', true);
 		$expire_network_only = DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'expire', 'network_only', false);
 
-		if (!strlen($user['timezone'])) {
+		if (!strlen((string) $user['timezone'])) {
 			$timezone = DI::appHelper()->getTimeZone();
 		}
 
@@ -380,7 +381,7 @@ class Account extends BaseSettings
 				DI::l10n()->t('Channel Relay'),
 				User::ACCOUNT_TYPE_RELAY,
 				DI::l10n()->t('Account for a service that automatically shares content based on user defined channels.'),
-				$user['account-type'] == User::ACCOUNT_TYPE_RELAY
+				$user['account-type'] == User::ACCOUNT_TYPE_RELAY,
 			];
 		} else {
 			$account_relay = null;
@@ -402,28 +403,28 @@ class Account extends BaseSettings
 				DI::l10n()->t('Personal Page'),
 				User::ACCOUNT_TYPE_PERSON,
 				DI::l10n()->t('Account for a personal profile.'),
-				$user['account-type'] == User::ACCOUNT_TYPE_PERSON
+				$user['account-type'] == User::ACCOUNT_TYPE_PERSON,
 			],
 			'$account_organisation' => [
 				'account-type',
 				DI::l10n()->t('Organisation Page'),
 				User::ACCOUNT_TYPE_ORGANISATION,
 				DI::l10n()->t('Account for an organisation that automatically approves contact requests as "Followers".'),
-				$user['account-type'] == User::ACCOUNT_TYPE_ORGANISATION
+				$user['account-type'] == User::ACCOUNT_TYPE_ORGANISATION,
 			],
 			'$account_news' => [
 				'account-type',
 				DI::l10n()->t('News Page'),
 				User::ACCOUNT_TYPE_NEWS,
 				DI::l10n()->t('Account for a news reflector that automatically approves contact requests as "Followers".'),
-				$user['account-type'] == User::ACCOUNT_TYPE_NEWS
+				$user['account-type'] == User::ACCOUNT_TYPE_NEWS,
 			],
 			'$account_community' => [
 				'account-type',
 				DI::l10n()->t('Community Group'),
 				User::ACCOUNT_TYPE_COMMUNITY,
 				DI::l10n()->t('Account for community discussions.'),
-				$user['account-type'] == User::ACCOUNT_TYPE_COMMUNITY
+				$user['account-type'] == User::ACCOUNT_TYPE_COMMUNITY,
 			],
 			'$account_relay' => $account_relay,
 			'$page_normal'   => [
@@ -431,42 +432,42 @@ class Account extends BaseSettings
 				DI::l10n()->t('Normal Account Page'),
 				User::PAGE_FLAGS_NORMAL,
 				DI::l10n()->t('Account for a regular personal profile that requires manual approval of "Friends" and "Followers".'),
-				$user['page-flags'] == User::PAGE_FLAGS_NORMAL
+				$user['page-flags'] == User::PAGE_FLAGS_NORMAL,
 			],
 			'$page_soapbox' => [
 				'page-flags',
 				DI::l10n()->t('Soapbox Page'),
 				User::PAGE_FLAGS_SOAPBOX,
 				DI::l10n()->t('Account for a public profile that automatically approves contact requests as "Followers".'),
-				$user['page-flags'] == User::PAGE_FLAGS_SOAPBOX
+				$user['page-flags'] == User::PAGE_FLAGS_SOAPBOX,
 			],
 			'$page_community' => [
 				'page-flags',
 				DI::l10n()->t('Public Group'),
 				User::PAGE_FLAGS_COMMUNITY,
 				DI::l10n()->t('Automatically approves all contact requests.'),
-				$user['page-flags'] == User::PAGE_FLAGS_COMMUNITY
+				$user['page-flags'] == User::PAGE_FLAGS_COMMUNITY,
 			],
 			'$page_community_manually' => [
 				'page-flags',
 				DI::l10n()->t('Public Group - Restricted'),
 				User::PAGE_FLAGS_COMM_MAN,
 				DI::l10n()->t('Contact requests have to be manually approved.'),
-				$user['page-flags'] == User::PAGE_FLAGS_COMM_MAN
+				$user['page-flags'] == User::PAGE_FLAGS_COMM_MAN,
 			],
 			'$page_freelove' => [
 				'page-flags',
 				DI::l10n()->t('Automatic Friend Page'),
 				User::PAGE_FLAGS_FREELOVE,
 				DI::l10n()->t('Account for a popular profile that automatically approves contact requests as "Friends".'),
-				$user['page-flags'] == User::PAGE_FLAGS_FREELOVE
+				$user['page-flags'] == User::PAGE_FLAGS_FREELOVE,
 			],
 			'$page_prvgroup' => [
 				'page-flags',
 				DI::l10n()->t('Private Group [Experimental]'),
 				User::PAGE_FLAGS_PRVGROUP,
 				DI::l10n()->t('Requires manual approval of contact requests.'),
-				$user['page-flags'] == User::PAGE_FLAGS_PRVGROUP
+				$user['page-flags'] == User::PAGE_FLAGS_PRVGROUP,
 			],
 		]);
 
@@ -482,7 +483,7 @@ class Account extends BaseSettings
 		} else {
 			$opt_tpl        = Renderer::getMarkupTemplate("field_checkbox.tpl");
 			$profile_in_dir = Renderer::replaceMacros($opt_tpl, [
-				'$field' => ['profile_in_directory', DI::l10n()->t('Publish your profile in your local site directory?'), $profile['publish'], DI::l10n()->t('Your profile will be published in this node\'s <a href="%s">local directory</a>. Your profile details may be publicly visible depending on the system settings.', DI::baseUrl() . '/directory')]
+				'$field' => ['profile_in_directory', DI::l10n()->t('Publish your profile in your local site directory?'), $profile['publish'], DI::l10n()->t('Your profile will be published in this node\'s <a href="%s">local directory</a>. Your profile details may be publicly visible depending on the system settings.', DI::baseUrl() . '/directory')],
 			]);
 		}
 
@@ -496,8 +497,12 @@ class Account extends BaseSettings
 
 		$notify_type = DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'system', 'notify_type');
 
-		$passwordRules = DI::l10n()->t('Allowed characters are a-z, A-Z, 0-9 and special characters except white spaces and accentuated letters.')
-			. (PASSWORD_DEFAULT === PASSWORD_BCRYPT ? ' ' . DI::l10n()->t('Password length is limited to 72 characters.') : '');
+		$passwordRules = DI::l10n()->t('Allowed characters are a-z, A-Z, 0-9 and special characters except white spaces and accentuated letters.');
+
+		/** @phpstan-ignore identical.alwaysTrue(value of PASSWORD_DEFAULT will be change in a future PHP version) */
+		if (PASSWORD_DEFAULT === PASSWORD_BCRYPT) {
+			$passwordRules .= ' ' . DI::l10n()->t('Password length is limited to 72 characters.');
+		}
 
 		$tpl = Renderer::getMarkupTemplate('settings/account.tpl');
 		$o   = Renderer::replaceMacros($tpl, [
@@ -534,6 +539,7 @@ class Account extends BaseSettings
 			'$hide_friends'        => ['hide-friends', DI::l10n()->t('Hide your contact/friend list from viewers of your profile?'), $profile['hide-friends'], DI::l10n()->t('A list of your contacts is displayed on your profile page. Activate this option to disable the display of your contact list.')],
 			'$hide_wall'           => ['hidewall', $this->t('Hide your public content from anonymous viewers'), $user['hidewall'], $this->t('Anonymous visitors will only see your basic profile details. Your public posts and replies will still be freely accessible on the remote servers of your followers and through relays.')],
 			'$unlisted'            => ['unlisted', DI::l10n()->t('Make public posts unlisted'), DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'system', 'unlisted'), DI::l10n()->t('Your public posts will not appear on the community pages or in search results, nor be sent to relay servers. However they can still appear on public feeds on remote servers.')],
+			'$prevent_relay'       => ['prevent_relay', DI::l10n()->t('Do not send public posts to relay servers'), DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'system', 'prevent-relay'), DI::l10n()->t('Your public posts will not be forwarded to relay servers.')],
 			'$accessiblephotos'    => ['accessible-photos', DI::l10n()->t('Make all posted pictures accessible'), DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'system', 'accessible-photos'), DI::l10n()->t("This option makes every posted picture accessible via the direct link. This is a workaround for the problem that most other networks can't handle permissions on pictures. Non public pictures still won't be visible for the public on your photo albums though.")],
 			'$blockwall'           => ['blockwall', DI::l10n()->t('Allow friends to post to your profile page?'), (intval($user['blockwall']) ? '0' : '1'), DI::l10n()->t('Your contacts may write posts on your profile wall. These posts will be distributed to your contacts')],
 			'$blocktags'           => ['blocktags', DI::l10n()->t('Allow friends to tag your posts?'), (intval($user['blocktags']) ? '0' : '1'), DI::l10n()->t('Your contacts can add additional tags to your posts.')],
@@ -547,7 +553,7 @@ class Account extends BaseSettings
 				'days'         => ['expire', DI::l10n()->t("Automatically expire posts after this many days:"), $expire, DI::l10n()->t('If empty, posts will not expire. Expired posts will be deleted')],
 				'items'        => ['expire_items', DI::l10n()->t('Expire posts'), $expire_items, DI::l10n()->t('When activated, posts and comments will be expired.')],
 				'notes'        => ['expire_notes', DI::l10n()->t('Expire personal notes'), $expire_notes, DI::l10n()->t('When activated, the personal notes on your profile page will be expired.')],
-				'starred'      => ['expire_starred', DI::l10n()->t('Expire starred posts'), $expire_starred, DI::l10n()->t('Starring posts keeps them from being expired. That behaviour is overwritten by this setting.')],
+				'starred'      => ['expire_starred', DI::l10n()->t('Expire bookmarked posts'), $expire_starred, DI::l10n()->t('Bookmarking posts keeps them from being expired. That behaviour is overwritten by this setting.')],
 				'network_only' => ['expire_network_only', DI::l10n()->t('Only expire posts by others'), $expire_network_only, DI::l10n()->t('When activated, your own posts never expire. Then the settings above are only valid for posts you received.')],
 			],
 
@@ -576,19 +582,19 @@ class Account extends BaseSettings
 				'email_textonly',
 				DI::l10n()->t('Text-only notification emails'),
 				DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'system', 'email_textonly'),
-				DI::l10n()->t('Send text only notification emails, without the html part')
+				DI::l10n()->t('Send text only notification emails, without the html part'),
 			],
 			'$detailed_notif' => [
 				'detailed_notif',
 				DI::l10n()->t('Show detailled notifications'),
 				DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'system', 'detailed_notif'),
-				DI::l10n()->t('Per default, notifications are condensed to a single notification per item. When enabled every notification is displayed.')
+				DI::l10n()->t('Per default, notifications are condensed to a single notification per item. When enabled every notification is displayed.'),
 			],
 			'$notify_ignored' => [
 				'notify_ignored',
 				DI::l10n()->t('Show notifications of ignored contacts'),
 				DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'system', 'notify_ignored', true),
-				DI::l10n()->t("You don't see posts from ignored contacts. But you still see their comments. This setting controls if you want to still receive regular notifications that are caused by ignored contacts or not.")
+				DI::l10n()->t("You don't see posts from ignored contacts. But you still see their comments. This setting controls if you want to still receive regular notifications that are caused by ignored contacts or not."),
 			],
 
 			'$h_advn'     => DI::l10n()->t('Advanced Account/Page Type Settings'),

@@ -1,13 +1,13 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
 <script src="{{$baseurl}}/view/asset/chart.js/dist/Chart.min.js?v={{$VERSION}}"></script>
 <div id="adminpage">
 	<h1>{{$title}} - {{$page}}</h1>
-
+	<div class="settings-section">
 	<canvas id="FederationChart" class="federation-graph" width="320" height="320"></canvas>
 	<p>{{$intro}}</p>
 
@@ -136,4 +136,5 @@
 		{{/if}}
 	{{/foreach}}
 	</table>
+	</div>
 </div>

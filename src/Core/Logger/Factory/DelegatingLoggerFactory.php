@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -20,15 +20,10 @@ use Psr\Log\NullLogger;
  */
 final class DelegatingLoggerFactory implements LoggerFactory
 {
-	private IManageConfigValues $config;
-
 	/** @var array<string,LoggerFactory> */
 	private array $factories = [];
 
-	public function __construct(IManageConfigValues $config)
-	{
-		$this->config = $config;
-	}
+	public function __construct(private readonly IManageConfigValues $config) {}
 
 	public function registerFactory(string $name, LoggerFactory $factory): void
 	{
@@ -47,16 +42,12 @@ final class DelegatingLoggerFactory implements LoggerFactory
 	{
 		$factoryName = $this->config->get('system', 'logger_config') ?? '';
 
-		/**
-		 * @deprecated 2026.01 The value `monolog` for `system.logger_config` inside the `config/local.config.php` file is deprecated, please use `stream` or `syslog` instead.
-		 */
-		if ($factoryName === 'monolog') {
-			@trigger_error('The config `system.logger_config` with value `monolog` is deprecated since 2026.01 and will stop working in 5 months, please change the value to `stream` or `syslog` in the `config/local.config.php` file.', \E_USER_DEPRECATED);
-
-			$factoryName = 'stream';
-		}
-
 		if (!array_key_exists($factoryName, $this->factories)) {
+			$this->reportFallback(sprintf(
+				'There is no logger registered for the config value "system.logger_config" = "%s".',
+				$factoryName,
+			));
+
 			return new NullLogger();
 		}
 
@@ -64,10 +55,27 @@ final class DelegatingLoggerFactory implements LoggerFactory
 
 		try {
 			$logger = $factory->createLogger($logLevel, $logChannel);
-		} catch (\Throwable $th) {
+		} catch (\Throwable $exception) {
+			$this->reportFallback(sprintf(
+				'The logger "%s" could not be created: %s',
+				$factoryName,
+				$exception->getMessage(),
+			));
+
 			return new NullLogger();
 		}
 
 		return $logger;
+	}
+
+	/**
+	 * Reports that logging has been silently disabled.
+	 *
+	 * An instance falling back to a NullLogger looks exactly like an idle one.
+	 * The logger cannot report its own failure, so this goes to PHP's error log.
+	 */
+	private function reportFallback(string $message): void
+	{
+		error_log('Friendica: logging is disabled, no log entries will be written. ' . $message);
 	}
 }

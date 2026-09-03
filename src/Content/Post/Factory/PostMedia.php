@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -21,14 +21,9 @@ use stdClass;
 
 class PostMedia extends BaseFactory implements ICanCreateFromTableRow
 {
-	/** @var MimeTypeFactory */
-	private $mimeTypeFactory;
-
-	public function __construct(MimeTypeFactory $mimeTypeFactory, LoggerInterface $logger)
+	public function __construct(private readonly MimeTypeFactory $mimeTypeFactory, LoggerInterface $logger)
 	{
 		parent::__construct($logger);
-
-		$this->mimeTypeFactory = $mimeTypeFactory;
 	}
 
 	/**
@@ -70,7 +65,7 @@ class PostMedia extends BaseFactory implements ICanCreateFromTableRow
 			$row['embed-width'],
 			$row['embed-height'],
 			$row['page-type'],
-			$row['schematypes'] ? json_decode($row['schematypes'], true) : null,
+			$row['schematypes'] ? json_decode((string) $row['schematypes'], true) : null,
 		);
 	}
 
@@ -139,7 +134,7 @@ class PostMedia extends BaseFactory implements ICanCreateFromTableRow
 			'id'              => $id,
 			'uri-id'          => $uriId,
 			'url'             => $attachment['url'],
-			'type'            => Post\Media::HTML,
+			'type'            => PostMediaEntity::TYPE_HTML,
 			'mimetype'        => null,
 			'media-uri-id'    => null,
 			'width'           => null,

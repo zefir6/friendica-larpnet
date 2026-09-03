@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -31,57 +31,25 @@ use Friendica\Util\ACLFormatter;
 use ImagickException;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
+use Friendica\Content\Post\Entity\PostMedia;
 
 class Status extends BaseFactory
 {
-	/** @var Database */
-	private $dba;
-	/** @var Account */
-	private $mstdnAccountFactory;
-	/** @var Mention */
-	private $mstdnMentionFactory;
-	/** @var Tag */
-	private $mstdnTagFactory;
-	/** @var Card */
-	private $mstdnCardFactory;
-	/** @var Attachment */
-	private $mstdnAttachmentFactory;
-	/** @var Emoji */
-	private $mstdnEmojiFactory;
-	/** @var Poll */
-	private $mstdnPollFactory;
-	/** @var ContentItem */
-	private $contentItem;
-	/** @var ACLFormatter */
-	private $aclFormatter;
-	private EventDispatcherInterface $eventDispatcher;
-
 	public function __construct(
-		EventDispatcherInterface $eventDispatcher,
+		private readonly EventDispatcherInterface $eventDispatcher,
 		LoggerInterface $logger,
-		Database $dba,
-		Account $mstdnAccountFactory,
-		Mention $mstdnMentionFactory,
-		Tag $mstdnTagFactory,
-		Card $mstdnCardFactory,
-		Attachment $mstdnAttachmentFactory,
-		Emoji $mstdnEmojiFactory,
-		Poll $mstdnPollFactory,
-		ContentItem $contentItem,
-		ACLFormatter $aclFormatter
+		private readonly Database $dba,
+		private readonly Account $mstdnAccountFactory,
+		private readonly Mention $mstdnMentionFactory,
+		private readonly Tag $mstdnTagFactory,
+		private readonly Card $mstdnCardFactory,
+		private readonly Attachment $mstdnAttachmentFactory,
+		private readonly Emoji $mstdnEmojiFactory,
+		private readonly Poll $mstdnPollFactory,
+		private readonly ContentItem $contentItem,
+		private readonly ACLFormatter $aclFormatter,
 	) {
 		parent::__construct($logger);
-		$this->dba                    = $dba;
-		$this->mstdnAccountFactory    = $mstdnAccountFactory;
-		$this->mstdnMentionFactory    = $mstdnMentionFactory;
-		$this->mstdnTagFactory        = $mstdnTagFactory;
-		$this->mstdnCardFactory       = $mstdnCardFactory;
-		$this->mstdnAttachmentFactory = $mstdnAttachmentFactory;
-		$this->mstdnEmojiFactory      = $mstdnEmojiFactory;
-		$this->mstdnPollFactory       = $mstdnPollFactory;
-		$this->contentItem            = $contentItem;
-		$this->aclFormatter           = $aclFormatter;
-		$this->eventDispatcher        = $eventDispatcher;
 	}
 
 	/**
@@ -202,7 +170,7 @@ class Status extends BaseFactory
 		if (in_array($item['network'], Protocol::FEDERATED)) {
 			$gserver = $this->dba->selectFirst('gserver', ['site_name', 'platform', 'version'], ['id' => $item['author-gsid']]);
 			if (!empty($gserver)) {
-				$platform = ucfirst($gserver['platform']);
+				$platform = ucfirst((string) $gserver['platform']);
 				$version  = $gserver['version'];
 				$sitename = $gserver['site_name'];
 			}
@@ -271,7 +239,7 @@ class Status extends BaseFactory
 			}
 			$emojis = $this->mstdnEmojiFactory->createCollectionFromArray($used_smilies)->getArrayCopy(true);
 		} else {
-			if (preg_match_all("(\[emoji=(.*?)](.*?)\[/emoji])ism", $item['body'] ?: $item['raw-body'], $matches)) {
+			if (preg_match_all("(\[emoji=(.*?)](.*?)\[/emoji])ism", $item['body'] ?: (string) $item['raw-body'], $matches)) {
 				$emojis = $this->mstdnEmojiFactory->createCollectionFromArray(array_combine($matches[2], $matches[1]))->getArrayCopy(true);
 			}
 		}
@@ -324,7 +292,7 @@ class Status extends BaseFactory
 			return [];
 		}
 		if (empty($item['quote-uri-id'])) {
-			$media = Post\Media::getByURIId($item['uri-id'], [Post\Media::ACTIVITY]);
+			$media = Post\Media::getByURIId($item['uri-id'], [PostMedia::TYPE_ACTIVITY]);
 			if (!empty($media)) {
 				if (!empty($media['media-uri-id'])) {
 					$quote_id = $media['media-uri-id'];

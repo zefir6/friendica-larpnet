@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -9,22 +9,7 @@ namespace Friendica\Test\src\Content;
 
 class ItemTestDice
 {
-	private $profiler;
-	private $eventDispatcher;
-	private $config;
-	private $l10n;
-	private $baseUrl;
-	private $mockFactory;
-
-	public function __construct($profiler, $eventDispatcher, $config, $l10n, $baseUrl, \Closure $mockFactory)
-	{
-		$this->profiler        = $profiler;
-		$this->eventDispatcher = $eventDispatcher;
-		$this->config          = $config;
-		$this->l10n            = $l10n;
-		$this->baseUrl         = $baseUrl;
-		$this->mockFactory     = $mockFactory;
-	}
+	public function __construct(private $profiler, private $eventDispatcher, private $config, private $l10n, private $baseUrl, private readonly \Closure $mockFactory) {}
 
 	public function create($class)
 	{

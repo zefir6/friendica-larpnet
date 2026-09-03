@@ -11,11 +11,11 @@ For example, for moving to profile page in Firefox, press these three keys simul
 
 ## General
 
-* p - Profile
-* n - Network
+* n - Home
 * l - Channel
 * c - Community
 * s - Search
+* b - Back to my instance (only when remotely signed in on another instance)
 * a - Admin
 * m - Moderation
 * f - Notifications
@@ -81,7 +81,7 @@ For example, for moving to profile page in Firefox, press these three keys simul
 * q - Sort by Creation Date
 * r - Conversation (Posts that mention or involve you)
 * w - New posts
-* m - Favourite Posts
+* m - Bookmark posts
 
 ## ../notifications
 

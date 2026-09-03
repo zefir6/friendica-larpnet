@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -120,7 +120,7 @@ class Notifications extends BaseNotifications
 				$notificationTemplate = Renderer::getMarkupTemplate($notificationTemplates[$notificationArray['label']]);
 
 				$notificationContent[] = Renderer::replaceMacros($notificationTemplate, [
-					'$notification' => $notificationArray
+					'$notification' => $notificationArray,
 				]);
 			}
 		} else {

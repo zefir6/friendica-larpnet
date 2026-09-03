@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -206,7 +206,6 @@
 
 		// Initialize the filebrowser
 		if (typeof window.loadScript === "function") {
-			window.loadScript("view/js/ajaxupload.js");
 			window.loadScript("view/theme/frio/js/module/media/browser.js", function () {
 				if (typeof window.Browser !== "undefined" && typeof window.Browser.init === "function") {
 					window.Browser.init(filebrowser.dataset.nickname, filebrowser.dataset.type, match[1]);
@@ -226,13 +225,7 @@
 
 		let title = "";
 
-		// Special handling for event modals
-		if ($("#modal-body .event-wrapper .event-summary").length) {
-			const eventsum = $("#modal-body .event-wrapper .event-summary").html();
-			title = '<i class="fa fa-calendar" aria-hidden="true"></i>&nbsp;' + eventsum;
-		} else {
-			title = $heading.html();
-		}
+		title = $heading.html();
 
 		if (title) {
 			$("#modal-title").append(title);
@@ -285,12 +278,6 @@
 	 * @param {string} url - The edit post URL
 	 */
 	function editpost(url) {
-		// Check if this is an event post
-		const splitURL = window.parseUrl ? window.parseUrl(url) : { path: "" };
-		if (splitURL.path && splitURL.path.indexOf("calendar/event/show") > -1) {
-			addToModal(splitURL.path);
-			return;
-		}
 
 		const $modal = $("#jot-modal").modal();
 		const loadUrl = url + " #jot-sections";
@@ -387,29 +374,12 @@
 		}
 	}
 
-	/**
-	 * Load the content of an edit URL into a modal.
-	 *
-	 * @param {string} url - The event edit URL
-	 */
-	function eventEdit(url) {
-		const char = window.qOrAmp ? window.qOrAmp(url) : (url.indexOf("?") < 0 ? "?" : "&");
-		const fullUrl = url + char + "mode=none";
-
-		$.get(fullUrl, function (data) {
-			$("#modal-body").empty().append(data);
-		}).done(function () {
-			loadModalTitle();
-		});
-	}
-
 	// Expose functions to global scope
 	window.addToModal = addToModal;
 	window.addElmToModal = addElmToModal;
 	window.editpost = editpost;
 	window.toggleJotNav = toggleJotNav;
 	window.openWallMessage = openWallMessage;
-	window.eventEdit = eventEdit;
 	// jotreset is no longer needed as a public function since we bind the handler once
 	// But keep it for backward compatibility just in case
 	window.jotreset = function () {

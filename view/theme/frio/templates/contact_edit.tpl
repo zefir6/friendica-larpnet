@@ -1,6 +1,6 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
@@ -21,7 +21,7 @@
 				<ul id="contact-edit-actions" class="nav nav-pills preferences">
 					<li class="dropdown pull-right">
 						<button type="button" class="btn btn-link dropdown-toggle" id="contact-edit-actions-button" data-toggle="dropdown" aria-expanded="false">
-							<i class="fa fa-angle-down" aria-hidden="true"></i>&nbsp;{{$contact_action_button}}
+							<i class="ri ri-arrow-down-s-line" aria-hidden="true"></i>&nbsp;{{$contact_action_button}}
 						</button>
 
 						<ul class="dropdown-menu pull-right" role="menu" aria-labelledby="contact-edit-actions-button" aria-haspopup="true" id="contact-actions-menu">

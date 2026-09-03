@@ -1,14 +1,13 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 namespace Friendica\Console;
 
 use Asika\SimpleConsole\CommandArgsException;
-use Friendica\Database\Database;
 use Friendica\Model\APContact;
 use Friendica\Protocol\ActivityPub\Transmitter;
 use Friendica\Protocol\Relay as ProtocolRelay;
@@ -22,11 +21,6 @@ use Friendica\Protocol\Relay as ProtocolRelay;
 class Relay extends \Asika\SimpleConsole\Console
 {
 	protected $helpOptions = ['h', 'help', '?'];
-
-	/**
-	 * @var Database
-	 */
-	private $dba;
 
 
 	protected function getHelp()
@@ -56,11 +50,10 @@ HELP;
 		return $help;
 	}
 
-	public function __construct(\Friendica\Database\Database $dba, array $argv = null)
-	{
+	public function __construct(
+		?array $argv = null,
+	) {
 		parent::__construct($argv);
-
-		$this->dba = $dba;
 	}
 
 	protected function doExecute(): int

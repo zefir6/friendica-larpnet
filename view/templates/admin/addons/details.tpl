@@ -1,13 +1,13 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
 
 <div id="adminpage">
 	<h1>{{$title}} - {{$page}}</h1>
-
+	<div class="settings-section">
 	<p><span class="toggleaddon icon {{$status}}"></span> {{$info.name}} - {{$info.version}} : <a href="{{$baseurl}}/admin/{{$function}}/{{$addon}}/?action=toggle&amp;t={{$form_security_token}}">{{$action}}</a></p>
 	<p>{{$info.description nofilter}}</p>
 
@@ -41,4 +41,5 @@
 		{{$readme nofilter}}
 	</div>
 	{{/if}}
+	</div>
 </div>

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+ * SPDX-FileCopyrightText: 2010-2026 the Friendica project
  *
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -9,6 +9,18 @@
     Created on : 11.08.2020
     Author     : Hypolite Petovan <hypolite@friendica.mrpetovan.com>
 */
+
+:root {
+    color-scheme: dark;
+}
+
+a:hover, button:focus, .btn-link:focus, .btn-primary:focus,
+a:hover, button:hover, .btn-link:hover, .btn-primary:hover,
+#topbar-first li a:hover, #topbar-first li button:hover,
+#topbar-first li a:focus, #topbar-first li button:focus {
+	color: white;
+}
+
 #topbar-first {
 	background-color: $background_color;
 }
@@ -32,7 +44,11 @@
 	border-color: $link_color;
 }
 #topbar-second ul.tabs li {
-	border_color: $link_color;
+	border-color: $link_color;
+}
+header #banner #logo-img:focus,
+header #banner #logo-img:hover {
+		color: $font_color;
 }
 
 .dropdown-menu,
@@ -46,7 +62,19 @@
 .account .dropdown-menu li {
 	border-color: $background_color;
 }
-
+#nav-delegation-link {
+	background-color: rgba(255, 255, 255, $contentbg_transp);
+	box-shadow: 0 0 3px $link_color;
+  	-webkit-box-shadow: 0 0 3px $link_color;
+  	-moz-box-shadow: 0 0 3px $link_color;
+  	color: $link_color;
+}
+#nav-delegation-link:hover,
+#nav-delegation-link:focus,
+#nav-delegation-link:active {
+	background-color: rgba(0, 0, 0, $contentbg_transp);
+	color: white;
+}
 .dropdown-menu > li > a:focus,
 .dropdown-menu > li > a:hover {
 	background-image: none;
@@ -341,6 +369,19 @@ input[type="submit"],
 
 .friendica-tagsinput .tag {
 	color: inherit;
+}
+
+.tag.label a {
+	background: $background_color;
+	color: $font_color;
+}
+
+.tag.border-primary {
+	--border-color: color-mix(in oklab, var(--success), white 30%);
+}
+
+.tag.border-primary a {
+	color: color-mix(in oklab, var(--success), white 30%);
 }
 
 code {

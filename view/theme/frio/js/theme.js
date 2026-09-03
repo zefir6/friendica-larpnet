@@ -1,19 +1,68 @@
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // @license magnet:?xt=urn:btih:0b31508aeb0634b347b8270c7bee4d411b5d4109&dn=agpl-3.0.txt AGPLv3-or-later
 
 var jotcache = ""; //The jot cache. We use it as cache to restore old/original jot content
+var stickyAside = null; //The aside currently handled by sticky-kit, see initTheme()
 
-$(document).ready(function () {
+function syncSecondNavTabmenu() {
+	// Move page tabbar into second navbar after initial load and SPA navigations
+	var $tabbar = $("section .tabbar-wrapper").first();
+	var $tabmenu = $("#topbar-second > .container-fluid > #tabmenu");
+
+	if ($tabbar.length && $tabmenu.length) {
+		$tabbar.appendTo($tabmenu);
+	}
+
+	// Initialize responsive overflow menu for newly injected tab bars only once per element
+	$("ul.tabs.flex-nav").each(function () {
+		var $tabs = $(this);
+		if ($tabs.data("spa-flexmenu-initialized")) {
+			return;
+		}
+
+		$tabs.flexMenu({
+			cutoff: 2,
+			popupClass: "dropdown-menu pull-right",
+			popupAbsolute: false,
+			target: ".flex-target",
+		});
+
+		$tabs.data("spa-flexmenu-initialized", true);
+	});
+}
+
+function syncSecondNavJotButton() {
+	var $jotButton = $("#jotOpen");
+	if (!$jotButton.length) {
+		return;
+	}
+
+	$jotButton.appendTo("#topbar-second > .container-fluid > #navbar-button");
+
+	if ($("#jot-popup").is(":hidden")) {
+		$jotButton.hide();
+	}
+
+	if ($jotButton.hasClass("modal-open")) {
+		$jotButton.off("click.spa-jot").on("click.spa-jot", function (e) {
+			e.preventDefault();
+			jotShow();
+		});
+	}
+}
+
+// Initialize theme functionality (called on initial load and after SPA navigation)
+function initTheme() {
 	// Destroy unused perfect scrollbar in aside element
 	$("aside").perfectScrollbar("destroy");
 
 	//fade in/out based on scrollTop value
 	var scrollStart;
 
-	$(window).scroll(function () {
+	$(window).off("scroll.frio-theme").on("scroll.frio-theme", function () {
 		let currentScroll = $(this).scrollTop();
 
 		// Top of the page or going up = hide the button
@@ -29,27 +78,6 @@ $(document).ready(function () {
 		}
 	});
 
-	// scroll body to 0px on click
-	$("#back-to-top").click(function () {
-		$("body,html").animate(
-			{
-				scrollTop: 0,
-			},
-			400,
-		);
-		return false;
-	});
-
-	// add the class "selected" to circle widgets li if li > a does have the class circle-selected
-	if ($("#sidebar-circle-ul li a").hasClass("circle-selected")) {
-		$("#sidebar-circle-ul li a.circle-selected").parent("li").addClass("selected");
-	}
-
-	// add the class "selected" to groups widgets li if li > a does have the class group-selected
-	if ($("#group-list-sidebar-ul li a").hasClass("group-selected")) {
-		$("#group-list-sidebar-ul li a.group-selected").parent("li").addClass("selected");
-	}
-
 	// add the class "active" to tabmenuli if li > a does have the class active
 	if ($("#tabmenu ul li a").hasClass("active")) {
 		$("#tabmenu ul li a.active").parent("li").addClass("active");
@@ -60,38 +88,16 @@ $(document).ready(function () {
 	$(".field.select, .field.custom").addClass("form-group");
 	$(".field.select > select, .field.custom > select").addClass("form-control");
 
-	// move the tabbar to the second nav bar
-	$("section .tabbar-wrapper").first().appendTo("#topbar-second > .container > #tabmenu");
-
-	// make responsive tabmenu with flexmenu.js
-	// the menupoints which doesn't fit in the second nav bar will moved to a
-	// dropdown menu. Look at common_tabs.tpl
-	$("ul.tabs.flex-nav").flexMenu({
-		cutoff: 2,
-		popupClass: "dropdown-menu pull-right",
-		popupAbsolute: false,
-		target: ".flex-target",
-	});
+	// move/init tabbar in second nav bar
+	syncSecondNavTabmenu();
 
 	// add Jot button to the second navbar
-	let $jotButton = $("#jotOpen");
-	if ($jotButton.length) {
-		$jotButton.appendTo("#topbar-second > .container > #navbar-button");
-		if ($("#jot-popup").is(":hidden")) {
-			$jotButton.hide();
-		}
-		if ($jotButton.hasClass('modal-open')) {
-			$jotButton.on("click", function (e) {
-				e.preventDefault();
-				jotShow();
-			});
-		}
-	}
+	syncSecondNavJotButton();
 
 	let $body = $("body");
 
 	// show bulk deletion button at network page if checkbox is checked
-	$body.change("input.item-select", function () {
+	$body.off("change.frio-theme", "input.item-select").on("change.frio-theme", "input.item-select", function () {
 		var checked = false;
 
 		// We need to get all checked items, so it would close the delete button
@@ -115,7 +121,7 @@ $(document).ready(function () {
 	});
 
 	// initialize the Bootstrap tooltips
-	$body.tooltip({
+	$body.off("mouseenter.frio-theme mouseleave.frio-theme").tooltip({
 		selector: '[data-toggle="tooltip"]',
 		container: "body",
 		animation: true,
@@ -132,11 +138,11 @@ $(document).ready(function () {
 	});
 
 	// initialize the bootstrap-select
-	$(".selectpicker").selectpicker();
+	$(".selectpicker").off("change.frio-theme").selectpicker();
 
 	// add search-heading to the second navbar
 	if ($(".search-heading").length) {
-		$(".search-heading").appendTo("#topbar-second > .container > #tabmenu");
+		$(".search-heading").appendTo("#topbar-second > .container-fluid > #tabmenu");
 	}
 
 	// add search results heading to the second navbar
@@ -154,7 +160,7 @@ $(document).ready(function () {
 		// insert the plain text in a <h4> heading and give it a class
 		var newText = '<h4 class="search-heading">' + searchText + "</h4>";
 		// append the new heading to the navbar
-		$("#topbar-second > .container > #tabmenu").append(newText);
+		$("#topbar-second > .container-fluid > #tabmenu").append(newText);
 
 		// try to get the value of the original search input to insert it
 		// as value in the nav-search-input
@@ -179,7 +185,7 @@ $(document).ready(function () {
 	}
 
 	// move the "Save the search" button to the second navbar
-	$(".search-content-wrapper #search-save").appendTo("#topbar-second > .container > #navbar-button");
+	$(".search-content-wrapper #search-save").appendTo("#topbar-second > .container-fluid > #navbar-button");
 
 	// append the vcard-short-info to the second nav after passing the element
 	// with .fn (vcard username). Use scrollspy to get the scroll position.
@@ -234,17 +240,17 @@ $(document).ready(function () {
 		// remove the old heading element
 		heading.remove(),
 			// put the new element to the second nav bar
-			$("#topbar-second > .container > #tabmenu").append(newText);
+			$("#topbar-second > .container-fluid > #tabmenu").append(newText);
 	}
 
 	// Dropdown menus with the class "dropdown-head" will display the active tab
 	// as button text
-	$body.on("click", ".dropdown-head .dropdown-menu li a, .dropdown-head .dropdown-menu li button", function () {
+	$body.off("click.frio-theme", ".dropdown-head .dropdown-menu li a, .dropdown-head .dropdown-menu li button").on("click.frio-theme", ".dropdown-head .dropdown-menu li a, .dropdown-head .dropdown-menu li button", function () {
 		toggleDropdownText(this);
 	});
 
 	// Change the css class while clicking on the switcher elements
-	$(".toggle label, .toggle .toggle-handle").click(function (event) {
+	$(".toggle label, .toggle .toggle-handle").off("click.frio-theme").on("click.frio-theme", function (event) {
 		event.preventDefault();
 		// Get the value of the input element
 		var input = $(this).siblings("input");
@@ -275,7 +281,7 @@ $(document).ready(function () {
 	// to the input element where the padding value would be at least the width
 	// of the button. Otherwise long user input would be invisible because it is
 	// behind the button.
-	$body.on("click", ".form-group-search > input", function () {
+	$body.off("click.frio-theme", ".form-group-search > input").on("click.frio-theme", ".form-group-search > input", function () {
 		// Get the width of the button (if the button isn't available
 		// buttonWidth will be null
 		var buttonWidth = $(this).next(".form-button-search").outerWidth();
@@ -296,7 +302,7 @@ $(document).ready(function () {
 	 * We are making an exception for buttons because of a race condition with the
 	 * comment opening button that results in an already closed comment UI.
 	 */
-	$(document).on("mousedown", function (event) {
+	$(document).off("mousedown.frio-theme").on("mousedown.frio-theme", function (event) {
 		if (event.target.type === "button") {
 			return true;
 		}
@@ -321,7 +327,7 @@ $(document).ready(function () {
 	// Customize some elements when the app is used in standalone mode on Android
 	if (window.matchMedia("(display-mode: standalone)").matches) {
 		// Open links to source outside of the webview
-		$("body").on("click", ".plink", function (e) {
+		$("body").off("click.frio-theme", ".plink").on("click.frio-theme", ".plink", function (e) {
 			$(e.target).attr("target", "_blank");
 		});
 	}
@@ -330,7 +336,7 @@ $(document).ready(function () {
 	 * This event listeners ensures that the textarea size is updated event if the
 	 * value is changed externally (textcomplete, insertFormatting, fbrowser...)
 	 */
-	$(document).on("change", "textarea", function (event) {
+	$(document).off("change.frio-theme").on("change.frio-theme", "textarea", function (event) {
 		autosize.update(event.target);
 	});
 
@@ -346,13 +352,19 @@ $(document).ready(function () {
 	 * since is enabled or not at page loading time.
 	 */
 	if ($(window).width() > 976) {
-		$("aside").stick_in_parent({
+		// Detach the previous aside first: SPA navigation replaces the element,
+		// and its window/body handlers stay bound until sticky_kit:detach.
+		if (stickyAside) {
+			stickyAside.trigger("sticky_kit:detach");
+		}
+		stickyAside = $("aside");
+		stickyAside.stick_in_parent({
 			offset_top: 100, // px, header + tab bar + spacing
 			recalc_every: 10,
 		});
 		// recalculate sticky aside on clicks on <a> elements
 		// this handle height changes on expanding submenus
-		$("aside").on("click", "a", function () {
+		$("aside").off("click.frio-theme", "a").on("click.frio-theme", "a", function () {
 			$(document.body).trigger("sticky_kit:recalc");
 		});
 	}
@@ -364,10 +376,11 @@ $(document).ready(function () {
 	 * is shown.
 	 */
 	$("aside")
-		.on("shown.bs.offcanvas", function () {
+		.off("shown.bs.offcanvas.frio-theme hidden.bs.offcanvas.frio-theme")
+		.on("shown.bs.offcanvas.frio-theme", function () {
 			$body.addClass("aside-out");
 		})
-		.on("hidden.bs.offcanvas", function () {
+		.on("hidden.bs.offcanvas.frio-theme", function () {
 			$body.removeClass("aside-out");
 		});
 
@@ -375,13 +388,13 @@ $(document).ready(function () {
 	let $offcanvas_right_toggle = $(".offcanvas-right-toggle");
 	let $offcanvas_right_container = $("#offcanvasUsermenu"); // Use ID for faster lookup, class is .offcanvas-right
 
-	$offcanvas_right_toggle.on("click", function (event) {
+	$offcanvas_right_toggle.off("click.frio-theme").on("click.frio-theme", function (event) {
 		event.preventDefault();
 		$("body").toggleClass("offcanvas-right-active");
 	});
 
 	// Close the right offcanvas menu when clicking somewhere
-	$(document).on("mouseup touchend", function (event) {
+	$(document).off("mouseup.frio-theme touchend.frio-theme").on("mouseup.frio-theme touchend.frio-theme", function (event) {
 		if (
 			// Clicked element is not inside the menu
 			!$offcanvas_right_container.is(event.target) &&
@@ -395,51 +408,57 @@ $(document).ready(function () {
 	});
 
 	// Event listener for 'Show & hide event map' button in the network stream.
-	$body.on("click", ".event-map-btn", function () {
+	$body.off("click.frio-theme", ".event-map-btn").on("click.frio-theme", ".event-map-btn", function () {
 		showHideEventMap(this);
 	});
 
-	// Comment form submit
-	$body.on("submit", ".comment-edit-form", function (e) {
-		let $form = $(this);
-		let id = $form.data("item-id");
+	// Comment form submit - only register once to prevent duplicate submissions
+	if (typeof frioCommentFormHandlerRegistered === 'undefined') {
+		frioCommentFormHandlerRegistered = true;
+		$body.off("submit.frio-theme", ".comment-edit-form").on("submit.frio-theme", ".comment-edit-form", function (e) {
+			let $form = $(this);
+			let id = $form.data("item-id");
 
-		// Compose page form exception: id is always 0 and form must not be submitted asynchronously
-		if (id === 0) {
-			return;
-		}
+			// Compose page form exception: id is always 0 and form must not be submitted asynchronously
+			if (id === 0) {
+				return;
+			}
 
-		e.preventDefault();
+			e.preventDefault();
 
-		let $commentSubmit = $form.find(".comment-edit-submit").button("loading");
+			let $commentSubmit = $form.find(".comment-edit-submit").button("loading");
 
-		unpause();
-		commentBusy = true;
+			unpause();
+			commentBusy = true;
+			showPosting();
 
-		$.post("item", $form.serialize(), "json")
-			.then(function (data) {
-				if (data.success) {
-					$("#comment-edit-wrapper-" + id).hide();
-					let $textarea = $("#comment-edit-text-" + id);
-					$textarea.val("");
-					if ($textarea.get(0)) {
-						commentClose($textarea.get(0), id);
+			$.post("item", $form.serialize(), "json")
+				.done(function (data) {
+					showProcessing();
+					if (data.success) {
+						$("#comment-edit-wrapper-" + id).hide();
+						let $textarea = $("#comment-edit-text-" + id);
+						$textarea.val("");
+						if ($textarea.get(0)) {
+							commentClose($textarea.get(0), id);
+						}
+						if (timer) {
+							clearTimeout(timer);
+						}
+						timer = setTimeout(NavUpdate, 10);
+						updateItem(id, data.guid ?? null);
 					}
-					if (timer) {
-						clearTimeout(timer);
+					if (data.reload) {
+						window.location.href = data.reload;
 					}
-					timer = setTimeout(NavUpdate, 10);
-					force_update = true;
-					update_item = id;
-				}
-				if (data.reload) {
-					window.location.href = data.reload;
-				}
-			})
-			.always(function () {
-				$commentSubmit.button("reset");
-			});
-	});
+				})
+				.always(function () {
+					hideLoading();
+					commentBusy = false;
+					$commentSubmit.button("reset");
+				});
+		});
+	}
 
 	try {
 		navigator.canShare({ url: "#", });
@@ -447,8 +466,17 @@ $(document).ready(function () {
 		$('.button-browser-share').hide();
 	}
 
-	// initiale autosize for the textareas
+	// initialize autosize for the textareas
 	autosize($("textarea.text-autosize"));
+}
+
+// Register theme initialization for initial page load and SPA navigation
+window.onDocumentReady('body', initTheme);
+
+// Keep existing spa:navigate handler for tabmenu syncing
+window.addEventListener("spa:navigate", function () {
+	syncSecondNavTabmenu();
+	syncSecondNavJotButton();
 });
 
 function openClose(theID) {
@@ -530,6 +558,7 @@ function justifyPhotos() {
 }
 
 // Load a js script to the html head.
+// Currently Only used to load browser.js, which could possibly be handled in a better way
 function loadScript(url, callback) {
 	// Check if the script is already in the html head.
 	var oscript = $('head script[src="' + url + '"]');
@@ -585,15 +614,10 @@ function cleanContactUrl(url) {
 		newUrl += parts["path"];
 	}
 
-	//	if(url != newUrl) {
-	//		console.log("Cleaned contact url " + url + " to " + newUrl);
-	//	}
-
 	return newUrl;
 }
 
 function parseUrl(str, component) {
-	// eslint-disable-line camelcase
 	//       discuss at: http://locutusjs.io/php/parse_url/
 	//      original by: Steven Levithan (http://blog.stevenlevithan.com)
 	// reimplemented by: Brett Zamir (http://brett-zamir.me)
@@ -706,47 +730,6 @@ String.prototype.rtrim = function () {
 	return trimmed;
 };
 
-/**
- * Scroll the screen to the item element whose id is provided, then highlights it
- *
- * Note: jquery.color.js is required
- *
- * @param {string} elementId The item element id
- * @returns {undefined}
- */
-function scrollToItem(elementId) {
-	if (typeof elementId === "undefined") {
-		return;
-	}
-
-	var $el = $("#" + elementId + " > .media");
-	// Test if the Item exists
-	if (!$el.length) {
-		return;
-	}
-
-	// Define the colors which are used for highlighting
-	var colWhite = { backgroundColor: "#7f7f7f" };
-	var colShiny = { backgroundColor: "#7e763a" };
-
-	// Get the Item Position (we need to substract 100 to match correct position
-	var itemPos = $el.offset().top - 100;
-
-	// Scroll to the DIV with the ID (GUID)
-	$("html, body")
-		.animate(
-			{
-				scrollTop: itemPos,
-			},
-			400,
-		)
-		.promise()
-		.done(function () {
-			// Highlight post/comment with ID  (GUID)
-			$el.animate(colWhite, 1000).animate(colShiny).animate({ backgroundColor: "transparent" }, 600);
-		});
-}
-
 // format a html string to pure text
 function htmlToText(htmlString) {
 	// Replace line breaks with spaces
@@ -766,38 +749,39 @@ function htmlToText(htmlString) {
  * @param {boolean} un    Whether to perform an activity removal instead of creation
  */
 function doActivityItemAction(ident, verb, un) {
+	showPosting();
 	_verb = un ? 'un' + verb : verb;
 	var thumbsClass = '';
 	switch (verb) {
 		case 'like':
-			thumbsClass = 'fa-thumbs-up';
+			thumbsClass = 'ri-thumb-up-line';
 			break;
 		case 'dislike':
-			thumbsClass = 'fa-thumbs-down';
+			thumbsClass = 'ri-thumb-down-line';
 			break;
 		case 'announce':
-			thumbsClass = 'fa-retweet';
+			thumbsClass = 'ri-repeat-line';
 			break;
 		case 'attendyes':
-			thumbsClass = 'fa-check';
+			thumbsClass = 'ri-check-line';
 			break;
 		case 'attendno':
-			thumbsClass = 'fa-times';
+			thumbsClass = 'ri-close-line';
 			break;
 		case 'attendmaybe':
-			thumbsClass = 'fa-question';
+			thumbsClass = 'ri-question-line';
 	}
 	if (verb.indexOf('announce') === 0 ) {
 		// Share-Button(s)
 		// remove share-symbol, to replace it by rotator
-		$('button[id^=shareMenuOptions-' + ident.toString() + '] i:first-child').removeClass('fa-share');
-		$('button[id^=announce-' + ident.toString() + '] i:first-child').removeClass('fa-retweet');
+		$('button[id^=shareMenuOptions-' + ident.toString() + '] i:first-child').removeClass('ri-share-forward-line');
+		$('button[id^=announce-' + ident.toString() + '] i:first-child').removeClass('ri-repeat-line');
 		// avoid multiple rotators on like/share-button if klicked multiple times.
 		if ($('img[id^=waitfor-' + verb + '-' + ident.toString() + ']').length == 0) {
 			// append rotator to the shareMenu-button for small media
 			$('<img>')
 				.attr({id: 'waitfor-' + verb + '-' + ident.toString(), src: 'images/rotator.gif'})
-				.addClass('fa')
+				.addClass('ri')
 				.appendTo($('button[id^=shareMenuOptions-' + ident.toString() + '] i:first-child' ));
 		}
 	}
@@ -806,71 +790,75 @@ function doActivityItemAction(ident, verb, un) {
 	if ($('button:not(button.dropdown-toggle) img#waitfor-' + verb + '-' + ident.toString()).length == 0) {
 		$('<img>')
 			.attr({id: 'waitfor-' + verb + '-' + ident.toString(), src: 'images/rotator.gif'})
-			.addClass('fa')
+			.addClass('ri')
 			.appendTo($('button[id^=' + verb + '-' + ident.toString() + '] i:first-child'));
 	}
 	$.post('item/' + ident.toString() + '/activity/' + _verb)
-	.success(function(data){
-		$('img[id^=waitfor-' + verb + '-' + ident.toString() + ']').remove();
-		if (data.status == 'ok') {
-			if (verb.indexOf('attend') === 0) {
-				$('button[id^=attend][id$=' + ident.toString() + ']').removeClass('active')
-				$('button#attendyes-' + ident.toString()).attr('onclick', 'javascript:doActivityItemAction(' + ident +', "attendyes")');
-				$('button#attendno-' + ident.toString()).attr('onclick', 'javascript:doActivityItemAction(' + ident +', "attendno")');
-				$('button#attendmaybe-' + ident.toString()).attr('onclick', 'javascript:doActivityItemAction(' + ident +', "attendmaybe")');
-			}
-			if (data.verb == 'un' + verb) {
-				// like/dislike buttons
-				$('button[id^=' + verb + '-' + ident.toString() + ']' )
-					.removeClass('active')
-					.attr('onclick', 'doActivityItemAction(' + ident +', "' + verb + '")');
-				// link in share-menu
-				$('a[id^=' + verb + '-' + ident.toString() + ']' )
-					.removeClass('active')
-					.attr('href', 'javascript:doActivityItemAction(' + ident +', "' + verb + '")');
-				$('a[id^=' + verb + '-' + ident.toString() + '] i:first-child' ).addClass('fa-retweet').removeClass('fa-ban');
-			} else {
-				// like/dislike buttons
-				$('button[id^=' + verb + '-' + ident.toString() + ']' )
-					.addClass('active')
-					.attr('onclick', 'doActivityItemAction(' + ident + ', "' + verb + '", true )');
-				// link in share-menu
-				$('a[id^=' + verb + '-' + ident.toString() + ']' )
-					.addClass('active')
-					.attr('href', 'javascript:doActivityItemAction(' + ident + ', "' + verb + '", true )');
-				$('a[id^=' + verb + '-' + ident.toString() + '] i:first-child' ).removeClass('fa-retweet').addClass('fa-ban');
-			}
-			$('button[id^=' + verb + '-' + ident.toString() + '] i:first-child').addClass(thumbsClass);
-			if (verb.indexOf('announce') === 0 ) {
-				// ShareMenuButton
-				$('button[id^=shareMenuOptions-' + ident.toString() + '] i:first-child').addClass('fa-share');
-				if (data.verb == 'un' + verb) {
-					$('button[id^=shareMenuOptions-' + ident.toString() + ']').removeClass('active');
-				} else {
-					$('button[id^=shareMenuOptions-' + ident.toString() + ']').addClass('active');
-				}
-			}
-			updateItem(ident.toString());
-		} else {
-			/* server-response was not ok. Database-problems or some changes in
-			 * data?
-			 * reset all buttons
-			 */
+		.done(function(data){
+			showProcessing();
 			$('img[id^=waitfor-' + verb + '-' + ident.toString() + ']').remove();
-			$('button[id^=shareMenuOptions-' + ident.toString() + '] i:first-child').addClass('fa-share');
+			if (data.status == 'ok') {
+				if (verb.indexOf('attend') === 0) {
+					$('button[id^=attend][id$=' + ident.toString() + ']').removeClass('active')
+					$('button#attendyes-' + ident.toString()).attr('onclick', 'javascript:doActivityItemAction(' + ident +', "attendyes")');
+					$('button#attendno-' + ident.toString()).attr('onclick', 'javascript:doActivityItemAction(' + ident +', "attendno")');
+					$('button#attendmaybe-' + ident.toString()).attr('onclick', 'javascript:doActivityItemAction(' + ident +', "attendmaybe")');
+				}
+				if (data.verb == 'un' + verb) {
+					// like/dislike buttons
+					$('button[id^=' + verb + '-' + ident.toString() + ']' )
+						.removeClass('active')
+						.attr('onclick', 'doActivityItemAction(' + ident +', "' + verb + '")');
+					// link in share-menu
+					$('a[id^=' + verb + '-' + ident.toString() + ']' )
+						.removeClass('active')
+						.attr('href', 'javascript:doActivityItemAction(' + ident +', "' + verb + '")');
+					$('a[id^=' + verb + '-' + ident.toString() + '] i:first-child' ).addClass('ri-repeat-line').removeClass('ri-forbid-2-line');
+				} else {
+					// like/dislike buttons
+					$('button[id^=' + verb + '-' + ident.toString() + ']' )
+						.addClass('active')
+						.attr('onclick', 'doActivityItemAction(' + ident + ', "' + verb + '", true )');
+					// link in share-menu
+					$('a[id^=' + verb + '-' + ident.toString() + ']' )
+						.addClass('active')
+						.attr('href', 'javascript:doActivityItemAction(' + ident + ', "' + verb + '", true )');
+					$('a[id^=' + verb + '-' + ident.toString() + '] i:first-child' ).removeClass('ri-repeat-line').addClass('ri-forbid-2-line');
+				}
+				$('button[id^=' + verb + '-' + ident.toString() + '] i:first-child').addClass(thumbsClass);
+				if (verb.indexOf('announce') === 0 ) {
+					// ShareMenuButton
+					$('button[id^=shareMenuOptions-' + ident.toString() + '] i:first-child').addClass('ri-share-forward-line');
+					if (data.verb == 'un' + verb) {
+						$('button[id^=shareMenuOptions-' + ident.toString() + ']').removeClass('active');
+					} else {
+						$('button[id^=shareMenuOptions-' + ident.toString() + ']').addClass('active');
+					}
+				}
+				updateItem(ident.toString());
+			} else {
+				/* server-response was not ok. Database-problems or some changes in
+				 * data?
+				 * reset all buttons
+				 */
+				$('img[id^=waitfor-' + verb + '-' + ident.toString() + ']').remove();
+				$('button[id^=shareMenuOptions-' + ident.toString() + '] i:first-child').addClass('ri-share-forward-line');
+				$('button[id^=' + verb + '-' + ident.toString() + '] i:first-child').addClass(thumbsClass);
+				$('a[id^=' + verb + '-' + ident.toString() + '] i:first-child').addClass(thumbsClass);
+				$.jGrowl(aActErr[verb] + '<br>(' + aErrType['srvErr'] + ')', {sticky: false, theme: 'info', life: 5000});
+			}
+		})
+		.fail(function(data){
+			// Server could not be reached successfully
+			$('img[id^=waitfor-' + verb + '-' + ident.toString() + ']').remove();
+			$('button[id^=shareMenuOptions-' + ident.toString() + '] i:first-child').addClass('ri-share-forward-line');
 			$('button[id^=' + verb + '-' + ident.toString() + '] i:first-child').addClass(thumbsClass);
 			$('a[id^=' + verb + '-' + ident.toString() + '] i:first-child').addClass(thumbsClass);
-			$.jGrowl(aActErr[verb] + '<br>(' + aErrType['srvErr'] + ')', {sticky: false, theme: 'info', life: 5000});
-		}
-	})
-	.error(function(data){
-		// Server could not be reached successfully
-		$('img[id^=waitfor-' + verb + '-' + ident.toString() + ']').remove();
-		$('button[id^=shareMenuOptions-' + ident.toString() + '] i:first-child').addClass('fa-share');
-		$('button[id^=' + verb + '-' + ident.toString() + '] i:first-child').addClass(thumbsClass);
-		$('a[id^=' + verb + '-' + ident.toString() + '] i:first-child').addClass(thumbsClass);
-		$.jGrowl(aActErr[verb] + '<br>(' + aErrType['netErr'] + ')', {sticky: false, theme: 'info', life: 5000});
-	});
+			$.jGrowl(aActErr[verb] + '<br>(' + aErrType['netErr'] + ')', {sticky: false, theme: 'info', life: 5000});
+		})
+		.always(function() {
+			hideLoading();
+		});
 }
 
 // Decodes a hexadecimally encoded binary string
@@ -948,8 +936,9 @@ function hasClass(elem, cls) {
 // submit: the id of the submitbutton
 function sendOnCtrlEnter(e, submit) {
 	if ((e.ctrlKey || e.metaKey) && (e.keyCode == 13 || e.keyCode == 10)) {
-		console.log("Ctrl + Enter");
+		showPosting();
 		$("#" + submit).trigger('click');
+		hideLoading();
 	}
 }
 // @license-end

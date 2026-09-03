@@ -1,6 +1,6 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
@@ -35,7 +35,7 @@
 			$('#id_finish_text').prop("disabled", false);
 	}
 
-	$(document).ready(function() {
+	window.onDocumentReady('#events-calendar', function() {
 		$('#events-calendar').fullCalendar({
 			defaultView: '{{$i18n.defaultView|escape:'quotes'}}',
 			firstDay: '{{$i18n.firstDay|escape:'quotes'}}',
@@ -146,7 +146,7 @@
 </script>
 
 <script language="javascript" type="text/javascript">
-	$(document).ready(function() {
+	window.onDocumentReady('body', function() {
 		$("#comment-edit-text-desc").bbco_autocomplete('bbcode');
 
 		$('#id_share').change(function() {

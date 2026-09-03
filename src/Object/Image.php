@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -23,9 +23,9 @@ use kornrunner\Blurhash\Blurhash;
 /**
  * Class to handle images
  */
-class Image
+class Image implements \Stringable
 {
-	/** @var GdImage|Imagick|resource */
+	/** @var GdImage|Imagick */
 	private $image;
 
 	/*
@@ -34,10 +34,9 @@ class Image
 	private $imagick;
 	private $width;
 	private $height;
-	private $valid;
+	private $valid = false;
 	private $outputType;
 	private $originType;
-	private $filename;
 
 	/**
 	 * Constructor
@@ -49,20 +48,19 @@ class Image
 	 * @throws \Friendica\Network\HTTPException\InternalServerErrorException
 	 * @throws \ImagickException
 	 */
-	public function __construct(string $data, string $type = '', string $filename = '', bool $imagick = true)
+	public function __construct(string $data, string $type = '', private readonly string $filename = '', bool $imagick = true)
 	{
-		$this->filename = $filename;
-		$type           = Images::addMimeTypeByDataIfInvalid($type, $data);
-		$type           = Images::addMimeTypeByExtensionIfInvalid($type, $filename);
+		$type = Images::addMimeTypeByDataIfInvalid($type, $data);
+		$type = Images::addMimeTypeByExtensionIfInvalid($type, $this->filename);
 
 		if (Images::isSupportedMimeType($type)) {
 			$this->originType = $this->outputType = Images::getImageTypeByMimeType($type);
-		} elseif (($type == '') || substr($type, 0, 6) == 'image/' || substr($type, 0, 12) == ' application/') {
+		} elseif (($type == '') || str_starts_with($type, 'image/') || str_starts_with($type, 'application/')) {
 			$this->originType = IMAGETYPE_UNKNOWN;
 			$this->outputType = IMAGETYPE_WEBP;
-			DI::logger()->debug('Unhandled image mime type, use WebP instead', ['type' => $type, 'filename' => $filename, 'size' => strlen($data)]);
+			DI::logger()->debug('Unhandled image mime type, use WebP instead', ['type' => $type, 'filename' => $this->filename, 'size' => strlen($data)]);
 		} else {
-			DI::logger()->debug('Unhandled mime type', ['type' => $type, 'filename' => $filename, 'size' => strlen($data)]);
+			DI::logger()->debug('Unhandled mime type', ['type' => $type, 'filename' => $this->filename, 'size' => strlen($data)]);
 			$this->valid = false;
 			return;
 		}
@@ -72,10 +70,11 @@ class Image
 		if ($this->isImagick() && (empty($data) || $this->loadData($data))) {
 			$this->valid = !empty($data);
 			return;
-		} else {
-			// Failed to load with Imagick, fallback
-			$this->imagick = false;
 		}
+
+		// Failed to load with Imagick, fallback
+		$this->imagick = false;
+
 		$this->loadData($data);
 	}
 
@@ -120,11 +119,11 @@ class Image
 		if (!isset($header['Webp']) || strtoupper($header['Webp']) !== 'WEBP') {
 			return false;
 		}
-		if (!isset($header['Vp']) || strpos(strtoupper($header['Vp']), 'VP8') === false) {
+		if (!isset($header['Vp']) || !str_contains(strtoupper($header['Vp']), 'VP8')) {
 			return false;
 		}
 
-		return strpos(strtoupper($header['Chunk']), 'ANIM') !== false || strpos(strtoupper($header['Chunk']), 'ANMF') !== false;
+		return str_contains(strtoupper((string) $header['Chunk']), 'ANIM') || str_contains(strtoupper((string) $header['Chunk']), 'ANMF');
 	}
 
 	/**
@@ -139,9 +138,6 @@ class Image
 				$this->image->clear();
 				$this->image->destroy();
 				return;
-			}
-			if (is_resource($this->image)) {
-				imagedestroy($this->image);
 			}
 		}
 	}
@@ -212,7 +208,7 @@ class Image
 
 			$this->width  = $this->image->getImageWidth();
 			$this->height = $this->image->getImageHeight();
-			$this->valid  = !empty($this->image);
+			$this->valid  = true;
 
 			return $this->valid;
 		}
@@ -253,9 +249,6 @@ class Image
 	 */
 	public function isValid(): bool
 	{
-		if ($this->isImagick()) {
-			return !empty($this->image);
-		}
 		return $this->valid;
 	}
 
@@ -297,7 +290,7 @@ class Image
 				/* Clean it */
 				$this->image = $this->image->deconstructImages();
 				return $this->image;
-			} catch (Exception $e) {
+			} catch (Exception) {
 				return false;
 			}
 		}
@@ -601,7 +594,7 @@ class Image
 				// to allow very tall images to be constrained only horizontally.
 				try {
 					$this->image->scaleImage($dest_width, $dest_height);
-				} catch (Exception $e) {
+				} catch (Exception) {
 					// Imagick couldn't use the data
 					return false;
 				}
@@ -619,10 +612,6 @@ class Image
 			}
 
 			imagecopyresampled($dest, $this->image, 0, 0, 0, 0, $dest_width, $dest_height, $this->width, $this->height);
-
-			if ($this->image) {
-				imagedestroy($this->image);
-			}
 
 			$this->image  = $dest;
 			$this->width  = imagesx($this->image);
@@ -687,9 +676,7 @@ class Image
 			imagefill($dest, 0, 0, imagecolorallocatealpha($dest, 0, 0, 0, 127)); // fill with alpha
 		}
 		imagecopyresampled($dest, $this->image, 0, 0, $x, $y, $max, $max, $w, $h);
-		if ($this->image) {
-			imagedestroy($this->image);
-		}
+
 		$this->image  = $dest;
 		$this->width  = imagesx($this->image);
 		$this->height = imagesy($this->image);
@@ -730,7 +717,7 @@ class Image
 				/* Clean it */
 				$this->image = $this->image->deconstructImages();
 				return $this->image->getImagesBlob();
-			} catch (Exception $e) {
+			} catch (Exception) {
 				return false;
 			}
 		}
@@ -754,6 +741,10 @@ class Image
 
 			case IMAGETYPE_WEBP:
 				@imagewebp($this->image, $stream, DI::config()->get('system', 'jpeg_quality'));
+				break;
+
+			case IMAGETYPE_AVIF:
+				@imageavif($this->image, $stream, DI::config()->get('system', 'jpeg_quality'));
 				break;
 
 			case IMAGETYPE_BMP:
@@ -796,7 +787,7 @@ class Image
 				if ($image->isImagick()) {
 					try {
 						$colors = $image->image->getImagePixelColor($x, $y)->getColor();
-					} catch (\Exception $exception) {
+					} catch (\Exception) {
 						return '';
 					}
 					$row[] = [$colors['r'], $colors['g'], $colors['b']];
@@ -859,7 +850,7 @@ class Image
 			$this->height = imagesy($this->image);
 		}
 
-		$this->valid = !empty($this->image);
+		$this->valid = true;
 
 		$this->scaleUp(min($width, $height));
 	}
@@ -885,7 +876,7 @@ class Image
 
 			DI::cache()->set($cacheKey, base64_encode($preview), Duration::DAY);
 		} else {
-			$preview = base64_decode($preview);
+			$preview = base64_decode((string) $preview);
 		}
 
 		return $preview;

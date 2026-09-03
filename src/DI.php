@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -148,9 +148,29 @@ abstract class DI
 		return self::$dice->create(Content\Item::class);
 	}
 
-	public static function conversation(): Content\Conversation
+	public static function activityFormatter(): Content\Conversation\ActivityFormatter
 	{
-		return self::$dice->create(Content\Conversation::class);
+		return self::$dice->create(Content\Conversation\ActivityFormatter::class);
+	}
+
+	public static function postTemplateBuilder(): Content\Conversation\PostTemplateBuilder
+	{
+		return self::$dice->create(Content\Conversation\PostTemplateBuilder::class);
+	}
+
+	public static function conversationDataProvider(): Content\Conversation\ConversationDataProvider
+	{
+		return self::$dice->create(Content\Conversation\ConversationDataProvider::class);
+	}
+
+	public static function conversationRenderer(): Content\Conversation\ConversationRenderer
+	{
+		return self::$dice->create(Content\Conversation\ConversationRenderer::class);
+	}
+
+	public static function statusEditor(): Content\Conversation\StatusEditor
+	{
+		return self::$dice->create(Content\Conversation\StatusEditor::class);
 	}
 
 	public static function bbCodeVideo(): Content\Text\BBCode\Video
@@ -256,16 +276,6 @@ abstract class DI
 	public static function logger(): LoggerInterface
 	{
 		return self::$dice->create(LoggerInterface::class);
-	}
-
-	/**
-	 * @deprecated 2026.01 Use `DI::loggerManager()` and `DI::logger()` instead
-	 */
-	public static function workerLogger(): Core\Logger\Type\WorkerLogger
-	{
-		@trigger_error('`' . __METHOD__ . '()` is deprecated since 2026.01 and will be removed after 5 months, use `DI::logger()` instead.', E_USER_DEPRECATED);
-
-		return self::$dice->create(Core\Logger\Type\WorkerLogger::class);
 	}
 
 	/**
@@ -562,6 +572,15 @@ abstract class DI
 	}
 
 	//
+	// "Post" namespace instances
+	//
+
+	public static function postUriGenerator(): Post\UriGenerator
+	{
+		return self::$dice->create(Post\UriGenerator::class);
+	}
+
+	//
 	// "Protocol" namespace instances
 	//
 
@@ -635,9 +654,13 @@ abstract class DI
 		return self::$dice->create(Content\Post\Factory\PostMedia::class);
 	}
 
+	public static function passwordExposedChecker(): Util\IPasswordExposedChecker
+	{
+		return self::$dice->create(Util\IPasswordExposedChecker::class);
+	}
+
 	/**
 	 * @internal The EventDispatcher should never called outside of the core, like in addons or themes
-	 * @deprecated 2026.01 Use constructor injection instead
 	 */
 	public static function eventDispatcher(): \Psr\EventDispatcher\EventDispatcherInterface
 	{

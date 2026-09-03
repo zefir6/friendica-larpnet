@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -17,6 +17,7 @@ use Friendica\Model\Verb;
 use Friendica\Module\BaseApi;
 use Friendica\Object\Api\Mastodon\TimelineOrderByTypes;
 use Friendica\Protocol\Activity;
+use Friendica\Content\Post\Entity\PostMedia;
 
 /**
  * @see https://docs.joinmastodon.org/methods/accounts/
@@ -56,7 +57,7 @@ class Statuses extends BaseApi
 		if ($request['pinned']) {
 			$condition = ['author-id' => $id, 'private' => [Item::PUBLIC, Item::UNLISTED], 'type' => Post\Collection::FEATURED];
 		} elseif ($request['only_media']) {
-			$condition = ['author-id' => $id, 'private' => [Item::PUBLIC, Item::UNLISTED], 'type' => [Post\Media::AUDIO, Post\Media::IMAGE, Post\Media::VIDEO, Post\Media::HLS]];
+			$condition = ['author-id' => $id, 'private' => [Item::PUBLIC, Item::UNLISTED], 'type' => [PostMedia::TYPE_AUDIO, PostMedia::TYPE_IMAGE, PostMedia::TYPE_VIDEO, PostMedia::TYPE_HLS]];
 		} elseif (!$uid) {
 			$condition = [
 				'author-id' => $id, 'private' => [Item::PUBLIC, Item::UNLISTED],
@@ -111,7 +112,7 @@ class Statuses extends BaseApi
 			$statuses = array_reverse($statuses);
 		}
 
-		self::setLinkHeader($request['friendica_order'] != TimelineOrderByTypes::ID);
-		$this->jsonExit($statuses);
+		$this->setPaginationLinkHeader($request['friendica_order'] != TimelineOrderByTypes::ID);
+		$this->earlyJsonExit($statuses);
 	}
 }

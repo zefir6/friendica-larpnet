@@ -26,6 +26,10 @@ Dieses Protokoll wird von Friendica, GNU Social und anderen Systemen genutzt, is
 
 Friendica unterscheidet bei Tags nicht zwischen Personen und Gruppen (einige andere Netzwerke nutzen "!circle", um solche zu markieren).
 
+Um einen Kontakt privat zu adressieren, schreibe ein Ausrufezeichen zwischen das „@"-Zeichen und den Namen, z.B. <i>@!mike</i> oder <i>@!mike@macgirvin.com</i>.
+Ein neuer Beitrag mit einer solchen Erwähnung wird automatisch als privater Beitrag gesendet, der nur für die privat erwähnten Kontakte sichtbar ist.
+Normale @-Erwähnungen im selben Beitrag erhalten den Beitrag nicht.
+
 
 **Thematische Tags**
 

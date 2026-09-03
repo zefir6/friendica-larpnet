@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -14,6 +14,7 @@ use Friendica\Model\Post;
 use Friendica\Module\BaseApi;
 use Friendica\Network\HTTPException;
 use Friendica\Object\Api\Mastodon\TimelineOrderByTypes;
+use Friendica\Content\Post\Entity\PostMedia;
 
 /**
  * @see https://docs.joinmastodon.org/methods/timelines/
@@ -53,7 +54,7 @@ class Home extends BaseApi
 		if ($request['only_media']) {
 			$condition = DBA::mergeConditions($condition, [
 				"`uri-id` IN (SELECT `uri-id` FROM `post-media` WHERE `type` IN (?, ?, ?))",
-				Post\Media::AUDIO, Post\Media::IMAGE, Post\Media::VIDEO, Post\Media::HLS,
+				PostMedia::TYPE_AUDIO, PostMedia::TYPE_IMAGE, PostMedia::TYPE_VIDEO, PostMedia::TYPE_HLS,
 			]);
 		}
 
@@ -86,7 +87,7 @@ class Home extends BaseApi
 		}
 
 
-		self::setLinkHeader($request['friendica_order'] != TimelineOrderByTypes::ID);
-		$this->jsonExit($statuses);
+		$this->setPaginationLinkHeader($request['friendica_order'] != TimelineOrderByTypes::ID);
+		$this->earlyJsonExit($statuses);
 	}
 }

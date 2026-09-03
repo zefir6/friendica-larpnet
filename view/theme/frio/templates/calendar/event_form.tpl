@@ -1,11 +1,22 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
-<div id="event-form-wrapper">
-	<h3 class="heading">{{$title}}</h3>
+<div class="generic-page-wrapper">
+	<header id="event-header">
+		<div class="section-title-wrapper">
+			<h2 class="heading">{{$title}}</h2>
+		</div>
+
+		<div class="event-actions">
+			<a class="btn btn-primary photos-upload-link page-action" href="calendar">
+				<i class="ri ri-reply-line"></i>
+				{{$back_text}}
+			</a>
+		</div>
+	</header>
 
 	{{* The event edit navigation menu (text input, permissions, preview, filebrowser) *}}
 	<ul id="event-nav" class="nav nav-tabs event-nav" role="menubar" data-tabs="tabs">
@@ -13,9 +24,6 @@
 			the modal. Changing of the activity status is done by js in calendar_head.tpl *}}
 		<li class="active" role="menuitem">
 			<a id="event-edit-lnk" onclick="eventEditActive(); return false;">{{$basic}}</a>
-		</li>
-		<li role="menuitem">
-			<a id="event-desc-lnk" onclick="eventDescActive(); return false;">{{$advanced}}</a>
 		</li>
 		{{if $acl}}
 		<li role="menuitem" {{if !$sh_checked}} style="display: none"{{/if}}>
@@ -47,79 +55,78 @@
 			{{include file="field_input.tpl" field=$summary}}
 
 			<div id="event-edit-time">
-				{{* The field for event starting time *}}
-				{{$s_dsel nofilter}}
-
-				{{* The field for event finish time *}}
-				{{$f_dsel nofilter}}
-
+				<h3>{{$section_time}}</h3>
+				<p>{{$timezone_help nofilter}}</p>
 				{{* checkbox if the event doesn't have a finish time *}}
 				{{include file="field_checkbox.tpl" field=$nofinish}}
+				<section>
+					<div>
+						{{* The field for event starting time *}}
+						{{$s_dsel nofilter}}
+					</div>
+					<div>
+						{{* The field for event finish time *}}
+						{{$f_dsel nofilter}}
+					</div>
+				</section>
 			</div>
 
-			{{* checkbox to enable event sharing and the permissions tab *}}
-			{{if ! $eid}}
-			{{include file="field_checkbox.tpl" field=$share}}
-			{{/if}}
+				<h3>{{$section_additional}}</h3>
 
-			{{* The submit button - saves the event *}}
-			<div class="pull-right">
-				<button id="event-submit" type="submit" name="submit" class="btn btn-primary" value="{{$submit}}">{{$submit}}</button>
+			{{* The textarea for the event location *}}
+			<div class="form-group">
+				<label for="comment-edit-text-loc">{{$l_text}}</label>
+				<textarea id="comment-edit-text-loc" class="form-control text-autosize" name="location" placeholder="{{$l_placeholder}}" rows="1" dir="auto">{{$l_orig}}</textarea>
+				<p><small class="help-block">{{$no_formatting}}</small></p>
 			</div>
-			<div class="clear"></div>
-		</div>
-
-		{{* The advanced tab *}}
-		<div id="event-desc-wrapper" style="display: none">
 
 			{{* The textarea for the event description *}}
 			<div class="form-group">
 				<div id="event-desc-text"><b>{{$d_text}}</b></div>
 				<div id="event-desc-text-edit-bb" class="comment-edit-bb comment-icon-list">
 					<div class="btn-group">
-					  {{* commented out because it isn't implemented yet
-					  <button type="button" class="btn btn-secondary icon bb-img" style="cursor: pointer;" title="{{$edimg}}" data-role="insert-formatting" data-comment=" " data-bbcode="img" data-id="desc">
-					  	<i class="fa fa-picture-o"></i>
-					  </button>
-					  *}}
-	        <button type="button" class="btn btn-default emojis" style="cursor: pointer;" aria-label="{{$edemojis}}" title="{{$edemojis}}">
-				    <i class="fa fa-smile-o"></i>
-			    </button>
+						<button type="button" class="btn btn-default icon bb-img" style="cursor: pointer;" title="{{$edimg}}" data-role="insert-formatting" data-comment=" " data-bbcode="img" data-id="desc">
+							<i class="ri ri-image-line"></i>
+						</button>
+						<button type="button" class="btn btn-default emojis" style="cursor: pointer;" aria-label="{{$edemojis}}" title="{{$edemojis}}">
+							<i class="ri ri-emotion-line"></i>
+						</button>
 					</div>
 
 					<div class="btn-group">
-						<button type="button" class="btn btn-secondary icon bb-url" style="cursor: pointer;" title="{{$edurl}}" data-role="insert-formatting" data-comment=" " data-bbcode="url" data-id="desc">
-							<i class="fa fa-link"></i>
+						<button type="button" class="btn btn-default icon bb-url" style="cursor: pointer;" title="{{$edurl}}" data-role="insert-formatting" data-comment=" " data-bbcode="url" data-id="desc">
+							<i class="ri ri-link"></i>
 						</button>
-						<button type="button" class="btn btn-secondary icon bb-embed" style="cursor: pointer;" title="{{$edembed}}" data-role="insert-formatting" data-comment=" " data-bbcode="embed" data-id="desc">
-							<i class="fa fa-play"></i>
+						<button type="button" class="btn btn-default icon underline" style="cursor: pointer;" title="{{$eduline}}" data-role="insert-formatting" data-comment=" " data-bbcode="u" data-id="desc">
+							<i class="ri ri-underline"></i>
 						</button>
-						<button type="button" class="btn btn-secondary icon underline" style="cursor: pointer;" title="{{$eduline}}" data-role="insert-formatting" data-comment=" " data-bbcode="u" data-id="desc">
-							<i class="fa fa-underline"></i>
+						<button type="button" class="btn btn-default icon italic" style="cursor: pointer;" title="{{$editalic}}" data-role="insert-formatting" data-comment=" " data-bbcode="i" data-id="desc">
+							<i class="ri ri-italic"></i>
 						</button>
-						<button type="button" class="btn btn-secondary icon italic" style="cursor: pointer;" title="{{$editalic}}" data-role="insert-formatting" data-comment=" " data-bbcode="i" data-id="desc">
-							<i class="fa fa-italic"></i>
+						<button type="button" class="btn btn-default icon bold" style="cursor: pointer;"  title="{{$edbold}}" data-role="insert-formatting" data-comment=" " data-bbcode="b" data-id="desc">
+							<i class="ri ri-bold"></i>
 						</button>
-						<button type="button" class="btn btn-secondary icon bold" style="cursor: pointer;"  title="{{$edbold}}" data-role="insert-formatting" data-comment=" " data-bbcode="b" data-id="desc">
-							<i class="fa fa-bold"></i>
+						<button type="button" class="btn btn-default icon quote" style="cursor: pointer;" title="{{$edquote}}" data-role="insert-formatting" data-comment=" " data-bbcode="quote" data-id="desc">
+							<i class="ri ri-double-quotes-l"></i>
 						</button>
-						<button type="button" class="btn btn-secondary icon quote" style="cursor: pointer;" title="{{$edquote}}" data-role="insert-formatting" data-comment=" " data-bbcode="quote" data-id="desc">
-							<i class="fa fa-quote-left"></i>
-						</button>
-						<button type="button" class="btn btn-secondary icon code" style="cursor: pointer;" title="{{$edcode}}" data-role="insert-formatting" data-comment=" " data-bbcode="code" data-id="desc">
-							<i class="fa fa-code"></i>
+						<button type="button" class="btn btn-default icon code" style="cursor: pointer;" title="{{$edcode}}" data-role="insert-formatting" data-comment=" " data-bbcode="code" data-id="desc">
+							<i class="ri ri-code-line"></i>
 						</button>
 					</div>
 				</div>
-				<textarea id="comment-edit-text-desc" class="form-control text-autosize emojis-target" name="desc" rows="8" dir="auto">{{$d_orig}}</textarea>
+				<textarea id="comment-edit-text-desc" class="form-control text-autosize emojis-target" placeholder="{{$d_placeholder}}" name="desc" rows="3" dir="auto">{{$d_orig}}</textarea>
 			</div>
 
-			{{* The textarea for the event location *}}
-			<div class="form-group">
-				<label for="comment-edit-text-loc">{{$l_text}}</label>
-				<textarea id="comment-edit-text-loc" class="form-control text-autosize" name="location" dir="auto">{{$l_orig}}</textarea>
-				<p>{{$no_bb}}</p>
+			{{* checkbox to enable event sharing and the permissions tab *}}
+			<div class="pull-right share-checkbox">
+			{{if ! $eid}}
+			{{include file="field_checkbox.tpl" field=$share}}
+			{{/if}}
+
+			{{* The submit button - saves the event *}}
+				<button id="event-submit" type="submit" name="submit" class="btn btn-primary" value="{{$submit}}">{{$submit}}</button>
 			</div>
+			<div class="clear"></div>
 		</div>
 
 		{{* The tab for the permissions (if event sharing is enabled) *}}
@@ -137,7 +144,7 @@
 </div>
 
 <script type="text/javascript">
-	$(document).ready( function() {
+	window.onDocumentReady('body', function() {
 		// disable finish date input if it isn't available
 		enableDisableFinishDate();
 		// load bbcode autocomplete for the description textarea
