@@ -99,7 +99,8 @@ class Mail
 			// Lets addons (e.g. larpnet_fcm) hook into every DM notification, mirroring NtfyPushMail above.
 			// Not using the core `enotify_mail` hook here since it's gated by the recipient's email
 			// notify-type preferences, unlike NtfyPushMail's unconditional push.
-			Hook::callAll('push_notification_mail', ['uid' => $user['uid'], 'mail_id' => $msg['id']]);
+			$pushNotificationData = ['uid' => $user['uid'], 'mail_id' => $msg['id']];
+			Hook::callAll('push_notification_mail', $pushNotificationData);
 
 			DI::logger()->info('Mail is processed, notification was sent.', ['id' => $msg['id'], 'uri' => $msg['uri']]);
 		}
