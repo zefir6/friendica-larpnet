@@ -29,7 +29,6 @@ use Friendica\Model\User;
 use Friendica\Module\Response;
 use Friendica\Module\Security\Login;
 use Friendica\Navigation\SystemMessages;
-use Friendica\Network\HTTPException\NotImplementedException;
 use Friendica\Util\ACLFormatter;
 use Friendica\Util\Crypto;
 use Friendica\Util\Profiler;

@@ -212,7 +212,7 @@ if (isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && isset($_SERVER['HTTP_IF_NONE_MA
 	$cached_etag     = str_replace(
 		['"', '-gzip'],
 		['', ''],
-		stripslashes($_SERVER['HTTP_IF_NONE_MATCH'])
+		stripslashes($_SERVER['HTTP_IF_NONE_MATCH']),
 	);
 
 	if (($cached_modified == $modified) && ($cached_etag == $etag)) {

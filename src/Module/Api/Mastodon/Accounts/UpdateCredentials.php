@@ -27,7 +27,7 @@ class UpdateCredentials extends BaseApi
 		$owner = User::getOwnerDataById($uid);
 
 		$request = $this->getRequest([
-			'bot'               => ($owner['contact-type'] == Contact::TYPE_NEWS),
+			'bot' => ($owner['contact-type'] == Contact::TYPE_NEWS),
 			// (bool) casts matter here: BaseModule::getRequestValue() picks its coercion
 			// branch off the *type* of the default, not the field's meaning. `net-publish`/
 			// `manually-approve` come back from the DB as ints, not native bools, so without

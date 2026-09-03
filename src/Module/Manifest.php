@@ -71,7 +71,7 @@ class Manifest extends BaseModule
 				],
 			];
 		} elseif ($theme === 'larpnet') {
-			$base = DI::baseUrl() . '/view/theme/' . $theme . '/img/';
+			$base              = DI::baseUrl() . '/view/theme/' . $theme . '/img/';
 			$manifest['icons'] = [
 				[
 					'src'     => $base . 'larpnet-192.png',

@@ -258,7 +258,7 @@ class ACL
 
 		if (($default_permissions['private'] ?? null) === \Friendica\Model\Item::SERVER_ONLY) {
 			// larpnet: server-only post
-			$visibility = 'local';
+			$visibility                       = 'local';
 			$default_permissions['allow_gid'] = [Circle::FOLLOWERS];
 		} elseif (count($default_permissions['allow_cid'])
 			+ count($default_permissions['allow_gid'])

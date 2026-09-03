@@ -60,7 +60,7 @@ class NtfyPush
 			$title ?: DI::l10n()->t('Notification'),
 			$body ?: $title,
 			(string) DI::baseUrl() . '/notification',
-			$actor['thumb'] ?? null
+			$actor['thumb'] ?? null,
 		);
 	}
 }

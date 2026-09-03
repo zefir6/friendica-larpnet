@@ -57,7 +57,7 @@ class Conversation extends BaseFactory
 			// caller themselves, so they got excluded and `accounts` came back empty instead
 			// of showing the actual recipient. `contact-id` is invariant across the thread and
 			// always the other party by definition, regardless of who sent which message.
-			$contactId = $uid ? Contact::getPublicContactId((int)$mail['contact-id'], $uid) : 0;
+			$contactId = $uid ? Contact::getPublicContactId((int) $mail['contact-id'], $uid) : 0;
 			if ($contactId && !in_array($contactId, $participantIds)) {
 				$participantIds[] = $contactId;
 				$accounts[]       = $this->mstdnAccountFactory->createFromContactId($contactId, 0);

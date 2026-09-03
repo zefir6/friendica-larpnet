@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright (C) 2010-2024, the Friendica project
  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
@@ -22,7 +23,6 @@ use Friendica\DI;
 use Friendica\Model\Contact;
 use Friendica\Model\Item;
 use Friendica\Model\LarpnetPush;
-use Friendica\Model\Subscription;
 use Friendica\Util\DateTimeFormat;
 use Friendica\Util\Strings;
 
@@ -62,12 +62,12 @@ EOT;
 function larpnet_install()
 {
 	Hook::register('prepare_body_final', 'view/theme/larpnet/theme.php', 'larpnet_item_photo_links');
-	Hook::register('item_photo_menu',    'view/theme/larpnet/theme.php', 'larpnet_item_photo_menu');
+	Hook::register('item_photo_menu', 'view/theme/larpnet/theme.php', 'larpnet_item_photo_menu');
 	Hook::register('contact_photo_menu', 'view/theme/larpnet/theme.php', 'larpnet_contact_photo_menu');
-	Hook::register('nav_info',           'view/theme/larpnet/theme.php', 'larpnet_remote_nav');
-	Hook::register('nav_info',           'view/theme/larpnet/theme.php', 'larpnet_nav_labels');
-	Hook::register('display_item',       'view/theme/larpnet/theme.php', 'larpnet_display_item');
-	Hook::register('head',               'view/theme/larpnet/theme.php', 'larpnet_head');
+	Hook::register('nav_info', 'view/theme/larpnet/theme.php', 'larpnet_remote_nav');
+	Hook::register('nav_info', 'view/theme/larpnet/theme.php', 'larpnet_nav_labels');
+	Hook::register('display_item', 'view/theme/larpnet/theme.php', 'larpnet_display_item');
+	Hook::register('head', 'view/theme/larpnet/theme.php', 'larpnet_head');
 
 	DI::logger()->info('installed theme larpnet');
 }
@@ -238,10 +238,10 @@ function larpnet_head(string &$b)
 </script>
 JS;
 
-	$ntfyUrl          = DI::config()->get('larpnet_notifications', 'ntfy_url');
-	$ntfyVapidKey     = DI::config()->get('larpnet_notifications', 'ntfy_vapid_public_key');
+	$ntfyUrl      = DI::config()->get('larpnet_notifications', 'ntfy_url');
+	$ntfyVapidKey = DI::config()->get('larpnet_notifications', 'ntfy_vapid_public_key');
 	// Use read-only token for the browser — never expose the write token client-side
-	$ntfyToken        = DI::config()->get('larpnet_notifications', 'ntfy_ro_token');
+	$ntfyToken = DI::config()->get('larpnet_notifications', 'ntfy_ro_token');
 
 	if (empty($ntfyUrl) || empty($ntfyVapidKey)) {
 		return;
@@ -376,7 +376,7 @@ function larpnet_display_item(&$arr)
 			'menu'   => 'follow_thread',
 			'title'  => DI::l10n()->t('Follow Thread'),
 			'action' => 'doFollowThread(' . $arr['item']['id'] . ');',
-			'href'   => '#'
+			'href'   => '#',
 		];
 	}
 	$arr['output']['follow_thread'] = $followThread;
@@ -393,7 +393,7 @@ function larpnet_display_item(&$arr)
 			'menu'   => 'complete_thread',
 			'title'  => DI::l10n()->t('Complete Thread'),
 			'action' => 'doCompleteThread(' . $arr['item']['uri-id'] . ');',
-			'href'   => '#'
+			'href'   => '#',
 		];
 	}
 	$arr['output']['complete_thread'] = $completeThread;
