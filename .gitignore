@@ -115,3 +115,4 @@ daemon.pid
 
 #ignore npm dependencies for the JS/CSS linters
 /node_modules
+.docker/.env.local
