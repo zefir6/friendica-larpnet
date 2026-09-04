@@ -1,14 +1,14 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 namespace Friendica\Util;
 
-use Friendica\Core\Hook;
 use Friendica\DI;
+use Friendica\Event\ArrayFilterEvent;
 use Friendica\Model\Photo;
 use Friendica\Network\HTTPClient\Client\HttpClientAccept;
 use Friendica\Network\HTTPClient\Client\HttpClientRequest;
@@ -19,8 +19,7 @@ use Friendica\Object\Image;
  */
 class Images
 {
-	// @todo add IMAGETYPE_AVIF once our minimal supported PHP version is 8.1.0
-	public const IMAGETYPES = [IMAGETYPE_WEBP, IMAGETYPE_PNG, IMAGETYPE_JPEG, IMAGETYPE_GIF, IMAGETYPE_BMP];
+	public const IMAGETYPES = [IMAGETYPE_AVIF, IMAGETYPE_WEBP, IMAGETYPE_PNG, IMAGETYPE_JPEG, IMAGETYPE_GIF, IMAGETYPE_BMP];
 
 	/**
 	 * Get the Imagick format for the given image type
@@ -31,7 +30,7 @@ class Images
 	public static function getImagickFormatByImageType(int $imagetype): string
 	{
 		$formats = [
-			// @todo add "IMAGETYPE_AVIF => 'AVIF'" once our minimal supported PHP version is 8.1.0
+			IMAGETYPE_AVIF => 'AVIF',
 			IMAGETYPE_WEBP => 'WEBP',
 			IMAGETYPE_PNG  => 'PNG',
 			IMAGETYPE_JPEG => 'JPEG',
@@ -146,10 +145,9 @@ class Images
 	{
 		$types = [];
 
-		// @todo enable, once our lowest supported PHP version is 8.1.0
-		//if (imagetypes() & IMG_AVIF) {
-		//	$types[] = image_type_to_mime_type(IMAGETYPE_AVIF);
-		//}
+		if (imagetypes() & IMG_AVIF) {
+			$types[] = image_type_to_mime_type(IMAGETYPE_AVIF);
+		}
 		if (imagetypes() & IMG_WEBP) {
 			$types[] = image_type_to_mime_type(IMAGETYPE_WEBP);
 		}
@@ -213,7 +211,7 @@ class Images
 	 */
 	public static function isSupportedMimeType(string $mimetype): bool
 	{
-		if (substr($mimetype, 0, 6) != 'image/') {
+		if (!str_starts_with($mimetype, 'image/')) {
 			return false;
 		}
 
@@ -372,7 +370,7 @@ class Images
 
 			if ($ocr) {
 				$media = ['img_str' => $img_str];
-				Hook::callAll('ocr-detection', $media);
+				$media = DI::eventDispatcher()->dispatch(new ArrayFilterEvent(ArrayFilterEvent::OCR_DETECTION, $media))->getArray();
 				if (!empty($media['description'])) {
 					$data['description'] = $media['description'];
 				}
@@ -407,7 +405,7 @@ class Images
 	 */
 	private static function sanitizeExifArray(array $exif): array
 	{
-		array_walk_recursive($exif, function (&$value) {
+		array_walk_recursive($exif, function (&$value): void {
 			if (is_string($value)) {
 				$value = trim(iconv('UTF-8', 'UTF-8//IGNORE', $value));
 			}
@@ -497,7 +495,7 @@ class Images
 	 * @param string $description
 	 * @return string
 	 */
-	public static function getBBCodeByUrl(string $photo, string $preview = null, string $description = ''): string
+	public static function getBBCodeByUrl(string $photo, ?string $preview = null, string $description = ''): string
 	{
 		if (!empty($preview)) {
 			return '[url=' . $photo . '][img=' . $preview . ']' . $description . '[/img][/url]';

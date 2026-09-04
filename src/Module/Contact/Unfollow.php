@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -24,26 +24,21 @@ use Psr\Log\LoggerInterface;
 
 class Unfollow extends \Friendica\BaseModule
 {
-	/** @var IHandleUserSessions */
-	private $userSession;
-
-	/** @var SystemMessages */
-	private $systemMessages;
-
-	/** @var Database */
-	private $database;
-
-	/** @var App\Page */
-	private $page;
-
-	public function __construct(App\Page $page, Database $database, SystemMessages $systemMessages, IHandleUserSessions $userSession, L10n $l10n, App\BaseURL $baseUrl, App\Arguments $args, LoggerInterface $logger, Profiler $profiler, Response $response, array $server, array $parameters = [])
-	{
+	public function __construct(
+		private App\Page $page,
+		private readonly Database $database,
+		private readonly SystemMessages $systemMessages,
+		private readonly IHandleUserSessions $userSession,
+		L10n $l10n,
+		App\BaseURL $baseUrl,
+		App\Arguments $args,
+		LoggerInterface $logger,
+		Profiler $profiler,
+		Response $response,
+		array $server,
+		array $parameters = [],
+	) {
 		parent::__construct($l10n, $baseUrl, $args, $logger, $profiler, $response, $server, $parameters);
-
-		$this->userSession    = $userSession;
-		$this->systemMessages = $systemMessages;
-		$this->database       = $database;
-		$this->page           = $page;
 	}
 
 	protected function post(array $request = [])

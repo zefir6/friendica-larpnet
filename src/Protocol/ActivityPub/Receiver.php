@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -31,6 +31,7 @@ use Friendica\Util\LDSignature;
 use Friendica\Util\Network;
 use Friendica\Util\ParseUrl;
 use Friendica\Util\Strings;
+use Friendica\Content\Post\Entity\PostMedia;
 
 /**
  * ActivityPub Receiver Protocol class
@@ -222,6 +223,19 @@ class Receiver
 
 		DI::logger()->debug('Process post from relay server', ['type' => $type, 'object_type' => $object_type, 'object_id' => $object_id, 'actor' => $actor]);
 
+		self::handlePost($object_id, $actor, $activity);
+	}
+
+	/**
+	 * Handle incoming posts from relays
+	 *
+	 * @param string $object_id
+	 * @param string $actor
+	 * @param array  $activity
+	 * @return void
+	 */
+	public static function handlePost(string $object_id, string $actor, array $activity = []): void
+	{
 		$item_id = Item::searchByLink($object_id);
 		if ($item_id) {
 			DI::logger()->info('Relayed message already exists', ['id' => $object_id, 'item' => $item_id, 'actor' => $actor]);
@@ -420,7 +434,7 @@ class Receiver
 				$apcontact    = APContact::getByURL($object_data['object_id'], true);
 				$trust_source = empty($apcontact) || ($apcontact['type'] == 'Tombstone') || $apcontact['suspended'];
 			}
-		} elseif (in_array($type, ['as:Create', 'as:Update', 'as:Invite']) || strpos($type, '#emojiReaction')) {
+		} elseif (in_array($type, ['as:Create', 'as:Update', 'as:Invite']) || strpos((string) $type, '#emojiReaction')) {
 			// Fetch the content only on activities where this matters
 			// We can receive "#emojiReaction" when fetching content from Hubzilla systems
 			$object_data = self::fetchObject($object_id, $activity['as:object'], $trust_source, $fetch_uid);
@@ -650,8 +664,16 @@ class Receiver
 			$id            = JsonLD::fetchElement($activity, '@id');
 			$object_id     = JsonLD::fetchElement($activity, 'as:object', '@id');
 
-			if (!empty($published) && $object_id !== null && in_array($type, ['as:Create', 'as:Update']) && in_array($object_type, self::CONTENT_TYPES)
-				&& ($push || ($completion != self::COMPLETION_MANUAL)) && DI::contentItem()->isTooOld($published) && !Post::exists(['uri' => $object_id])) {
+			if (
+				!empty($published)
+				/** @phpstan-ignore notIdentical.alwaysTrue(ignore false positive error of phpstan) */
+				&& $object_id !== null
+				&& in_array($type, ['as:Create', 'as:Update'])
+				&& in_array($object_type, self::CONTENT_TYPES)
+				&& ($push || ($completion != self::COMPLETION_MANUAL))
+				&& DI::contentItem()->isTooOld($published)
+				&& !Post::exists(['uri' => $object_id])
+			) {
 				DI::logger()->debug('Activity is too old. It will not be processed', ['push' => $push, 'completion' => $completion, 'type' => $type,  'object-type' => $object_type, 'published' => $published, 'id' => $id, 'object-id' => $object_id]);
 				return true;
 			}
@@ -1905,15 +1927,15 @@ class Receiver
 				continue;
 			}
 
-			$filetype = strtolower(substr($mediatype, 0, strpos($mediatype, '/')));
+			$filetype = strtolower(substr((string) $mediatype, 0, strpos((string) $mediatype, '/')));
 			$type     = Post\Media::getType($mediatype);
 
 			$height = JsonLD::fetchElement($url, 'as:height', '@value');
 			$width  = JsonLD::fetchElement($url, 'as:width', '@value');
 
-			if ($type == Post\Media::AUDIO) {
+			if ($type == PostMedia::TYPE_AUDIO) {
 				$attachments[] = ['type' => $filetype, 'mediaType' => $mediatype, 'url' => $href, 'height' => $height, 'width' => $width, 'size' => null, 'name' => '', 'image' => $icon];
-			} elseif ($type == Post\Media::VIDEO) {
+			} elseif ($type == PostMedia::TYPE_VIDEO) {
 				// PeerTube audio-only track
 				if (!$height) {
 					continue;
@@ -1922,32 +1944,38 @@ class Receiver
 				$size = (int) JsonLD::fetchElement($url, 'pt:size', '@value');
 
 				$attachments[] = ['type' => $filetype, 'mediaType' => $mediatype, 'url' => $href, 'height' => $height, 'width' => $width, 'size' => $size, 'name' => '', 'image' => $icon];
-			} elseif ($type == Post\Media::TORRENT) {
+			} elseif ($type == PostMedia::TYPE_TORRENT) {
 				// For Torrent links we always store the highest resolution
 				if (!empty($attachments[$mediatype]['height']) && ($height < $attachments[$mediatype]['height'])) {
 					continue;
 				}
 
 				$attachments[$mediatype] = ['type' => $mediatype, 'mediaType' => $mediatype, 'url' => $href, 'height' => $height, 'width' => $width, 'size' => null, 'name' => ''];
-			} elseif ($type == Post\Media::HLS) {
-				$attachment = ['type' => $filetype, 'mediaType' => $mediatype, 'url' => $href, 'height' => $height, 'width' => $width, 'size' => null, 'name' => '', 'image' => $icon];
-				if (is_array($player)) {
-					$attachment['player-url']    = $player['embed']  ?? null;
-					$attachment['player-height'] = $player['height'] ?? null;
-					$attachment['player-width']  = $player['width']  ?? null;
+			} elseif ($type == PostMedia::TYPE_HLS) {
+				$attachment = [
+					'type'      => $filetype,
+					'mediaType' => $mediatype,
+					'url'       => $href,
+					'height'    => $height,
+					'width'     => $width,
+					'size'      => null,
+					'name'      => '',
+					'image'     => $icon,
+				];
 
-					if (!$height && !$width) {
-						$attachment['height'] = $attachment['player-height'];
-						$attachment['width']  = $attachment['player-width'];
-					}
+				$attachment['player-url']    = $player['embed']  ?? null;
+				$attachment['player-height'] = $player['height'] ?? null;
+				$attachment['player-width']  = $player['width']  ?? null;
+
+				if (!$height && !$width) {
+					$attachment['height'] = $attachment['player-height'];
+					$attachment['width']  = $attachment['player-width'];
 				}
 
-				if (is_array($embed)) {
-					$attachment['embed-type']   = $embed['type']   ?? null;
-					$attachment['embed-html']   = $embed['html']   ?? null;
-					$attachment['embed-height'] = $embed['height'] ?? null;
-					$attachment['embed-width']  = $embed['width']  ?? null;
-				}
+				$attachment['embed-type']   = $embed['type']   ?? null;
+				$attachment['embed-html']   = $embed['html']   ?? null;
+				$attachment['embed-height'] = $embed['height'] ?? null;
+				$attachment['embed-width']  = $embed['width']  ?? null;
 
 				DI::logger()->info('Adding video attachment', ['attachment' => $attachment]);
 				$attachments[] = $attachment;

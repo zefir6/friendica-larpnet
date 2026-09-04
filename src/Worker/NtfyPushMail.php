@@ -49,7 +49,7 @@ class NtfyPushMail
 			DI::l10n()->t('New message from %s', $mail['from-name']),
 			$body,
 			(string) DI::baseUrl() . '/message/' . $mailId,
-			$icon
+			$icon,
 		);
 	}
 }

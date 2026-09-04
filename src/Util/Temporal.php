@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -61,7 +61,7 @@ class Temporal
 
 		$o = '<select id="timezone_select" name="timezone">';
 
-		usort($timezone_identifiers, [self::class, 'timezoneCompareCallback']);
+		usort($timezone_identifiers, self::timezoneCompareCallback(...));
 		$continent = '';
 		foreach ($timezone_identifiers as $value) {
 			$ex = explode("/", $value);
@@ -196,12 +196,26 @@ class Temporal
 	}
 
 	/**
+	 * Returns a help text containing the current time zone and how to change it
+	 *
+	 * @return string A help text containing the current time zone and how to change it
+	 */
+	public static function timeZoneHelper()
+	{
+		return DI::l10n()->t(
+			'Time zone: <strong>%s</strong> <a href="%s">Change in Settings</a>',
+			str_replace('_', ' ', DI::appHelper()->getTimeZone()) . ' (GMT ' . DateTimeFormat::localNow('P') . ')',
+			DI::baseUrl() . '/settings',
+		);
+	}
+
+	/**
 	 * Returns a datetime selector.
 	 *
 	 * @param DateTime $minDate     Minimum date
 	 * @param DateTime $maxDate     Maximum date
-	 * @param DateTime $defaultDate Default date
-	 * @param          $label
+	 * @param DateTime|null $defaultDate Default date
+	 * @param string   $label
 	 * @param string   $id          Id and name of datetimepicker (defaults to "datetimepicker")
 	 * @param bool     $pickdate    true to show date picker (default)
 	 * @param bool     $picktime    true to show time picker (default)
@@ -218,14 +232,15 @@ class Temporal
 	public static function getDateTimeField(
 		DateTime $minDate,
 		DateTime $maxDate,
-		DateTime $defaultDate = null,
-		$label,
+		?DateTime $defaultDate,
+		string $label,
 		string $id = 'datetimepicker',
 		bool $pickdate = true,
 		bool $picktime = true,
 		string $minfrom = '',
 		string $maxfrom = '',
-		bool $required = false
+		bool $required = false,
+		bool $show_tip = true,
 	): string {
 		// First day of the week (0 = Sunday)
 		$firstDay = DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'calendar', 'first_day_of_week') ?: 0;
@@ -266,11 +281,7 @@ class Temporal
 				$id,
 				$label,
 				$input_text,
-				DI::l10n()->t(
-					'Time zone: <strong>%s</strong> <a href="%s">Change in Settings</a>',
-					str_replace('_', ' ', DI::appHelper()->getTimeZone()) . ' (GMT ' . DateTimeFormat::localNow('P') . ')',
-					DI::baseUrl() . '/settings',
-				),
+				$show_tip ? self::timeZoneHelper() : '',
 				$required ? '*' : '',
 				'placeholder="' . $readable_format . '"',
 			],
@@ -304,7 +315,7 @@ class Temporal
 	 *
 	 * @return string with relative date
 	 */
-	public static function getRelativeDate(string $posted_date = null, bool $compare_time = true, ClockInterface $clock = null): string
+	public static function getRelativeDate(?string $posted_date = null, bool $compare_time = true, ?ClockInterface $clock = null): string
 	{
 		if (empty($posted_date) || $posted_date <= DBA::NULL_DATETIME) {
 			return DI::l10n()->t('never');
@@ -322,8 +333,8 @@ class Temporal
 		$now = $clock->now()->getTimestamp();
 
 		if (!$compare_time) {
-			$now = mktime(0, 0, 0, date('m', $now), date('d', $now), date('Y', $now));
-			$abs = mktime(0, 0, 0, date('m', $abs), date('d', $abs), date('Y', $abs));
+			$now = mktime(0, 0, 0, (int) date('m', $now), (int) date('d', $now), (int) date('Y', $now));
+			$abs = mktime(0, 0, 0, (int) date('m', $abs), (int) date('d', $abs), (int) date('Y', $abs));
 		}
 
 		$isfuture = false;

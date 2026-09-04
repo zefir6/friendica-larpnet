@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -101,7 +101,7 @@ class HTML
 					/** @var \DOMNode $child */
 					foreach ($node->childNodes as $key => $child) {
 						/* Remove empty text nodes at the start or at the end of the children list */
-						if ($key > 0 && $key < $node->childNodes->length - 1 || $child->nodeName != '#text' || trim($child->nodeValue) !== '') {
+						if ($key > 0 && $key < $node->childNodes->length - 1 || $child->nodeName != '#text' || trim((string) $child->nodeValue) !== '') {
 							$newNode = $child->cloneNode(true);
 							$node->parentNode->insertBefore($newNode, $node);
 						}
@@ -163,7 +163,7 @@ class HTML
 			$doc                     = new DOMDocument();
 			$doc->preserveWhiteSpace = false;
 
-			$message = mb_convert_encoding($message, 'HTML-ENTITIES', "UTF-8");
+			$message = self::toNumericEntities($message);
 
 			if (empty($message)) {
 				return '';
@@ -183,7 +183,7 @@ class HTML
 			$list  = $xpath->query("//pre");
 			foreach ($list as $node) {
 				// Ensure to escape unescaped & - they will otherwise raise a warning
-				$safe_value      = preg_replace('/&(?!\w+;)/', '&amp;', $node->nodeValue);
+				$safe_value      = preg_replace('/&(?!\w+;)/', '&amp;', (string) $node->nodeValue);
 				$node->nodeValue = str_replace("\n", "\r", $safe_value);
 			}
 
@@ -325,15 +325,15 @@ class HTML
 
 			$message = $message_data['html2bbcode'] ?? $message;
 
-			$message = strip_tags($message);
+			$message = strip_tags((string) $message);
 
 			$message = html_entity_decode($message, ENT_QUOTES, 'UTF-8');
 
 			// remove quotes if they don't make sense
 			$message = preg_replace('=\[/quote\][\s]*\[quote\]=i', "\n", $message);
 
-			$message = preg_replace('=\[quote\]\s*=i', "[quote]", $message);
-			$message = preg_replace('=\s*\[/quote\]=i', "[/quote]", $message);
+			$message = preg_replace('=\[quote\]\s*=i', "[quote]", (string) $message);
+			$message = preg_replace('=\s*\[/quote\]=i', "[/quote]", (string) $message);
 
 			do {
 				$oldmessage = $message;
@@ -370,7 +370,7 @@ class HTML
 			$message,
 		);
 
-		$message = trim($message);
+		$message = trim((string) $message);
 
 		if ($basepath != '') {
 			$message = self::qualifyURLs($message, $basepath);
@@ -397,11 +397,11 @@ class HTML
 		$link = $matches[0];
 		$url  = $matches[1];
 
-		if (empty($url) || empty(parse_url($url))) {
+		if (empty($url) || empty(parse_url((string) $url))) {
 			return $matches[0];
 		}
 
-		$parts = array_merge($base, parse_url($url));
+		$parts = array_merge($base, parse_url((string) $url));
 		$url2  = (string) Uri::fromParts((array) $parts);
 
 		return str_replace($url, $url2, $link);
@@ -436,7 +436,7 @@ class HTML
 				function ($match) use ($basepath) {
 					return self::qualifyURLsSub($match, $basepath);
 				},
-				$body,
+				(string) $body,
 			);
 		}
 		return $body;
@@ -534,24 +534,24 @@ class HTML
 				"//plus.google.com/", "//twitter.com/",
 			];
 			foreach ($list as $listitem) {
-				if (strpos($treffer[1], $listitem) !== false) {
+				if (str_contains($treffer[1], $listitem)) {
 					$ignore = true;
 				}
 			}
 
-			if ((strpos($treffer[1], "//twitter.com/") !== false) && (strpos($treffer[1], "/status/") !== false)) {
+			if ((str_contains($treffer[1], "//twitter.com/")) && (str_contains($treffer[1], "/status/"))) {
 				$ignore = false;
 			}
 
-			if ((strpos($treffer[1], "//plus.google.com/") !== false) && (strpos($treffer[1], "/posts") !== false)) {
+			if ((str_contains($treffer[1], "//plus.google.com/")) && (str_contains($treffer[1], "/posts"))) {
 				$ignore = false;
 			}
 
-			if ((strpos($treffer[1], "//plus.google.com/") !== false) && (strpos($treffer[1], "/photos") !== false)) {
+			if ((str_contains($treffer[1], "//plus.google.com/")) && (str_contains($treffer[1], "/photos"))) {
 				$ignore = false;
 			}
 
-			$ignore = $ignore || strpos($treffer[1], '#') === 0;
+			$ignore = $ignore || str_starts_with($treffer[1], '#');
 
 			if (!$ignore) {
 				$urls[$treffer[1]] = $treffer[1];
@@ -559,6 +559,24 @@ class HTML
 		}
 
 		return $urls;
+	}
+
+	/**
+	 * Encode every non ASCII character as a numeric HTML entity
+	 *
+	 * "DOMDocument::loadHTML()" assumes ISO-8859-1 for markup without a charset
+	 * declaration and would mangle UTF-8 input. Encoding the characters as entities
+	 * beforehand keeps them intact.
+	 *
+	 * This replaces mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'), which is
+	 * deprecated since PHP 8.2 and raises an E_DEPRECATED on every call.
+	 *
+	 * @param string $html
+	 * @return string
+	 */
+	public static function toNumericEntities(string $html): string
+	{
+		return mb_encode_numericentity($html, [0x80, 0x10FFFF, 0, 0x1FFFFF], 'UTF-8');
 	}
 
 	/**
@@ -575,7 +593,7 @@ class HTML
 		$doc                     = new DOMDocument();
 		$doc->preserveWhiteSpace = false;
 
-		$message = mb_convert_encoding($message, 'HTML-ENTITIES', "UTF-8");
+		$message = self::toNumericEntities($message);
 
 		if (empty($message)) {
 			DI::profiler()->stopRecording();
@@ -660,7 +678,7 @@ class HTML
 
 		if (!$compact && ($message != '')) {
 			foreach ($urls as $id => $url) {
-				if ($url != '' && strpos($message, (string) $url) === false) {
+				if ($url != '' && !str_contains($message, (string) $url)) {
 					$message .= "\n" . $url . ' ';
 				}
 			}
@@ -714,13 +732,13 @@ class HTML
 		$s = preg_replace(
 			'#<iframe[^>](.*?)https?://www.youtube.com/embed/([A-Za-z0-9\-_=]+)(.*?)</iframe>#ism',
 			'[youtube]$2[/youtube]',
-			$s,
+			(string) $s,
 		);
 
 		$s = preg_replace(
 			'#<iframe[^>](.*?)https?://player.vimeo.com/video/([0-9]+)(.*?)</iframe>#ism',
 			'[vimeo]$2[/vimeo]',
-			$s,
+			(string) $s,
 		);
 
 		return $s;
@@ -750,16 +768,16 @@ class HTML
 
 		$pattern = "/<a([^>]*) href=\"(?!http|https)([^\"]*)\"/";
 		$replace = "<a\${1} href=\"" . $base . "\${2}\"";
-		$text    = preg_replace($pattern, $replace, $text);
+		$text    = preg_replace($pattern, $replace, (string) $text);
 
 		// Replace images
 		$pattern = "/<img([^>]*) src=\"(?!http|https|\/)([^\"]*)\"/";
 		$replace = "<img\${1} src=\"" . $base2 . "\${2}\"";
-		$text    = preg_replace($pattern, $replace, $text);
+		$text    = preg_replace($pattern, $replace, (string) $text);
 
 		$pattern = "/<img([^>]*) src=\"(?!http|https)([^\"]*)\"/";
 		$replace = "<img\${1} src=\"" . $base . "\${2}\"";
-		$text    = preg_replace($pattern, $replace, $text);
+		$text    = preg_replace($pattern, $replace, (string) $text);
 
 
 		// Done
@@ -821,7 +839,7 @@ class HTML
 
 		if ($redirect) {
 			$url = Contact::magicLinkByContact($contact);
-			if (strpos($url, 'contact/redir/') === 0) {
+			if (str_starts_with($url, 'contact/redir/')) {
 				$sparkle = ' sparkle';
 			}
 		}
@@ -857,7 +875,7 @@ class HTML
 	{
 		$mode = 'text';
 
-		if (strpos($s, '#') === 0) {
+		if (str_starts_with($s, '#')) {
 			$mode = 'tag';
 		}
 		$action_text = DI::l10n()->t('Save search');
@@ -943,7 +961,7 @@ class HTML
 
 		$config->set('HTML.SafeIframe', true);
 
-		array_walk($allowedIframeDomains, function (&$domain) {
+		array_walk($allowedIframeDomains, function (&$domain): void {
 			// Allow the domain and all its eventual sub-domains
 			$domain = '(?:(?!-)[A-Za-z0-9-]{1,63}(?<!-)\.)*' . preg_quote(trim($domain, '/'), '%');
 		});
@@ -999,11 +1017,11 @@ class HTML
 	 */
 	public static function xpathQuote(string $value): string
 	{
-		if (false === strpos($value, '"')) {
+		if (!str_contains($value, '"')) {
 			return '"' . $value . '"';
 		}
 
-		if (false === strpos($value, "'")) {
+		if (!str_contains($value, "'")) {
 			return "'" . $value . "'";
 		}
 
@@ -1012,7 +1030,7 @@ class HTML
 		// the quotes, e.g.:
 		//
 		//    concat("'foo'", '"', "bar")
-		return 'concat(' . implode(', \'"\', ', array_map([self::class, 'xpathQuote'], explode('"', $value))) . ')';
+		return 'concat(' . implode(', \'"\', ', array_map(self::xpathQuote(...), explode('"', $value))) . ')';
 	}
 
 	/**
@@ -1047,7 +1065,7 @@ class HTML
 
 		$expression = "string(//meta[@charset]/@charset)";
 		if ($charset = $xpath->evaluate($expression)) {
-			return strtolower($charset);
+			return strtolower((string) $charset);
 		}
 
 		try {
@@ -1058,7 +1076,7 @@ class HTML
 			if (isset($mediaType->parameters['charset'])) {
 				return strtolower($mediaType->parameters['charset']);
 			}
-		} catch (\InvalidArgumentException $e) {
+		} catch (\InvalidArgumentException) {
 		}
 
 		return null;
@@ -1087,7 +1105,7 @@ class HTML
 		$dom = new DOMDocument();
 		libxml_use_internal_errors(true);
 
-		$dom->loadHTML(mb_convert_encoding('<span>' . $html . '</span>', 'HTML-ENTITIES', "UTF-8"), LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+		$dom->loadHTML(self::toNumericEntities('<span>' . $html . '</span>'), LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
 		libxml_clear_errors();
 
 		$xpath = new DOMXPath($dom);
@@ -1102,7 +1120,7 @@ class HTML
 		}
 
 		$html = trim($dom->saveHTML());
-		if (substr($html, 0, 6) == '<span>' && substr($html, -7) == '</span>') {
+		if (str_starts_with($html, '<span>') && str_ends_with($html, '</span>')) {
 			$html = substr($html, 6, -7);
 		}
 

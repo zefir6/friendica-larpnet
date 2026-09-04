@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -33,8 +33,8 @@ class Notifications extends BaseApi
 			$id = $this->parameters['id'];
 			try {
 				$notification = DI::notification()->selectOneForUser($uid, ['id' => $id]);
-				$this->jsonExit(DI::mstdnNotification()->createFromNotification($notification));
-			} catch (\Exception $e) {
+				$this->earlyJsonExit(DI::mstdnNotification()->createFromNotification($notification));
+			} catch (\Exception) {
 				$this->logAndJsonError(404, $this->errorFactory->RecordNotFound());
 			}
 		}
@@ -117,7 +117,7 @@ class Notifications extends BaseApi
 
 		if ($request['summary']) {
 			$count = DI::notification()->countForUser($uid, $condition);
-			$this->jsonExit(['count' => $count]);
+			$this->earlyJsonExit(['count' => $count]);
 		} else {
 			$mstdnNotifications = [];
 
@@ -133,13 +133,13 @@ class Notifications extends BaseApi
 				try {
 					$mstdnNotifications[] = DI::mstdnNotification()->createFromNotification($Notification);
 					self::setBoundaries($Notification->id);
-				} catch (\Exception $e) {
+				} catch (\Exception) {
 					// Skip this notification
 				}
 			}
 
-			self::setLinkHeader();
-			$this->jsonExit($mstdnNotifications);
+			$this->setPaginationLinkHeader();
+			$this->earlyJsonExit($mstdnNotifications);
 		}
 	}
 }

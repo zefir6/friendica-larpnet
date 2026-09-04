@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Copyright (C) 2010-2024, the Friendica project
  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
@@ -29,17 +30,17 @@ require_once 'view/theme/larpnet/theme.php';
 
 function larpnet_get_scheme_info($scheme)
 {
-	$theme = DI::appHelper()->getCurrentTheme();
+	$theme     = DI::appHelper()->getCurrentTheme();
 	$themepath = 'view/theme/' . $theme . '/';
-	$scheme = Strings::sanitizeFilePathItem($scheme) ?: LARPNET_DEFAULT_SCHEME;
+	$scheme    = Strings::sanitizeFilePathItem($scheme) ?: LARPNET_DEFAULT_SCHEME;
 
 	$info = [
-		'name' => $scheme,
+		'name'        => $scheme,
 		'description' => '',
-		'author' => [],
-		'version' => '',
-		'overwrites' => [],
-		'accented' => false,
+		'author'      => [],
+		'version'     => '',
+		'overwrites'  => [],
+		'accented'    => false,
 	];
 
 	if (!is_file($themepath . 'scheme/' . $scheme . '.php')) {
@@ -55,12 +56,12 @@ function larpnet_get_scheme_info($scheme)
 		foreach ($ll as $l) {
 			$l = trim($l, "\t\n\r */");
 			if ($l != '') {
-				$values = array_map('trim', explode(':', $l, 2));
+				$values = array_map(trim(...), explode(':', $l, 2));
 				if (count($values) < 2) {
 					continue;
 				}
-				list($k, $v) = $values;
-				$k = strtolower($k);
+				[$k, $v] = $values;
+				$k       = strtolower($k);
 				if ($k == 'author') {
 					$r = preg_match('|([^<]+)<([^>]+)>|', $v, $m);
 					if ($r) {
@@ -98,7 +99,7 @@ function larpnet_scheme_get_list(): array
 	foreach (glob('view/theme/larpnet/scheme/*.php') ?: [] as $file) {
 		$scheme = basename($file, '.php');
 		if (!in_array($scheme, ['default', 'light', 'dark', 'black'])) {
-			$scheme_info = larpnet_get_scheme_info($scheme);
+			$scheme_info      = larpnet_get_scheme_info($scheme);
 			$schemes[$scheme] = $scheme_info['name'] ?? ucfirst($scheme);
 		}
 	}
@@ -125,11 +126,11 @@ function larpnet_scheme_get_current_for_user(int $uid)
 {
 	$available = array_keys(larpnet_scheme_get_list());
 
-	$scheme =
-		DI::pConfig()->get($uid, 'larpnet', 'scheme') ?:
-			DI::pConfig()->get($uid, 'larpnet', 'schema') ?:
-				DI::config()->get('larpnet', 'scheme') ?:
-					DI::config()->get('larpnet', 'schema');
+	$scheme
+		= DI::pConfig()->get($uid, 'larpnet', 'scheme')
+			?: DI::pConfig()->get($uid, 'larpnet', 'schema')
+				?: DI::config()->get('larpnet', 'scheme')
+					?: DI::config()->get('larpnet', 'schema');
 
 	if (!in_array($scheme, $available)) {
 		return LARPNET_DEFAULT_SCHEME;

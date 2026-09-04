@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -21,8 +21,8 @@ class Welcome extends BaseModule
 		$config             = DI::config();
 		DI::page()['title'] = DI::l10n()->t('Welcome to Friendica');
 
-		$mail_disabled = ((function_exists('imap_open') &&
-							 (!$config->get('system', 'imap_disabled'))));
+		$mail_disabled = ((function_exists('imap_open')
+							 && (!$config->get('system', 'imap_disabled'))));
 		$newuser_private = $config->get('system', 'newuser_private');
 
 		$tpl = Renderer::getMarkupTemplate('welcome.tpl');

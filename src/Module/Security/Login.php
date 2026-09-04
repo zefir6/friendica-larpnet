@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -9,9 +9,8 @@ namespace Friendica\Module\Security;
 
 use Friendica\App;
 use Friendica\BaseModule;
-use Friendica\Core\Config\Capability\IManageConfigValues;
-use Friendica\Core\Hook;
 use Friendica\Core\L10n;
+use Friendica\Event\ArrayFilterEvent;
 use Friendica\Core\Renderer;
 use Friendica\Core\Session\Capability\IHandleUserSessions;
 use Friendica\DI;
@@ -26,22 +25,19 @@ use Psr\Log\LoggerInterface;
  */
 class Login extends BaseModule
 {
-	/** @var Authentication */
-	private $auth;
-
-	/** @var IManageConfigValues */
-	private $config;
-
-	/** @var IHandleUserSessions */
-	private $session;
-
-	public function __construct(Authentication $auth, IManageConfigValues $config, IHandleUserSessions $session, L10n $l10n, App\BaseURL $baseUrl, App\Arguments $args, LoggerInterface $logger, Profiler $profiler, Response $response, array $server, array $parameters = [])
-	{
+	public function __construct(
+		private readonly Authentication $auth,
+		private readonly IHandleUserSessions $session,
+		L10n $l10n,
+		App\BaseURL $baseUrl,
+		App\Arguments $args,
+		LoggerInterface $logger,
+		Profiler $profiler,
+		Response $response,
+		array $server,
+		array $parameters = [],
+	) {
 		parent::__construct($l10n, $baseUrl, $args, $logger, $profiler, $response, $server, $parameters);
-
-		$this->auth    = $auth;
-		$this->config  = $config;
-		$this->session = $session;
 	}
 
 	protected function content(array $request = []): string
@@ -91,7 +87,7 @@ class Login extends BaseModule
 				trim($request['username']),
 				trim($request['password']),
 				!empty($request['remember']),
-				$request['return_path'] ?? ''
+				$request['return_path'] ?? '',
 			);
 		}
 	}
@@ -109,7 +105,7 @@ class Login extends BaseModule
 	 * @throws \Friendica\Network\HTTPException\ServiceUnavailableException
 	 * @hooks 'login_hook' string $o
 	 */
-	public static function form(string $return_path = null, bool $register = false): string
+	public static function form(?string $return_path = null, bool $register = false): string
 	{
 		$noid = DI::config()->get('system', 'no_openid');
 
@@ -126,7 +122,7 @@ class Login extends BaseModule
 			$reg = [
 				'title' => DI::l10n()->t('Create an account'),
 				'desc'  => DI::l10n()->t('Register'),
-				'url'   => self::getRegisterURL()
+				'url'   => self::getRegisterURL(),
 			];
 		}
 
@@ -136,7 +132,7 @@ class Login extends BaseModule
 			DI::page()['htmlhead'] .= Renderer::replaceMacros(
 				Renderer::getMarkupTemplate('login_head.tpl'),
 				[
-				]
+				],
 			);
 
 			$tpl = Renderer::getMarkupTemplate('login.tpl');
@@ -164,7 +160,7 @@ class Login extends BaseModule
 				'$login'    => DI::l10n()->t('Sign in'),
 				'$new'      => DI::l10n()->t('New here?'),
 
-				'$lname'     => ['username', DI::l10n()->t('Nickname or email'), '', $username_desc, '', 'autofocus', '', DI::l10n()->t('Nickname or email')],
+				'$lname'     => ['username', DI::l10n()->t('Username or email'), '', $username_desc, '', 'autofocus', '', DI::l10n()->t('Username or email')],
 				'$lpassword' => ['password', DI::l10n()->t('Password'), '', '', '', '', '', DI::l10n()->t('Password')],
 				'$lremember' => ['remember', DI::l10n()->t('Remember me'), 0,  ''],
 
@@ -183,10 +179,12 @@ class Login extends BaseModule
 
 				'$privacytitle' => DI::l10n()->t('Website Privacy Policy'),
 				'$privacylink'  => DI::l10n()->t('privacy policy'),
-			]
+			],
 		);
 
-		Hook::callAll('login_hook', $o);
+		$o = DI::eventDispatcher()->dispatch(
+			new ArrayFilterEvent(ArrayFilterEvent::LOGIN_FORM, ['html' => $o]),
+		)->getArray()['html'] ?? '';
 
 		return $o;
 	}
@@ -206,22 +204,22 @@ class Login extends BaseModule
 		if (is_array($attr) && count($attr)) {
 			foreach ($attr as $k => $v) {
 				if ($k === 'namePerson/friendly') {
-					$nick = trim($v);
+					$nick = trim((string) $v);
 				}
 				if ($k === 'namePerson/first') {
-					$first = trim($v);
+					$first = trim((string) $v);
 				}
 				if ($k === 'namePerson') {
-					$args['username'] = trim($v);
+					$args['username'] = trim((string) $v);
 				}
 				if ($k === 'contact/email') {
-					$args['email'] = trim($v);
+					$args['email'] = trim((string) $v);
 				}
 				if ($k === 'media/image/aspect11') {
-					$photosq = bin2hex(trim($v));
+					$photosq = bin2hex(trim((string) $v));
 				}
 				if ($k === 'media/image/default') {
-					$photo = bin2hex(trim($v));
+					$photo = bin2hex(trim((string) $v));
 				}
 			}
 		}
@@ -238,7 +236,7 @@ class Login extends BaseModule
 			$args['photo'] = $photo;
 		}
 
-		$args['openid_url'] = trim(DI::session()->get('openid_identity'));
+		$args['openid_url'] = trim((string) DI::session()->get('openid_identity'));
 
 		return 'register?' . http_build_query($args);
 	}

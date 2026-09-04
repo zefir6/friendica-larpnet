@@ -1,8 +1,8 @@
 <?php
 
 /**
- * Copyright (C) 2010-2024, the Friendica project
- * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+ * Copyright (C) 2010-2026, the Friendica project
+ * SPDX-FileCopyrightText: 2010-2026 the Friendica project
  *
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
@@ -16,7 +16,7 @@ use Friendica\DI;
 require_once 'view/theme/frio/php/Image.php';
 require_once 'view/theme/frio/php/scheme.php';
 
-function theme_post(AppHelper $appHelper)
+function theme_post(AppHelper $appHelper): void
 {
 	if (!DI::userSession()->getLocalUserId()) {
 		return;
@@ -38,6 +38,9 @@ function theme_post(AppHelper $appHelper)
 			'login_bg_image',
 			'login_bg_color',
 			'always_open_compose',
+			'enable_advancedcomposer',
+			'show_nav_labels',
+			'show_action_labels',
 		] as $field) {
 			if (isset($_POST['frio_' . $field])) {
 				DI::pConfig()->set(DI::userSession()->getLocalUserId(), 'frio', $field, $_POST['frio_' . $field]);
@@ -63,7 +66,7 @@ function theme_post(AppHelper $appHelper)
 	}
 }
 
-function theme_admin_post()
+function theme_admin_post(): void
 {
 	if (!DI::userSession()->isSiteAdmin()) {
 		return;
@@ -83,6 +86,9 @@ function theme_admin_post()
 			'login_bg_image',
 			'login_bg_color',
 			'always_open_compose',
+			'enable_advancedcomposer',
+			'show_nav_labels',
+			'show_action_labels',
 		] as $field) {
 			if (isset($_POST['frio_' . $field])) {
 				DI::config()->set('frio', $field, $_POST['frio_' . $field]);
@@ -100,17 +106,20 @@ function theme_content(AppHelper $appHelper): string
 	}
 
 	$arr = [
-		'scheme'              => frio_scheme_get_current_for_user(DI::userSession()->getLocalUserId()),
-		'share_string'        => '',
-		'scheme_accent'       => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'scheme_accent', DI::config()->get('frio', 'scheme_accent')),
-		'nav_bg'              => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'nav_bg', DI::config()->get('frio', 'nav_bg')),
-		'nav_icon_color'      => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'nav_icon_color', DI::config()->get('frio', 'nav_icon_color')),
-		'link_color'          => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'link_color', DI::config()->get('frio', 'link_color')),
-		'background_color'    => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'background_color', DI::config()->get('frio', 'background_color')),
-		'contentbg_transp'    => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'contentbg_transp', DI::config()->get('frio', 'contentbg_transp')),
-		'background_image'    => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'background_image', DI::config()->get('frio', 'background_image')),
-		'bg_image_option'     => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'bg_image_option', DI::config()->get('frio', 'bg_image_option')),
-		'always_open_compose' => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'always_open_compose', DI::config()->get('frio', 'always_open_compose', false)),
+		'scheme'                  => frio_scheme_get_current_for_user(DI::userSession()->getLocalUserId()),
+		'share_string'            => '',
+		'scheme_accent'           => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'scheme_accent', DI::config()->get('frio', 'scheme_accent')),
+		'nav_bg'                  => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'nav_bg', DI::config()->get('frio', 'nav_bg')),
+		'nav_icon_color'          => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'nav_icon_color', DI::config()->get('frio', 'nav_icon_color')),
+		'link_color'              => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'link_color', DI::config()->get('frio', 'link_color')),
+		'background_color'        => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'background_color', DI::config()->get('frio', 'background_color')),
+		'contentbg_transp'        => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'contentbg_transp', DI::config()->get('frio', 'contentbg_transp')),
+		'background_image'        => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'background_image', DI::config()->get('frio', 'background_image')),
+		'bg_image_option'         => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'bg_image_option', DI::config()->get('frio', 'bg_image_option')),
+		'always_open_compose'     => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'always_open_compose', DI::config()->get('frio', 'always_open_compose', false)),
+		'enable_advancedcomposer' => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'enable_advancedcomposer', DI::config()->get('frio', 'enable_advancedcomposer', false)),
+		'show_nav_labels'         => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'show_nav_labels', DI::config()->get('frio', 'show_nav_labels', true)),
+		'show_action_labels'      => DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'frio', 'show_action_labels', DI::config()->get('frio', 'show_action_labels', true)),
 	];
 
 	return frio_form($arr);
@@ -123,20 +132,23 @@ function theme_admin(AppHelper $appHelper): string
 	}
 
 	$arr = [
-		'admin_theme_settings' => true,
-		'scheme'               => frio_scheme_get_current(),
-		'scheme_accent'        => DI::config()->get('frio', 'scheme_accent') ?: FRIO_SCHEME_ACCENT_BLUE,
-		'share_string'         => '',
-		'nav_bg'               => DI::config()->get('frio', 'nav_bg'),
-		'nav_icon_color'       => DI::config()->get('frio', 'nav_icon_color'),
-		'link_color'           => DI::config()->get('frio', 'link_color'),
-		'background_color'     => DI::config()->get('frio', 'background_color'),
-		'contentbg_transp'     => DI::config()->get('frio', 'contentbg_transp'),
-		'background_image'     => DI::config()->get('frio', 'background_image'),
-		'bg_image_option'      => DI::config()->get('frio', 'bg_image_option'),
-		'login_bg_image'       => DI::config()->get('frio', 'login_bg_image'),
-		'login_bg_color'       => DI::config()->get('frio', 'login_bg_color'),
-		'always_open_compose'  => DI::config()->get('frio', 'always_open_compose', false),
+		'admin_theme_settings'    => true,
+		'scheme'                  => frio_scheme_get_current(),
+		'scheme_accent'           => DI::config()->get('frio', 'scheme_accent') ?: FRIO_SCHEME_ACCENT_BLUE,
+		'share_string'            => '',
+		'nav_bg'                  => DI::config()->get('frio', 'nav_bg'),
+		'nav_icon_color'          => DI::config()->get('frio', 'nav_icon_color'),
+		'link_color'              => DI::config()->get('frio', 'link_color'),
+		'background_color'        => DI::config()->get('frio', 'background_color'),
+		'contentbg_transp'        => DI::config()->get('frio', 'contentbg_transp'),
+		'background_image'        => DI::config()->get('frio', 'background_image'),
+		'bg_image_option'         => DI::config()->get('frio', 'bg_image_option'),
+		'login_bg_image'          => DI::config()->get('frio', 'login_bg_image'),
+		'login_bg_color'          => DI::config()->get('frio', 'login_bg_color'),
+		'always_open_compose'     => DI::config()->get('frio', 'always_open_compose', false),
+		'enable_advancedcomposer' => DI::config()->get('frio', 'enable_advancedcomposer', false),
+		'show_nav_labels'         => DI::config()->get('frio', 'show_nav_labels', true),
+		'show_action_labels'      => DI::config()->get('frio', 'show_action_labels', true),
 	];
 
 	return frio_form($arr);
@@ -169,7 +181,10 @@ function frio_form($arr)
 		'$bg_image_options_title' => DI::l10n()->t('Background image style'),
 		'$bg_image_options'       => Image::get_options($arr),
 
-		'$always_open_compose' => ['frio_always_open_compose', DI::l10n()->t('Always open Compose page'), $arr['always_open_compose'], DI::l10n()->t('If enabled, the button to make a new post always opens a dedicated page (the <a href="/compose">Compose page</a>) instead of a small window on top of the current page. When disabled, the "Compose page" can be accessed with a middle click on the button to make a new post, or via a button in the small window.')],
+		'$always_open_compose'     => ['frio_always_open_compose', DI::l10n()->t('Always open Compose page'), $arr['always_open_compose'], DI::l10n()->t('If enabled, the button to make a new post always opens a dedicated page (the <a href="/compose">Compose page</a>) instead of a small window on top of the current page. When disabled, the "Compose page" can be accessed with a middle click on the button to make a new post, or via a button in the small window.')],
+		'$enable_advancedcomposer' => ['frio_enable_advancedcomposer', DI::l10n()->t('Enable Advanced Composer'), $arr['enable_advancedcomposer'], DI::l10n()->t('When enabled, the Advanced Composer writing assistant will be available in the compose view.')],
+		'$show_nav_labels'         => ['frio_show_nav_labels',  DI::l10n()->t('Show Navbar Button Labels'),$arr['show_nav_labels'],  DI::l10n()->t('Shows or hides the button labels under the main navigation bar buttons.')],
+		'$show_action_labels'      => ['frio_show_action_labels',  DI::l10n()->t('Show Action Button Labels'),$arr['show_action_labels'],  DI::l10n()->t('Shows or hides the button labels under posts and replies.')],
 	];
 
 	if (array_key_exists('login_bg_image', $arr) && !array_key_exists('login_bg_image', $disable)) {

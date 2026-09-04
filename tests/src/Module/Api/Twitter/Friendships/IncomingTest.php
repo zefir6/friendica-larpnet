@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -18,26 +18,14 @@ class IncomingTest extends ApiTestCase
 	 *
 	 * @return void
 	 */
-	public function testApiFriendshipsIncoming()
+	public function testApiFriendshipsIncoming(): void
 	{
+		// @phpstan-ignore method.deprecated
 		$response = (new Incoming(DI::mstdnError(), DI::appHelper(), DI::l10n(), DI::baseUrl(), DI::args(), DI::logger(), DI::profiler(), DI::apiResponse(), []))
 			->run($this->httpExceptionMock);
 
 		$json = $this->toJson($response);
 
 		self::assertIsArray($json->ids);
-	}
-
-	/**
-	 * Test the api_friendships_incoming() function an undefined cursor GET variable.
-	 *
-	 * @return void
-	 */
-	public function testApiFriendshipsIncomingWithUndefinedCursor()
-	{
-		self::markTestIncomplete('Needs refactoring of Incoming - replace filter_input() with $request parameter checks');
-
-		// $_GET['cursor'] = 'undefined';
-		// self::assertFalse(api_friendships_incoming('json'));
 	}
 }

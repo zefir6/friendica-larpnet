@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -50,11 +50,11 @@ class BaseSearch extends BaseModule
 		$header  = '';
 		$results = new ResultList();
 
-		if (strpos($search, '@') === 0) {
+		if (str_starts_with($search, '@')) {
 			$search = trim(substr($search, 1));
 			$type   = Search::TYPE_PEOPLE;
 			$header = DI::l10n()->t('People Search - %s', $search);
-		} elseif (strpos($search, '!') === 0) {
+		} elseif (str_starts_with($search, '!')) {
 			$search = trim(substr($search, 1));
 			$type   = Search::TYPE_GROUP;
 			$header = DI::l10n()->t('Group Search - %s', $search);

@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -25,27 +25,7 @@ use Psr\Log\LoggerInterface;
  */
 class System
 {
-	/**
-	 * @var LoggerInterface
-	 */
-	private $logger;
-
-	/**
-	 * @var IManageConfigValues
-	 */
-	private $config;
-
-	/**
-	 * @var string
-	 */
-	private $basePath;
-
-	public function __construct(LoggerInterface $logger, IManageConfigValues $config, string $basepath)
-	{
-		$this->logger   = $logger;
-		$this->config   = $config;
-		$this->basePath = $basepath;
-	}
+	public function __construct(private readonly LoggerInterface $logger, private readonly IManageConfigValues $config, private readonly string $basePath) {}
 
 	/**
 	 * Checks if the maximum number of database processes is reached
@@ -174,10 +154,10 @@ class System
 			return;
 		}
 
-		$cmdline = $this->config->get('config', 'php_path', 'php') . ' ' . escapeshellarg($command);
+		$cmdline = escapeshellarg((string) $this->config->get('config', 'php_path', 'php')) . ' ' . escapeshellarg($command);
 
 		foreach ($args as $argumment) {
-			$cmdline .= ' ' . $argumment;
+			$cmdline .= ' ' . escapeshellarg((string) $argumment);
 		}
 
 		foreach ($options as $key => $value) {
@@ -185,9 +165,9 @@ class System
 				continue;
 			}
 
-			$cmdline .= ' --' . $key;
+			$cmdline .= ' --' . escapeshellarg((string) $key);
 			if (!is_null($value) && !is_bool($value)) {
-				$cmdline .= ' ' . $value;
+				$cmdline .= ' ' . escapeshellarg((string) $value);
 			}
 		}
 
@@ -223,7 +203,7 @@ class System
 		$file      = '';
 		$line      = 0;
 		foreach (debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS) as $trace) {
-			if (!isset($trace['file']) || !isset($trace['function']) || !isset($trace['line'])) {
+			if (!isset($trace['file']) || !isset($trace['line'])) {
 				continue;
 			}
 			if (in_array(basename($trace['file']), ['DBA.php', 'Database.php'])) {
@@ -269,8 +249,8 @@ class System
 				if (in_array($func['class'], $exclude)) {
 					continue;
 				}
-				$classparts  = explode("\\", $func['class']);
-				$callstack[] = array_pop($classparts).'::'.$func['function'] . (isset($func['line']) ? ' (' . $func['line'] . ')' : '');
+				$classparts  = explode("\\", (string) $func['class']);
+				$callstack[] = array_pop($classparts) . '::' . $func['function'] . (isset($func['line']) ? ' (' . $func['line'] . ')' : '');
 			} elseif (!in_array($func['function'], $ignore)) {
 				$func['database'] = ($func['function'] == 'q');
 				$callstack[]      = $func['function'] . (isset($func['line']) ? ' (' . $func['line'] . ')' : '');
@@ -298,8 +278,8 @@ class System
 				"HTTP/%s %s %s",
 				$response->getProtocolVersion(),
 				$response->getStatusCode(),
-				$response->getReasonPhrase()
-			)
+				$response->getReasonPhrase(),
+			),
 		);
 
 		foreach ($response->getHeaders() as $key => $header) {
@@ -327,7 +307,7 @@ class System
 	 * @param mixed  $status
 	 * @param string $message
 	 * @throws \Exception
-	 * @deprecated since 2023.09 Use BaseModule->httpExit() instead
+	 * @deprecated 2023.09 Use BaseModule->httpExit() instead
 	 */
 	public static function xmlExit($status, string $message = '')
 	{
@@ -351,7 +331,7 @@ class System
 	 * @param string  $message  Error message. Optional.
 	 * @param string  $content  Response body. Optional.
 	 * @throws \Exception
-	 * @deprecated since 2023.09 Use BaseModule->httpError instead
+	 * @deprecated 2023.09 Use BaseModule->httpError instead
 	 */
 	public static function httpError($httpCode, $message = '', $content = '')
 	{
@@ -370,11 +350,10 @@ class System
 	 * @param string      $content
 	 * @param string      $type
 	 * @param string|null $content_type
-	 * @return void
 	 * @throws InternalServerErrorException
 	 * @deprecated since 2023.09 Use BaseModule->httpExit() instead
 	 */
-	public static function httpExit(string $content, string $type = Response::TYPE_HTML, ?string $content_type = null)
+	public static function httpExit(string $content, string $type = Response::TYPE_HTML, ?string $content_type = null): never
 	{
 		DI::apiResponse()->setType($type, $content_type);
 		DI::apiResponse()->addContent($content);
@@ -408,7 +387,7 @@ class System
 	 * @throws InternalServerErrorException
 	 * @deprecated since 2023.09 Use BaseModule->jsonExit instead
 	 */
-	public static function jsonExit($content, string $content_type = 'application/json', int $options = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
+	public static function jsonExit($content, string $content_type = 'application/json', int $options = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT): never
 	{
 		self::httpExit(json_encode($content, $options), Response::TYPE_JSON, $content_type);
 	}
@@ -418,7 +397,7 @@ class System
 	 *
 	 * @return never
 	 */
-	public static function exit()
+	public static function exit(): never
 	{
 		DI::page()->logRuntime(DI::config(), 'exit');
 		exit();
@@ -502,14 +481,14 @@ class System
 			'average5'  => $load_arr[1],
 			'average15' => $load_arr[2],
 			'runnable'  => 0,
-			'scheduled' => 0
+			'scheduled' => 0,
 		];
 
 		if ($get_processes && @is_readable('/proc/loadavg')) {
 			$content = @file_get_contents('/proc/loadavg');
 			if (!empty($content) && preg_match("#([.\d]+)\s([.\d]+)\s([.\d]+)\s(\d+)/(\d+)#", $content, $matches)) {
-				$load['runnable']  = (float)$matches[4];
-				$load['scheduled'] = (float)$matches[5];
+				$load['runnable']  = (float) $matches[4];
+				$load['scheduled'] = (float) $matches[5];
 			}
 		}
 
@@ -533,7 +512,11 @@ class System
 	 */
 	public static function externalRedirect($url, $code = 302)
 	{
-		if (empty(parse_url($url, PHP_URL_SCHEME))) {
+		// Use a regex to detect the presence of a URI scheme, because PHP's
+		// parse_url() returns false/null for some valid custom-scheme URIs such
+		// as native-app callback URIs (e.g. "icecubesapp://", "mona://").
+		// RFC 3986 scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
+		if (!preg_match('/^[a-zA-Z][a-zA-Z0-9+\-.]*:/', $url)) {
 			DI::logger()->warning('No fully qualified URL provided', ['url' => $url]);
 			DI::baseUrl()->redirect($url);
 		}
@@ -610,7 +593,7 @@ class System
 	 *
 	 * @param string $o
 	 */
-	public static function htmlUpdateExit($o)
+	public static function htmlUpdateExit($o): never
 	{
 		DI::apiResponse()->setType(Response::TYPE_HTML);
 		echo "<!DOCTYPE html><html><body>\r\n";
@@ -725,7 +708,7 @@ class System
 					if ($numeric_id) {
 						$rules[++$id] = $line;
 					} else {
-						$rules[] = ['id' => (string)++$id, 'text' => $line];
+						$rules[] = ['id' => (string) ++$id, 'text' => $line];
 					}
 				}
 			}

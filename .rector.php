@@ -1,6 +1,6 @@
 <?php
 /**
- * SPDX-FileCopyrightText: 2010 - 2024 the Friendica project
+ * SPDX-FileCopyrightText: 2010-2026 the Friendica project
  *
  * SPDX-License-Identifier: CC0-1.0
  */
@@ -14,15 +14,18 @@ return \Rector\Config\RectorConfig::configure()
 		__DIR__ . '/src',
 		__DIR__ . '/static',
 		__DIR__ . '/tests',
-		__DIR__ . '/view',
+		__DIR__ . '/view/php',
+		__DIR__ . '/view/theme',
 	])
 	->withIndent("\t", 4)
-	->withPhpVersion(70400)
-	// ->withTypeCoverageLevel(0)
+	->withPhpVersion(80200)
+	->withTypeCoverageLevel(6)
 	// ->withDeadCodeLevel(0)
 	// ->withCodeQualityLevel(0)
 	->withSets([
-		\Rector\Set\ValueObject\LevelSetList::UP_TO_PHP_74,
+		\Rector\Set\ValueObject\LevelSetList::UP_TO_PHP_85,
+		\Rector\PHPUnit\Set\PHPUnitSetList::PHPUNIT_120,
+		\Rector\PHPUnit\Set\PHPUnitSetList::ANNOTATIONS_TO_ATTRIBUTES,
 	])
 	->withSkip([
 		\Rector\Php56\Rector\FuncCall\PowToExpRector::class,

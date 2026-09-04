@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -11,6 +11,7 @@ use Friendica\App\BaseURL;
 use Friendica\Content\Item as ItemContent;
 use Friendica\Core\Protocol;
 use Friendica\Database\Database;
+use Friendica\Post\UriGenerator;
 use Friendica\Protocol\Activity;
 use Friendica\Util\DateTimeFormat;
 use Psr\Log\LoggerInterface;
@@ -22,30 +23,19 @@ use Psr\Log\LoggerInterface;
  *
  * @see Item::insert()
  */
-final class ItemHelper
+final readonly class ItemHelper
 {
-	private ItemContent $itemContent;
-
-	private Activity $activity;
-
-	private LoggerInterface $logger;
-
-	private Database $database;
-
 	private string $baseUrl;
 
 	public function __construct(
-		ItemContent $itemContent,
-		Activity $activity,
-		LoggerInterface $logger,
-		Database $database,
-		BaseURL $baseURL
+		private ItemContent $itemContent,
+		private Activity $activity,
+		private LoggerInterface $logger,
+		private Database $database,
+		private UriGenerator $postUriGenerator,
+		BaseURL $baseURL,
 	) {
-		$this->itemContent = $itemContent;
-		$this->activity    = $activity;
-		$this->logger      = $logger;
-		$this->database    = $database;
-		$this->baseUrl     = $baseURL->__toString();
+		$this->baseUrl = $baseURL->__toString();
 	}
 
 	public function prepareOriginPost(array $item): array
@@ -59,7 +49,7 @@ final class ItemHelper
 	public function prepareItemData(array $item, bool $notify): array
 	{
 		$item['guid'] = $this->itemContent->guid($item, $notify);
-		$item['uri']  = substr(trim($item['uri'] ?? '') ?: Item::newURI($item['guid']), 0, 255);
+		$item['uri']  = substr(trim($item['uri'] ?? '') ?: $this->postUriGenerator->newURI($item['guid']), 0, 255);
 
 		// Store URI data
 		$item['uri-id'] = ItemURI::insert(['uri' => $item['uri'], 'guid' => $item['guid']]);
@@ -226,7 +216,7 @@ final class ItemHelper
 			$item['commented'] = $item['received'] ;
 		}
 
-		$item['plink'] = ($item['plink'] ?? '') ?: $this->baseUrl . '/display/' . urlencode($item['guid']);
+		$item['plink'] = ($item['plink'] ?? '') ?: $this->baseUrl . '/display/' . urlencode((string) $item['guid']);
 
 		$item['gravity'] = $this->getGravity($item);
 

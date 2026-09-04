@@ -21,7 +21,7 @@ Wir planen, diese Einschränkung in einer zukünftigen Version zu beheben.
 ## Requirements
 
 * Apache mit einer aktiverten mod-rewrite-Funktion und dem Eintrag "Options All", so dass du die lokale `.htaccess`-Datei nutzen kannst
-* PHP  7.4+
+* PHP 8.2 to PHP 8.5
   * PHP *Kommandozeilen*-Zugang mit register_argc_argv auf "true" gesetzt in der php.ini-Datei
   * Curl, GD, GMP, PDO, mbstrings, MySQLi, hash, xml, zip, Intl, IDN und OpenSSL-Erweiterung
   * Das POSIX Modul muss aktiviert sein ([CentOS, RHEL](http://www.bigsoft.co.uk/blog/index.php/2014/12/08/posix-php-commands-not-working-under-centos-7http://www.bigsoft.co.uk/blog/index.php/2014/12/08/posix-php-commands-not-working-under-centos-7) haben dies z.B. deaktiviert)

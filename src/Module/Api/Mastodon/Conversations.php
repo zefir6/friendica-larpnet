@@ -1,13 +1,12 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 namespace Friendica\Module\Api\Mastodon;
 
-use Friendica\Core\System;
 use Friendica\Database\DBA;
 use Friendica\DI;
 use Friendica\Module\BaseApi;
@@ -30,7 +29,7 @@ class Conversations extends BaseApi
 		DBA::delete('conv', ['id' => $this->parameters['id'], 'uid' => $uid]);
 		DBA::delete('mail', ['convid' => $this->parameters['id'], 'uid' => $uid]);
 
-		$this->jsonExit([]);
+		$this->earlyJsonExit([]);
 	}
 
 	/**
@@ -84,7 +83,7 @@ class Conversations extends BaseApi
 				self::setBoundaries($conv['convid']);
 				$conversations[] = DI::mstdnConversation()->createFromConvId($conv['convid'], $uid);
 			}
-		} catch (NotFoundException $e) {
+		} catch (NotFoundException) {
 			$this->logAndJsonError(404, $this->errorFactory->RecordNotFound());
 		}
 
@@ -94,7 +93,7 @@ class Conversations extends BaseApi
 			$conversations = array_reverse($conversations);
 		}
 
-		self::setLinkHeader();
-		$this->jsonExit($conversations);
+		$this->setPaginationLinkHeader();
+		$this->earlyJsonExit($conversations);
 	}
 }

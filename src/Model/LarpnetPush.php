@@ -21,7 +21,7 @@ class LarpnetPush
 	{
 		$topic = DI::pConfig()->get($uid, 'larpnet_notifications', 'ntfy_topic');
 		// Regenerate if empty or contains hyphens (old format rejected by ntfy)
-		if (empty($topic) || strpos($topic, '-') !== false) {
+		if (empty($topic) || str_contains((string) $topic, '-')) {
 			$topic = 'ln' . Strings::getRandomHex(16);
 			DI::pConfig()->set($uid, 'larpnet_notifications', 'ntfy_topic', $topic);
 		}
@@ -52,7 +52,7 @@ class LarpnetPush
 		}
 
 		try {
-			DI::httpClient()->post(rtrim($ntfyUrl, '/') . '/', json_encode($payload), $headers);
+			DI::httpClient()->post(rtrim((string) $ntfyUrl, '/') . '/', json_encode($payload), $headers);
 			DI::logger()->info('LarpnetPush: sent', ['topic' => $topic]);
 		} catch (\Throwable $e) {
 			DI::logger()->warning('LarpnetPush: failed', ['topic' => $topic, 'error' => $e->getMessage()]);

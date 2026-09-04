@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -518,7 +518,7 @@ class DBA
 	public static function buildTableString(array $tables): string
 	{
 		// Quote each entry
-		return implode(',', array_map([self::class, 'quoteIdentifier'], $tables));
+		return implode(',', array_map(self::quoteIdentifier(...), $tables));
 	}
 
 	/**
@@ -706,7 +706,7 @@ class DBA
 	{
 		$groupby_string = '';
 		if (!empty($params['group_by'])) {
-			$groupby_string = " GROUP BY " . implode(', ', array_map([self::class, 'quoteIdentifier'], $params['group_by']));
+			$groupby_string = " GROUP BY " . implode(', ', array_map(self::quoteIdentifier(...), $params['group_by']));
 		}
 
 		$order_string = '';

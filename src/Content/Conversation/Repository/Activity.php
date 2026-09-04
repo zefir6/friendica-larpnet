@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -16,19 +16,14 @@ use Friendica\Util\DateTimeFormat;
 /**
  * Activity repository for handling activity table operations.
  */
-final class Activity
+final readonly class Activity
 {
-	private Database $dba;
-
 	/**
 	 * ActivityRepository constructor.
 	 *
 	 * @param Database $dba
 	 */
-	public function __construct(Database $dba)
-	{
-		$this->dba = $dba;
-	}
+	public function __construct(private Database $dba) {}
 
 	/**
 	 * Find an activity by uid and network.

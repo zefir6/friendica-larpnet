@@ -21,11 +21,15 @@ docker compose exec php composer install
 docker compose exec php bin/console autoinstall -av -f .docker/autoinstall.config.php
 ```
 
+### Run the tests
+The PHPUnit suites use their own `test` database and need the schema imported separately.
+See [`tests/README.md`](../tests/README.md).
+
 ### View logs:
 ```bash
 docker compose logs -f php
 docker compose logs -f nginx
-docker compose logs -f mariadb
+docker compose logs -f db
 ```
 
 ### Stop environment:
@@ -36,22 +40,29 @@ docker compose down
 ## Access
 
 - **Friendica application**: http://localhost:8080
-- **MySQL/MariaDB**: localhost:3306
+- **phpMyAdmin**: http://localhost:8086
+- **MySQL/MariaDB**: 127.0.0.1:3306
   - User: `friendica`
-  - Password: `friendica_`
-  - Database: `friendica`
+  - Password: `friendica`
+  - Database: `friendica` (dev instance), `test` (PHPUnit suites)
+  - Root password: `root`
 
 ## Database access via CLI
 
 ```bash
-docker compose exec mariadb mysql -u friendica -p friendica friendica
+docker compose exec db mariadb -ufriendica -pfriendica friendica
 ```
 
-## Container names
+## Services and container names
 
-- `friendica-php` - PHP container
-- `friendica-nginx` - Nginx container
-- `friendica-mariadb` - MariaDB container
+| Service      | Container             | Description      |
+|--------------|-----------------------|------------------|
+| `php`        | `docker-php-1`        | PHP-FPM          |
+| `nginx`      | `docker-nginx-1`      | Web server       |
+| `db`         | `docker-db-1`         | MariaDB          |
+| `phpmyadmin` | `docker-phpmyadmin-1` | phpMyAdmin       |
+
+Container names follow the Compose project name, which defaults to the `.docker` directory.
 
 ## Adjust configuration
 
@@ -62,7 +73,7 @@ The PHP configuration is located in `.docker/php/php.ini`
 The Nginx configuration is located in `.docker/nginx/nginx.conf`
 
 ### Environment variables
-Environment variables can be adjusted in `docker compose.yml` under `services.php.environment`.
+The defaults live in `.docker/.dist.env`. Copy that file to `.docker/.env.local` and adjust it there — both files are read by every service, and `.env.local` wins.
 
 ## Troubleshooting
 

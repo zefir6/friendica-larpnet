@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -44,11 +44,11 @@ class QuoteAuthorization extends BaseModule
 			'id'                => $local['uri'] . '/quote_authorization/' . $this->parameters['remote'],
 			'attributedTo'      => $local['author-link'],
 			'interactingObject' => $remote['uri'],
-			'interactionTarget' => $local['uri']
+			'interactionTarget' => $local['uri'],
 		];
 
 		// Relaxed CORS header for public items
 		header('Access-Control-Allow-Origin: *');
-		$this->jsonExit($data, 'application/activity+json');
+		$this->earlyJsonExit($data, 'application/activity+json');
 	}
 }

@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -13,7 +13,6 @@ use Friendica\Database\DBA;
 use Friendica\DI;
 use Friendica\Model\Contact;
 use Friendica\Model\Photo as MPhoto;
-use Friendica\Model\Post;
 use Friendica\Core\Storage\Type\ExternalResource;
 use Friendica\Core\Storage\Type\SystemResource;
 use Friendica\Core\System;
@@ -31,6 +30,7 @@ use Friendica\Util\Images;
 use Friendica\Util\ParseUrl;
 use Friendica\Util\Proxy;
 use Friendica\Worker\UpdateContact;
+use Friendica\Content\Post\Entity\PostMedia;
 
 /**
  * Photo Module
@@ -90,7 +90,7 @@ class Photo extends BaseApi
 			}
 
 			if (!empty($this->parameters['nickname_ext'])) {
-				$nickname = pathinfo($this->parameters['nickname_ext'], PATHINFO_FILENAME);
+				$nickname = pathinfo((string) $this->parameters['nickname_ext'], PATHINFO_FILENAME);
 				$user     = User::getByNickname($nickname, ['uid']);
 				if (empty($user)) {
 					throw new HTTPException\NotFoundException();
@@ -110,7 +110,7 @@ class Photo extends BaseApi
 
 			$photo = $this->getPhotoById($id, $this->parameters['type'], $customsize ?: Proxy::PIXEL_SMALL);
 		} else {
-			$photoid = pathinfo($this->parameters['name'], PATHINFO_FILENAME);
+			$photoid = pathinfo((string) $this->parameters['name'], PATHINFO_FILENAME);
 			$scale   = 0;
 			if (substr($photoid, -2, 1) == '-') {
 				$scale   = intval(substr($photoid, -1, 1));
@@ -177,7 +177,7 @@ class Photo extends BaseApi
 		if (empty($imgdata)) {
 			$this->logger->warning('Invalid photo', ['id' => $photo['id']]);
 			if (in_array($photo['backend-class'], [ExternalResource::NAME])) {
-				$reference = json_decode($photo['backend-ref'], true);
+				$reference = json_decode((string) $photo['backend-ref'], true);
 				$error     = DI::l10n()->t('Invalid external resource with url %s.', $reference['url']);
 			} else {
 				$error = DI::l10n()->t('Invalid photo with id %s.', $photo['id']);
@@ -219,7 +219,7 @@ class Photo extends BaseApi
 			// and subsequently have permission to see it
 			header('Cache-Control: no-store, no-cache, must-revalidate');
 		} else {
-			$md5 = $photo['hash'] ?: md5($imgdata);
+			$md5 = $photo['hash'] ?: md5((string) $imgdata);
 			header('Last-Modified: ' . gmdate('D, d M Y H:i:s', time()) . ' GMT');
 			header("Etag: \"{$md5}\"");
 			header('Expires: ' . gmdate('D, d M Y H:i:s', time() + (31536000)) . ' GMT');
@@ -266,13 +266,13 @@ class Photo extends BaseApi
 				$width  = $media['preview-width'];
 				$height = $media['preview-height'];
 
-				if (empty($url) && ($media['type'] == Post\Media::IMAGE)) {
+				if (empty($url) && ($media['type'] == PostMedia::TYPE_IMAGE)) {
 					$url    = $media['url'];
 					$width  = $media['width'];
 					$height = $media['height'];
 				}
 
-				if (empty($url) && ($media['type'] == Post\Media::VIDEO) && DI::config()->get('system', 'ffmpeg_installed')) {
+				if (empty($url) && ($media['type'] == PostMedia::TYPE_VIDEO) && DI::config()->get('system', 'ffmpeg_installed')) {
 					$image = new Image('', image_type_to_mime_type(IMAGETYPE_JPEG));
 					$image->getFromVideoUrl($media['url']);
 					if ($image->isValid()) {
@@ -290,19 +290,19 @@ class Photo extends BaseApi
 					return false;
 				}
 
-				if (DI::baseUrl()->isLocalUrl($url) && preg_match('|.*?/photo/(.*[a-fA-F0-9])\-(.*[0-9])\..*[\w]|', $url, $matches)) {
-					return MPhoto::getPhoto($matches[1], $matches[2], self::getCurrentUserID());
+				if (DI::baseUrl()->isLocalUrl($url) && preg_match('|.*?/photo/(.*[a-fA-F0-9])\-(.*[0-9])\..*[\w]|', (string) $url, $matches)) {
+					return MPhoto::getPhoto($matches[1], (int) $matches[2], self::getCurrentUserID());
 				}
 
 				return MPhoto::createPhotoForExternalResource($url, (int) DI::userSession()->getLocalUserId(), $media['mimetype'] ?? '', $media['blurhash'], $width, $height);
 			case 'media':
-				$media = DBA::selectFirst('post-media', ['url', 'height', 'width', 'mimetype', 'uri-id', 'blurhash'], ['id' => $id, 'type' => Post\Media::IMAGE]);
+				$media = DBA::selectFirst('post-media', ['url', 'height', 'width', 'mimetype', 'uri-id', 'blurhash'], ['id' => $id, 'type' => PostMedia::TYPE_IMAGE]);
 				if (empty($media)) {
 					return false;
 				}
 
-				if (DI::baseUrl()->isLocalUrl($media['url']) && preg_match('|.*?/photo/(.*[a-fA-F0-9])\-(.*[0-9])\..*[\w]|', $media['url'], $matches)) {
-					return MPhoto::getPhoto($matches[1], $matches[2], self::getCurrentUserID());
+				if (DI::baseUrl()->isLocalUrl($media['url']) && preg_match('|.*?/photo/(.*[a-fA-F0-9])\-(.*[0-9])\..*[\w]|', (string) $media['url'], $matches)) {
+					return MPhoto::getPhoto($matches[1], (int) $matches[2], self::getCurrentUserID());
 				}
 
 				return MPhoto::createPhotoForExternalResource($media['url'], (int) DI::userSession()->getLocalUserId(), $media['mimetype'] ?? '', $media['blurhash'], $media['width'], $media['height']);
@@ -469,18 +469,11 @@ class Photo extends BaseApi
 		if (empty($photo)) {
 			$contact = DBA::selectFirst('contact', [], ['uid' => $id, 'self' => true]) ?: [];
 
-			switch ($type) {
-				case 'profile':
-				case 'custom':
-					$default = Contact::getDefaultAvatar($contact, Proxy::SIZE_SMALL);
-					break;
-				case 'micro':
-					$default = Contact::getDefaultAvatar($contact, Proxy::SIZE_MICRO);
-					break;
-				case 'avatar':
-				default:
-					$default = Contact::getDefaultAvatar($contact, Proxy::SIZE_THUMB);
-			}
+			$default = match ($type) {
+				'profile', 'custom' => Contact::getDefaultAvatar($contact, Proxy::SIZE_SMALL),
+				'micro' => Contact::getDefaultAvatar($contact, Proxy::SIZE_MICRO),
+				default => Contact::getDefaultAvatar($contact, Proxy::SIZE_THUMB),
+			};
 
 			if (DI::baseUrl()->isLocalUrl($default)) {
 				System::externalRedirect($default);

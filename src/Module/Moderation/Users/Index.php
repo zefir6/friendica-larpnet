@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -20,18 +20,18 @@ class Index extends BaseUsers
 
 		self::checkFormSecurityTokenRedirectOnError('moderation/users', 'moderation_users');
 
-		$users = $request['user'] ?? [];
+		$users = (array) ($request['user'] ?? []);
 
 		if (!empty($request['page_users_block'])) {
 			foreach ($users as $uid) {
-				User::block($uid);
+				User::block((int) $uid);
 			}
 			$this->systemMessages->addInfo($this->tt('%s user blocked', '%s users blocked', count($users)));
 		}
 
 		if (!empty($request['page_users_unblock'])) {
 			foreach ($users as $uid) {
-				User::block($uid, false);
+				User::block((int) $uid, false);
 			}
 			$this->systemMessages->addInfo($this->tt('%s user unblocked', '%s users unblocked', count($users)));
 		}
@@ -39,7 +39,7 @@ class Index extends BaseUsers
 		if (!empty($request['page_users_delete'])) {
 			foreach ($users as $uid) {
 				if ($this->session->getLocalUserId() != $uid) {
-					User::remove($uid);
+					User::remove((int) $uid);
 				} else {
 					$this->systemMessages->addNotice($this->t('You can\'t remove yourself'));
 				}
@@ -86,7 +86,7 @@ class Index extends BaseUsers
 
 		$users = array_map($this->setupUserCallback(), $users);
 
-		$th_users = array_map(null, [$this->t('Name'), $this->t('Email'), $this->t('Register date'), $this->t('Last login'), $this->t('Last public item'), $this->t('Type')], $valid_orders);
+		$th_users = array_map(null, [$this->t('Name'), $this->t('Email'), $this->t('Register date'), $this->t('Last activity'), $this->t('Last public item'), $this->t('Type')], $valid_orders);
 
 		$count = $this->database->count('user', ["`uid` != ?", 0]);
 
@@ -102,11 +102,12 @@ class Index extends BaseUsers
 			'$blocked'        => $this->t('User blocked'),
 			'$unblock'        => $this->t('Unblock'),
 			'$siteadmin'      => $this->t('Site admin'),
+			'$moderator'      => $this->t('Moderator'),
 			'$accountexpired' => $this->t('Account expired'),
 
 			'$h_users'               => $this->t('Users'),
 			'$h_newuser'             => $this->t('Create a new user'),
-			'$th_deleted'            => [$this->t('Name'), $this->t('Email'), $this->t('Register date'), $this->t('Last login'), $this->t('Last public item'), $this->t('Permanent deletion')],
+			'$th_deleted'            => [$this->t('Name'), $this->t('Email'), $this->t('Register date'), $this->t('Last activity'), $this->t('Last public item'), $this->t('Permanent deletion')],
 			'$th_users'              => $th_users,
 			'$order_users'           => $order,
 			'$order_direction_users' => $order_direction,

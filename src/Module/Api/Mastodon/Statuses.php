@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -32,11 +32,13 @@ use Friendica\Module\BaseApi;
 use Friendica\Navigation\Notifications\Repository\Notification;
 use Friendica\Navigation\Notifications\Repository\Notify;
 use Friendica\Network\HTTPException;
+use Friendica\Post\UriGenerator;
 use Friendica\Protocol\Activity;
 use Friendica\Util\DateTimeFormat;
 use Friendica\Util\Images;
 use Friendica\Util\Profiler;
 use Psr\Log\LoggerInterface;
+use Friendica\Content\Post\Entity\PostMedia;
 
 /**
  * @see https://docs.joinmastodon.org/methods/statuses/
@@ -50,8 +52,22 @@ class Statuses extends BaseApi
 	/** @var ContentItem */
 	protected $item;
 
-	public function __construct(ContentItem $item, Notify $notify, Notification $notification, \Friendica\Factory\Api\Mastodon\Error $errorFactory, AppHelper $appHelper, L10n $l10n, BaseURL $baseUrl, Arguments $args, LoggerInterface $logger, Profiler $profiler, ApiResponse $response, array $server, array $parameters = [])
-	{
+	public function __construct(
+		ContentItem $item,
+		Notify $notify,
+		Notification $notification,
+		private readonly UriGenerator $postUriGenerator,
+		\Friendica\Factory\Api\Mastodon\Error $errorFactory,
+		AppHelper $appHelper,
+		L10n $l10n,
+		BaseURL $baseUrl,
+		Arguments $args,
+		LoggerInterface $logger,
+		Profiler $profiler,
+		ApiResponse $response,
+		array $server,
+		array $parameters = [],
+	) {
 		parent::__construct($errorFactory, $appHelper, $l10n, $baseUrl, $args, $logger, $profiler, $response, $server, $parameters);
 		$this->notification = $notification;
 		$this->notify       = $notify;
@@ -137,7 +153,7 @@ class Statuses extends BaseApi
 		We can't do anything about this, but the probability for this is extremely low.
 		*/
 		$media_ids      = [];
-		$existing_media = array_column(Post\Media::getByURIId($post['uri-id'], [Post\Media::AUDIO, Post\Media::VIDEO, Post\Media::IMAGE, Post\Media::HLS]), 'id');
+		$existing_media = array_column(Post\Media::getByURIId($post['uri-id'], [PostMedia::TYPE_AUDIO, PostMedia::TYPE_VIDEO, PostMedia::TYPE_IMAGE, PostMedia::TYPE_HLS]), 'id');
 
 		foreach ($request['media_attributes'] as $attributes) {
 			if (!empty($attributes['id']) && in_array($attributes['id'], $existing_media)) {
@@ -170,7 +186,7 @@ class Statuses extends BaseApi
 		}
 
 		// Link Preview Attachment Processing
-		Post\Media::deleteByURIId($post['uri-id'], [Post\Media::HTML]);
+		Post\Media::deleteByURIId($post['uri-id'], [PostMedia::TYPE_HTML]);
 
 		Item::update($item, ['id' => $post['id']]);
 
@@ -183,7 +199,7 @@ class Statuses extends BaseApi
 
 		Item::updateDisplayCache($post['uri-id']);
 
-		$this->jsonExit(DI::mstdnStatus()->createFromUriId($post['uri-id'], $uid));
+		$this->earlyJsonExit(DI::mstdnStatus()->createFromUriId($post['uri-id'], $uid));
 	}
 
 	protected function post(array $request = [])
@@ -343,27 +359,36 @@ class Statuses extends BaseApi
 			$item = $this->storeMediaIds($request['media_ids'], $item);
 		}
 
+		$scheduled_at = '';
 		if (!empty($request['scheduled_at'])) {
-			$scheduledAt = DateTimeFormat::utc($request['scheduled_at']);
-			if ($scheduledAt > DateTimeFormat::utcNow()) {
-				$item['guid'] = $this->item->guid($item, true);
-				$item['uri']  = Item::newURI($item['guid']);
-
-				$id = Post\Delayed::add($item['uri'], $item, Worker::PRIORITY_HIGH, Post\Delayed::PREPARED, $scheduledAt);
-				if (empty($id)) {
-					$this->logAndJsonError(500, $this->errorFactory->InternalError());
-				}
-				$this->jsonExit(DI::mstdnScheduledStatus()->createFromDelayedPostId($id, $uid)->toArray());
-			}
-
-			$item['created'] = $scheduledAt;
+			$scheduled_at = DateTimeFormat::utc($request['scheduled_at']);
+		} else {
+			$scheduled_at = DI::contentItem()->getAutomaticScheduledAt($uid);
 		}
 
-		$id = Item::insert($item, true);
+		if ($scheduled_at > DateTimeFormat::utcNow()) {
+			$item['guid'] = $this->item->guid($item, true);
+			$item['uri']  = $this->postUriGenerator->newURI($item['guid']);
+
+			$id = Post\Delayed::add($item['uri'], $item, Worker::PRIORITY_HIGH, Post\Delayed::PREPARED, $scheduled_at);
+			if (empty($id)) {
+				$this->logAndJsonError(500, $this->errorFactory->InternalError());
+			}
+
+			if (empty($request['scheduled_at'])) {
+				DI::contentItem()->setAutomaticScheduledAt($uid, $scheduled_at);
+			}
+
+			$this->earlyJsonExit(DI::mstdnScheduledStatus()->createFromDelayedPostId($id, $uid)->toArray());
+		} elseif (!empty($request['scheduled_at'])) {
+			$item['created'] = $scheduled_at;
+		}
+
+		$id = Item::insert($item, Worker::PRIORITY_HIGH);
 		if (!empty($id)) {
 			$item = Post::selectFirst(['uri-id'], ['id' => $id]);
 			if (!empty($item['uri-id'])) {
-				$this->jsonExit(DI::mstdnStatus()->createFromUriId($item['uri-id'], $uid));
+				$this->earlyJsonExit(DI::mstdnStatus()->createFromUriId($item['uri-id'], $uid));
 			}
 		}
 
@@ -388,7 +413,7 @@ class Statuses extends BaseApi
 			$this->logAndJsonError(404, $this->errorFactory->RecordNotFound());
 		}
 
-		$this->jsonExit([]);
+		$this->earlyJsonExit([]);
 	}
 
 	/**
@@ -415,7 +440,7 @@ class Statuses extends BaseApi
 			$this->item->setViewed($this->parameters['id'], $uid);
 		}
 
-		$this->jsonExit(DI::mstdnStatus()->createFromUriId($this->parameters['id'], $uid, false));
+		$this->earlyJsonExit(DI::mstdnStatus()->createFromUriId($this->parameters['id'], $uid, false));
 	}
 
 	private function getApp(): string
@@ -441,17 +466,17 @@ class Statuses extends BaseApi
 		$item['attachments'] = [];
 
 		foreach ($media_ids as $id) {
-			if (DI::mstdnAttachment()->isAttach($id) && Attach::exists(['id' => substr($id, 7)])) {
-				$attach     = Attach::selectFirst([], ['id' => substr($id, 7)]);
+			if (DI::mstdnAttachment()->isAttach($id) && Attach::exists(['id' => substr((string) $id, 7)])) {
+				$attach     = Attach::selectFirst([], ['id' => substr((string) $id, 7)]);
 				$attachment = [
 					'type'     => Post\Media::getType($attach['filetype']),
 					'mimetype' => $attach['filetype'],
-					'url'      => DI::baseUrl() . '/attach/' . substr($id, 7),
+					'url'      => DI::baseUrl() . '/attach/' . substr((string) $id, 7),
 					'size'     => $attach['filetype'],
 					'name'     => $attach['filename'],
 				];
 				$item['attachments'][] = $attachment;
-				Attach::setPermissionForId(substr($id, 7), $item['uid'], $item['allow_cid'], $item['allow_gid'], $item['deny_cid'], $item['deny_gid']);
+				Attach::setPermissionForId((int) substr((string) $id, 7), $item['uid'], $item['allow_cid'], $item['allow_gid'], $item['deny_cid'], $item['deny_gid']);
 				continue;
 			}
 
@@ -468,7 +493,7 @@ class Statuses extends BaseApi
 			$ext = Images::getExtensionByMimeType($media[0]['type']);
 
 			$attachment = [
-				'type'        => Post\Media::IMAGE,
+				'type'        => PostMedia::TYPE_IMAGE,
 				'mimetype'    => $media[0]['type'],
 				'url'         => DI::baseUrl() . '/photo/' . $media[0]['resource-id'] . '-' . $media[0]['scale'] . $ext,
 				'size'        => $media[0]['datasize'],

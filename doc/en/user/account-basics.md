@@ -34,10 +34,10 @@ This doesn't have to be your primary email address, but it does need to be a rea
 You can't get your initial password, or reset a lost password later without it.
 This is the only bit of personal information that has to be accurate.
 
-### Nickname
+### Username
 
-A nickname is used to generate web addresses for many of your personal pages, and is also treated like an email address when establishing communications with others.
-Due to the way that the nickname is used, it has some limitations.
+A username is used to generate web addresses (your handle) for many of your personal pages, and is also treated like an email address when establishing communications with others.
+Due to the way that the username is used, it has some limitations.
 It must contain only US-ASCII text characters and numbers, and must also start with a text character.
 It also must be unique on this system.
 This is used in many places to identify your account, and once set it cannot be changed.
@@ -59,11 +59,11 @@ Please check your email (including spam folders) for your registration details a
 ## Login Page
 
 On the 'Login' page, please enter your login information that was provided during registration.
-You may use either your nickname or email address as a Login Name.
+You may use either your username or email address to log in.
 
-If you use your account to manage other accounts and these all have the same email address, please enter the nickname for the account you wish to manage.
+If you use your account to manage other accounts and these all have the same email address, please enter the username for the account you wish to manage.
 
-If your account has been OpenID enabled, you may use your OpenID address as a login name and leave the password blank.
+If your account has been OpenID enabled, you may use your OpenID address to log in and leave the password blank.
 You will be redirected to your OpenID provider to complete your authorisation.
 
 Otherwise, enter your password.

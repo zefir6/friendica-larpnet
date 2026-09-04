@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -55,8 +55,7 @@ class Worker
 	private static $lock_duration     = 0;
 	private static $last_update;
 	private static $state;
-	/** @var Process */
-	private static $process;
+	private static Process $process;
 
 	/**
 	 * Processes the tasks that are in the workerqueue table
@@ -151,7 +150,7 @@ class Worker
 			// Quit the worker once every cron interval
 			if (time() > ($starttime + (DI::config()->get('system', 'cron_interval') * 60)) && !self::systemLimitReached()) {
 				DI::logger()->info('Process lifetime reached, respawning.');
-				self::unclaimProcess($process);
+				self::unclaimProcess(self::$process);
 				if (Worker\Daemon::isMode()) {
 					Worker\IPC::SetJobState(true);
 				} else {
@@ -294,7 +293,7 @@ class Worker
 
 		$file = realpath($file);
 
-		if (strpos($file, (string) getcwd()) !== 0) {
+		if (!str_starts_with($file, (string) getcwd())) {
 			return false;
 		}
 
@@ -307,7 +306,7 @@ class Worker
 			return false;
 		}
 
-		return (strpos($file, 'addon/') === 0);
+		return (str_starts_with($file, 'addon/'));
 	}
 
 	/**
@@ -340,7 +339,7 @@ class Worker
 			return false;
 		}
 
-		$argv = json_decode($queue['parameter'], true);
+		$argv = json_decode((string) $queue['parameter'], true);
 		if (!is_array($argv)) {
 			$argv = [];
 		}
@@ -360,7 +359,7 @@ class Worker
 		if (method_exists(sprintf('Friendica\Worker\%s', $include), 'execute')) {
 			// We constantly update the "executed" date every minute to avoid being killed too soon
 			if (!isset(self::$last_update)) {
-				self::$last_update = strtotime($queue['executed']);
+				self::$last_update = strtotime((string) $queue['executed']);
 			}
 
 			$age               = (time() - self::$last_update) / 60;
@@ -399,12 +398,12 @@ class Worker
 
 		require_once $include;
 
-		$funcname = str_replace('.php', '', basename($argv[0])) . '_run';
+		$funcname = str_replace('.php', '', basename((string) $argv[0])) . '_run';
 
 		if (function_exists($funcname)) {
 			// We constantly update the "executed" date every minute to avoid being killed too soon
 			if (!isset(self::$last_update)) {
-				self::$last_update = strtotime($queue['executed']);
+				self::$last_update = strtotime((string) $queue['executed']);
 			}
 
 			$age               = (time() - self::$last_update) / 60;
@@ -569,7 +568,7 @@ class Worker
 			try {
 				call_user_func_array(sprintf('Friendica\Worker\%s::execute', $funcname), $argv);
 			} catch (\Throwable $e) {
-				DI::logger()->error('Uncaught exception in worker method execution', ['class' => get_class($e), 'message' => $e->getMessage(), 'code' => $e->getCode(), 'file' => $e->getFile() . ':' . $e->getLine(), 'trace' => $e->getTraceAsString(), 'previous' => $e->getPrevious()]);
+				DI::logger()->error('Uncaught exception in worker method execution', ['class' => $e::class, 'message' => $e->getMessage(), 'code' => $e->getCode(), 'file' => $e->getFile() . ':' . $e->getLine(), 'trace' => $e->getTraceAsString(), 'previous' => $e->getPrevious()]);
 				Worker::defer();
 			}
 		} else {
@@ -653,8 +652,8 @@ class Worker
 			self::$db_duration += (microtime(true) - $stamp);
 			while ($grants = DBA::fetch($r)) {
 				$grant = array_pop($grants);
-				if (stristr($grant, "GRANT USAGE ON")) {
-					if (preg_match("/WITH MAX_USER_CONNECTIONS (\d*)/", $grant, $match)) {
+				if (stristr((string) $grant, "GRANT USAGE ON")) {
+					if (preg_match("/WITH MAX_USER_CONNECTIONS (\d*)/", (string) $grant, $match)) {
 						$max = $match[1];
 					}
 				}
@@ -750,7 +749,7 @@ class Worker
 			$processlist = '';
 
 			if (DI::config()->get('system', 'worker_jpm')) {
-				$intervals       = explode(',', DI::config()->get('system', 'worker_jpm_range'));
+				$intervals       = explode(',', (string) DI::config()->get('system', 'worker_jpm_range'));
 				$jobs_per_minute = [];
 				foreach ($intervals as $interval) {
 					if ($interval == 0) {
@@ -941,7 +940,7 @@ class Worker
 			if (!empty($task['command'])) {
 				$command = $task['command'];
 			} else {
-				$command = json_decode($task['parameter'])[0];
+				$command = json_decode((string) $task['parameter'])[0];
 			}
 
 			if (!in_array($command, self::FAST_COMMANDS)) {
@@ -1067,7 +1066,7 @@ class Worker
 				if (!empty($task['command'])) {
 					$command = $task['command'];
 				} else {
-					$command = json_decode($task['parameter'])[0];
+					$command = json_decode((string) $task['parameter'])[0];
 				}
 				if (!in_array($command, self::FAST_COMMANDS)) {
 					break;
@@ -1230,23 +1229,27 @@ class Worker
 	/**
 	 * Adds tasks to the worker queue
 	 *
-	 * @param integer|array $args priority or parameter array, strings are deprecated and are ignored
+	 * @param int|array $run_parameter priority number or task parameter array
+	 * @param string    $command       command to execute
+	 * @param mixed     ...$args       command parameters (JSON-encodable)
 	 *
-	 * next args are passed as $cmd command line
 	 * or: Worker::add(Worker::PRIORITY_HIGH, 'Notifier', Delivery::DELETION, $drop_id);
 	 * or: Worker::add(array('priority' => Worker::PRIORITY_HIGH, 'dont_fork' => true), 'Delivery', $post_id);
 	 *
 	 * @return int '0' if worker queue entry already existed or there had been an error, otherwise the ID of the worker task
 	 * @throws \Friendica\Network\HTTPException\InternalServerErrorException
-	 * @note $cmd and string args are surrounded with ''
 	 */
-	public static function add(...$args)
+	public static function add($run_parameter = self::PRIORITY_MEDIUM, $command = '', ...$args): int
 	{
-		if (!count($args)) {
+		if (func_num_args() === 0) {
 			return 0;
 		}
 
-		$arr = ['args' => $args, 'run_cmd' => true];
+		if (!is_string($command)) {
+			@trigger_error('`' . __METHOD__ . '()`: Passing ' . get_debug_type($command) . ' as $command is deprecated since 2026.08, it will be enforced as `string` in a future release.', E_USER_DEPRECATED);
+		}
+
+		$arr = ['args' => [$run_parameter, $command, ...$args], 'run_cmd' => true];
 
 		$eventDispatcher = DI::eventDispatcher();
 
@@ -1254,7 +1257,7 @@ class Worker
 			new ArrayFilterEvent(ArrayFilterEvent::ADD_WORKER_TASK, $arr),
 		)->getArray();
 
-		if (!$arr['run_cmd'] || !count($args)) {
+		if (!$arr['run_cmd']) {
 			return 1;
 		}
 
@@ -1264,8 +1267,6 @@ class Worker
 		$created        = DateTimeFormat::utcNow();
 		$delayed        = DBA::NULL_DATETIME;
 		$force_priority = false;
-
-		$run_parameter = array_shift($args);
 
 		if (is_int($run_parameter)) {
 			$priority = $run_parameter;
@@ -1286,10 +1287,10 @@ class Worker
 				$force_priority = $run_parameter['force_priority'];
 			}
 		} else {
+			@trigger_error('`' . __METHOD__ . '()`: Passing ' . get_debug_type($run_parameter) . ' as $run_parameter is deprecated since 2026.08, it will be enforced as `int|array` in a future release.', E_USER_DEPRECATED);
 			throw new \InvalidArgumentException('Priority number or task parameter array expected as first argument');
 		}
 
-		$command    = array_shift($args);
 		$parameters = json_encode($args);
 		$queue      = DBA::selectFirst('workerqueue', ['id', 'priority'], ['command' => $command, 'parameter' => $parameters, 'done' => false]);
 		$added      = 0;
@@ -1368,7 +1369,7 @@ class Worker
 	 */
 	private static function getNextRetrial(array $queue, int $max_level): int
 	{
-		$created      = strtotime($queue['created']);
+		$created      = strtotime((string) $queue['created']);
 		$retrial_time = time() - $created;
 
 		$new_retrial = $queue['retrial'] + 1;
@@ -1404,8 +1405,21 @@ class Worker
 	 */
 	public static function defer(int $worker_defer_limit = 0): bool
 	{
-		$queue = DI::appHelper()->getQueue();
+		return self::deferQueueEntry(DI::appHelper()->getQueue(), $worker_defer_limit);
+	}
 
+	/**
+	 * Defers the given worker entry
+	 *
+	 * Unlike self::defer() this works on any entry, not only on the one of the current process.
+	 *
+	 * @param array $queue Worker queue entry, needs at least id, priority, created and retrial
+	 * @param int $worker_defer_limit Maximum defer limit
+	 * @return boolean had the entry been deferred?
+	 * @throws \Exception
+	 */
+	public static function deferQueueEntry(array $queue, int $worker_defer_limit = 0): bool
+	{
 		if (empty($queue)) {
 			return false;
 		}
@@ -1458,8 +1472,8 @@ class Worker
 	public static function isInMaintenanceWindow(bool $check_last_execution = false): bool
 	{
 		// Calculate the seconds of the start and end of the maintenance window
-		$start = strtotime(DI::config()->get('system', 'maintenance_start')) % 86400;
-		$end   = strtotime(DI::config()->get('system', 'maintenance_end')) % 86400;
+		$start = strtotime((string) DI::config()->get('system', 'maintenance_start')) % 86400;
+		$end   = strtotime((string) DI::config()->get('system', 'maintenance_end')) % 86400;
 
 		DI::logger()->info('Maintenance window', ['start' => date('H:i:s', $start), 'end' => date('H:i:s', $end)]);
 

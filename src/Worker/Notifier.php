@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -10,6 +10,7 @@ namespace Friendica\Worker;
 use Exception;
 use Friendica\Core\Hook;
 use Friendica\Core\Protocol;
+use Friendica\Event\ArrayFilterEvent;
 use Friendica\Core\Worker;
 use Friendica\Database\DBA;
 use Friendica\DI;
@@ -262,10 +263,10 @@ class Notifier
 				}
 
 				if (
-					strlen($parent['allow_cid'])
-					|| strlen($parent['allow_gid'])
-					|| strlen($parent['deny_cid'])
-					|| strlen($parent['deny_gid'])
+					strlen((string) $parent['allow_cid'])
+					|| strlen((string) $parent['allow_gid'])
+					|| strlen((string) $parent['deny_cid'])
+					|| strlen((string) $parent['deny_gid'])
 				) {
 					$public_message = false; // private recipients, not public
 				}
@@ -281,9 +282,9 @@ class Notifier
 					$recipients[] = $item['contact-id'];
 					// pull out additional tagged people to notify (if public message)
 					if ($public_message && $item['inform']) {
-						$people = explode(',', $item['inform']);
+						$people = explode(',', (string) $item['inform']);
 						foreach ($people as $person) {
-							if (substr($person, 0, 4) === 'cid:') {
+							if (str_starts_with($person, 'cid:')) {
 								$recipients[] = intval(substr($person, 4));
 							}
 						}
@@ -394,7 +395,7 @@ class Notifier
 
 			Hook::fork($appHelper->getQueueValue('priority'), 'notifier_normal', $target_item);
 
-			Hook::callAll('notifier_end', $target_item);
+			DI::eventDispatcher()->dispatch(new ArrayFilterEvent(ArrayFilterEvent::NOTIFIER_END, $target_item));
 
 			// Workaround for pure connector posts
 			if ($cmd == Delivery::POST) {
@@ -718,7 +719,7 @@ class Notifier
 		if ($target_item['origin']) {
 			$inboxes = ActivityPub\Transmitter::fetchTargetInboxes($target_item, $uid);
 
-			if (in_array($target_item['private'], [Item::PUBLIC])) {
+			if (in_array($target_item['private'], [Item::PUBLIC]) && in_array($target_item['gravity'], [Item::GRAVITY_PARENT, Item::GRAVITY_COMMENT]) && !DI::pConfig()->get($uid, 'system', 'prevent-relay', false)) {
 				$inboxes       = ActivityPub\Transmitter::addRelayServerInboxesForItem($target_item['id'], $inboxes);
 				$relay_inboxes = ActivityPub\Transmitter::addRelayServerInboxes();
 			}
@@ -731,7 +732,7 @@ class Notifier
 		} elseif ($parent['origin'] && ($target_item['private'] != Item::PRIVATE) && (($target_item['gravity'] != Item::GRAVITY_ACTIVITY) || DI::config()->get('system', 'redistribute_activities'))) {
 			$inboxes = ActivityPub\Transmitter::fetchTargetInboxes($parent, $uid);
 
-			if (in_array($target_item['private'], [Item::PUBLIC])) {
+			if (in_array($target_item['private'], [Item::PUBLIC]) && in_array($target_item['gravity'], [Item::GRAVITY_PARENT, Item::GRAVITY_COMMENT]) && !DI::pConfig()->get($uid, 'system', 'prevent-relay', false)) {
 				$inboxes = ActivityPub\Transmitter::addRelayServerInboxesForItem($parent['id'], $inboxes);
 			}
 

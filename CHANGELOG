@@ -1,3 +1,15 @@
+Version 2026-08 (unrelease)
+  Friendica Core
+    This release of Friendica will require PHP 8.2 or higher
+
+  Friendica Addons
+
+  Closed Issues
+
+Version 2026.05-1 (2026-05-21)
+  Friendica Core
+    Fixed the releaser* steps in the CI to generate archives [tobiasd]
+
 Version 2026.05 (2026-05-20)
   Friendica Core
     Updated the documentation [Alkarex]

@@ -1,4 +1,31 @@
-FROM friendica:2026.05-fpm
+FROM friendica:2026.08-rc-fpm AS base
+
+# friendica:2026.08-rc-fpm ships from Docker Hub without any Friendica
+# sources under /usr/src/friendica (only /usr/src/friendica/config/ exists -
+# an upstream publishing bug affecting the whole 2026.08 pre-release wave,
+# both -rc and -dev tags, both architectures; the PHP runtime/extensions in
+# the image itself are fine). We build /usr/src/friendica ourselves from
+# this repo instead of depending on upstream's image contents.
+#
+# NOTE: the friendica-addons branch below must be bumped in lockstep with
+# the FROM tag's version above - it isn't derived automatically because
+# build.sh/.github/workflows/build.yml parse the literal "FROM friendica:"
+# line to derive the release tag.
+FROM base AS builder
+ENV COMPOSER_ALLOW_SUPERUSER=1
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git unzip \
+ && rm -rf /var/lib/apt/lists/*
+COPY . /usr/src/friendica/
+# Upstream keeps community addons in a separate repo; the official image
+# normally supplies them, so pull the branch matching our core version and
+# merge it in (our own larpnet_* addons, already copied above, are untouched).
+RUN git clone --depth 1 --branch 2026.08-rc https://github.com/friendica/friendica-addons.git /tmp/friendica-addons \
+ && cp -r /tmp/friendica-addons/. /usr/src/friendica/addon/ \
+ && rm -rf /tmp/friendica-addons
+RUN cd /usr/src/friendica && php bin/composer.phar install --no-dev --optimize-autoloader
+
+FROM base
 
 # Wrapper entrypoint: copies larpnet-patched files on every start,
 # since the Friendica entrypoint only rsyncs on version upgrades.
@@ -6,6 +33,8 @@ COPY larpnet-entrypoint.sh /larpnet-entrypoint.sh
 RUN chmod +x /larpnet-entrypoint.sh
 ENTRYPOINT ["/larpnet-entrypoint.sh"]
 CMD ["php-fpm"]
+
+COPY --from=builder /usr/src/friendica /usr/src/friendica
 
 # Custom theme
 COPY view/theme/larpnet /usr/src/friendica/view/theme/larpnet
@@ -28,7 +57,7 @@ COPY src/Model/LarpnetPush.php                    /usr/src/friendica/src/Model/L
 COPY src/Model/Mail.php                           /usr/src/friendica/src/Model/Mail.php
 COPY src/Model/Subscription.php                   /usr/src/friendica/src/Model/Subscription.php
 COPY src/Model/Item.php                           /usr/src/friendica/src/Model/Item.php
-COPY src/Object/Post.php                          /usr/src/friendica/src/Object/Post.php
+COPY src/Content/Conversation/PostTemplateBuilder.php /usr/src/friendica/src/Content/Conversation/PostTemplateBuilder.php
 COPY src/Module/Item/Compose.php                  /usr/src/friendica/src/Module/Item/Compose.php
 COPY src/Module/Item/Display.php                  /usr/src/friendica/src/Module/Item/Display.php
 COPY src/Module/Post/Share.php                    /usr/src/friendica/src/Module/Post/Share.php

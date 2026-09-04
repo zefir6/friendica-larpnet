@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -16,26 +16,14 @@ class ListsTest extends ApiTestCase
 	/**
 	 * Test the api_statuses_f() function.
 	 */
-	public function testApiStatusesFWithFollowers()
+	public function testApiStatusesFWithFollowers(): void
 	{
+		// @phpstan-ignore method.deprecated
 		$response = (new Lists(DI::mstdnError(), DI::appHelper(), DI::l10n(), DI::baseUrl(), DI::args(), DI::logger(), DI::profiler(), DI::apiResponse(), []))
 			->run($this->httpExceptionMock);
 
 		$json = $this->toJson($response);
 
 		self::assertIsArray($json->users);
-	}
-
-	/**
-	 * Test the api_statuses_followers() function an undefined cursor GET variable.
-	 *
-	 * @return void
-	 */
-	public function testApiStatusesFollowersWithUndefinedCursor()
-	{
-		self::markTestIncomplete('Needs refactoring of Lists - replace filter_input() with $request parameter checks');
-
-		// $_GET['cursor'] = 'undefined';
-		// self::assertFalse(api_statuses_followers('json'));
 	}
 }

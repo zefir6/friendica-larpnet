@@ -186,15 +186,15 @@ This will be done in 3 steps to give addon maintainers a chance to adjust their 
 **1. Label deprecation**
 
 If we as the Friendica maintainers decide to remove some functions, classes, interface, etc. we start this by adding a `@deprecated` PHPDoc note on the code.
-For instance the class `Friendica\Core\Logger` should be removed, so we add the following note with a possible replacement:
+For instance the class `Friendica\Module\Example` should be removed, so we add the following note with a possible replacement:
 
 ```php
 /**
- * Logger functions
+ * Example functions
  *
- * @deprecated 2025.02 Use constructor injection or `DI::logger()` instead
+ * @deprecated 2026.01 Use `NewExampleClass` instead
  */
-class Logger {/* ... */}
+class Example {/* ... */}
 ```
 
 This way addon developers might be notified early by their IDE or other tools that the usage of the class is deprecated.
@@ -212,20 +212,20 @@ Hard deprecated code COULD remain longer than 5 months, depending on when a rele
 Addon developer SHOULD NOT consider that they have more than 5 months to adjust their code.
 
 Hard deprecation code means that the code triggers a muted `E_USER_DEPRECATION` error if it is called.
-For instance with the deprecated class `Friendica\Core\Logger` the call of every method should trigger an error:
+For instance with the deprecated class `Friendica\Module\Example` the call of every method should trigger an error:
 
 ```php
 /**
- * Logger functions
+ * Example functions
  *
- * @deprecated 2025.02 Use constructor injection or `DI::logger()` instead
+ * @deprecated 2026.01 Use `NewExampleClass` instead
  */
-class Logger {
-	public static function info(string $message, array $context = [])
+class Example {
+	public static function doSomething(): void
 	{
-		@trigger_error('Class `' . __CLASS__ . '` is deprecated since 2025.05 and will be removed after 5 months, use constructor injection or `DI::logger()` instead.', E_USER_DEPRECATED);
+		@trigger_error('Class `' . __CLASS__ . '` is deprecated since 2026.01 and will be removed after 5 months, use `NewExampleClass` instead.', E_USER_DEPRECATED);
 
-		self::getInstance()->info($message, $context);
+		self::getInstance()->doSomething();
 	}
 
 	/* ... */

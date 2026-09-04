@@ -1,7 +1,7 @@
 <?php
 
-/* Copyright (C) 2010-2024, the Friendica project
- * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+/* Copyright (C) 2010-2026, the Friendica project
+ * SPDX-FileCopyrightText: 2010-2026 the Friendica project
  *
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
@@ -22,6 +22,7 @@ $profileRoutes = [
 	''                                                => [Module\Profile\Index::class,         [R::GET]],
 	'/contacts/common'                                => [Module\Profile\Common::class,        [R::GET]],
 	'/contacts[/{type}]'                              => [Module\Profile\Contacts::class,      [R::GET]],
+	'/circles/{circle_id:\d+}/download'               => [Module\Profile\CircleExport::class,  [R::GET]],
 	'/media'                                          => [Module\Profile\Media::class,         [R::GET]],
 	'/photos'                                         => [Module\Profile\Photos::class,        [R::GET, R::POST]],
 	'/profile'                                        => [Module\Profile\Profile::class,       [R::GET]],
@@ -83,8 +84,7 @@ $apiRoutes = [
 		'/circle_delete[.{extension:json|xml|rss|atom}]'           => [Module\Api\Friendica\Circle\Delete::class,          [        R::POST]],
 		'/circle_update[.{extension:json|xml|rss|atom}]'           => [Module\Api\Friendica\Circle\Update::class,          [        R::POST]],
 
-		// Backward compatibility
-		// @deprecated
+		// @deprecated Keep for Backward compatibility
 		'/group_show[.{extension:json|xml|rss|atom}]'   => [Module\Api\Friendica\Circle\Show::class,            [R::GET         ]],
 		'/group_create[.{extension:json|xml|rss|atom}]' => [Module\Api\Friendica\Circle\Create::class,          [        R::POST]],
 		'/group_delete[.{extension:json|xml|rss|atom}]' => [Module\Api\Friendica\Circle\Delete::class,          [        R::POST]],
@@ -212,9 +212,9 @@ return [
 			'/admin/trends/links'                      => [Module\Api\Mastodon\Unimplemented::class,            [R::GET         ]], // not supported
 			'/admin/trends/statuses'                   => [Module\Api\Mastodon\Unimplemented::class,            [R::GET         ]], // not supported
 			'/admin/trends/tags'                       => [Module\Api\Mastodon\Unimplemented::class,            [R::GET         ]], // not supported
-			'/admin/reports'                           => [Module\Api\Mastodon\Unimplemented::class,            [R::GET         ]], // not supported
-			'/admin/reports/{id:\d+}'                  => [Module\Api\Mastodon\Unimplemented::class,            [R::GET         ]], // not supported
-			'/admin/reports/{id:\d+}/{action}'         => [Module\Api\Mastodon\Unimplemented::class,            [        R::POST]], // not supported
+			'/admin/reports'                           => [Module\Api\Mastodon\Admin\Reports::class,           [R::GET         ]],
+			'/admin/reports/{id:\d+}'                  => [Module\Api\Mastodon\Admin\Reports::class,           [R::GET, R::PUT ]],
+			'/admin/reports/{id:\d+}/{action}'         => [Module\Api\Mastodon\Admin\Reports::class,           [        R::POST]],
 			'/announcements'                           => [Module\Api\Mastodon\Announcements::class,            [R::GET         ]], // Dummy, not supported
 			'/announcements/{id:\d+}/dismiss'          => [Module\Api\Mastodon\Unimplemented::class,            [        R::POST]], // not supported
 			'/announcements/{id:\d+}/reactions/{name}' => [Module\Api\Mastodon\Unimplemented::class,      [R::PUT, R::DELETE]], // not supported
@@ -336,6 +336,8 @@ return [
 		'/logs'      => [Module\Admin\Logs\Settings::class, [R::GET, R::POST]],
 
 		'/phpinfo' => [Module\Admin\PhpInfo::class, [R::GET]],
+
+		'/roles' => [Module\Admin\Roles::class, [R::GET, R::POST]],
 
 		'/queue[/{status}]' => [Module\Admin\Queue::class, [R::GET]],
 
@@ -468,6 +470,7 @@ return [
 
 	'/item/{id:\d+}' => [
 		'/activity/{verb}' => [Module\Item\Activity::class,    [        R::POST]],
+		'/comments'        => [Module\Item\Comments::class,    [R::GET         ]],
 		'/follow'          => [Module\Item\Follow::class,      [        R::POST]],
 		'/complete'        => [Module\Item\Complete::class,    [        R::POST]],
 		'/ignore'          => [Module\Item\Ignore::class,      [        R::POST]],
@@ -657,9 +660,9 @@ return [
 	'/stats/caching' => [Module\StatsCaching::class, [R::GET]],
 
 	'/network' => [
-		'[/{content}]'                                                  => [Module\Conversation\Network::class, [R::GET]],
-		'/archive/{from:\d\d\d\d-\d\d-\d\d}[/{to:\d\d\d\d\-\d\d-\d\d}]' => [Module\Conversation\Network::class, [R::GET]],
-		'/circle/{circle_id:\d+}'                                       => [Module\Conversation\Network::class, [R::GET]],
+		'[/{content}]'                                                     => [Module\Conversation\Network::class, [R::GET]],
+		'/archive/{from:\d\d\d\d\-\d\d\-\d\d}[/{to:\d\d\d\d\-\d\d\-\d\d}]' => [Module\Conversation\Network::class, [R::GET]],
+		'/circle/{circle_id:\d+}'                                          => [Module\Conversation\Network::class, [R::GET]],
 	],
 
 	'/randprof'        => [Module\RandomProfile::class,         [R::GET]],
@@ -672,10 +675,10 @@ return [
 	'/tos'             => [Module\Tos::class,                   [R::GET]],
 
 	'/ping_network' => [
-		'[/]'                                                           => [Module\Ping\Network::class, [R::GET]],
-		'/archive/{from:\d\d\d\d-\d\d-\d\d}[/{to:\d\d\d\d\-\d\d-\d\d}]' => [Module\Ping\Network::class, [R::GET]],
-		'/group/{contact_id:\d+}'                                       => [Module\Ping\Network::class, [R::GET]],
-		'/circle/{circle_id:\d+}'                                       => [Module\Ping\Network::class, [R::GET]],
+		'[/]'                                                              => [Module\Ping\Network::class, [R::GET]],
+		'/archive/{from:\d\d\d\d\-\d\d\-\d\d}[/{to:\d\d\d\d\-\d\d\-\d\d}]' => [Module\Ping\Network::class, [R::GET]],
+		'/group/{contact_id:\d+}'                                          => [Module\Ping\Network::class, [R::GET]],
+		'/circle/{circle_id:\d+}'                                          => [Module\Ping\Network::class, [R::GET]],
 	],
 
 	'/update_channel[/{content}]'   => [Module\Update\Channel::class,        [R::GET]],
@@ -686,10 +689,10 @@ return [
 	'/update_display' => [Module\Update\Display::class, [R::GET]],
 
 	'/update_network' => [
-		'[/]'                                                           => [Module\Update\Network::class, [R::GET]],
-		'/archive/{from:\d\d\d\d-\d\d-\d\d}[/{to:\d\d\d\d\-\d\d-\d\d}]' => [Module\Update\Network::class, [R::GET]],
-		'/group/{contact_id:\d+}'                                       => [Module\Update\Network::class, [R::GET]],
-		'/circle/{circle_id:\d+}'                                       => [Module\Update\Network::class, [R::GET]],
+		'[/]'                                                              => [Module\Update\Network::class, [R::GET]],
+		'/archive/{from:\d\d\d\d\-\d\d\-\d\d}[/{to:\d\d\d\d\-\d\d\-\d\d}]' => [Module\Update\Network::class, [R::GET]],
+		'/group/{contact_id:\d+}'                                          => [Module\Update\Network::class, [R::GET]],
+		'/circle/{circle_id:\d+}'                                          => [Module\Update\Network::class, [R::GET]],
 	],
 
 	'/update_notes'   => [Module\Update\Notes::class,          [R::GET]],

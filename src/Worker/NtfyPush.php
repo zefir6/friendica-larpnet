@@ -27,7 +27,7 @@ class NtfyPush
 
 		try {
 			$notification = DI::notification()->selectOneById($nid);
-		} catch (NotFoundException $e) {
+		} catch (NotFoundException) {
 			DI::logger()->info('NtfyPush: notification not found', ['nid' => $nid]);
 			return;
 		}
@@ -60,7 +60,7 @@ class NtfyPush
 			$title ?: DI::l10n()->t('Notification'),
 			$body ?: $title,
 			(string) DI::baseUrl() . '/notification',
-			$actor['thumb'] ?? null
+			$actor['thumb'] ?? null,
 		);
 	}
 }

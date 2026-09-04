@@ -28,7 +28,7 @@ Due to the large variety of operating systems and PHP platforms in existence we 
 ### Requirements
 
 * Apache with `mod_rewrite` enabled and "[AllowOverride All](https://httpd.apache.org/docs/2.4/mod/core.html#allowoverride)" so you can use a local `.htaccess` file
-* PHP 7.4+
+* PHP 8.2 to PHP 8.5
   * PHP *command line* access with register_argc_argv set to true in the php.ini file
   * Curl, GD, GMP, PDO, mbstring, MySQLi, xml, zip, Intl, IDN and OpenSSL extensions
   * The POSIX module of PHP needs to be activated (e.g. [RHEL, CentOS](http://www.bigsoft.co.uk/blog/index.php/2014/12/08/posix-php-commands-not-working-under-centos-7) have disabled it)
@@ -379,6 +379,32 @@ It is likely that your web server reported the source of the problem in its erro
 Please review these system error logs to determine what caused the problem.
 Often this will need to be resolved with your hosting provider or (if self-hosted) your web server configuration.
 
+### Empty navigation bar, "blocked due to a disallowed MIME type" in the browser console
+
+Friendica loads some of its JavaScript as ES modules, one of them from a `.mjs` file.
+Browsers reject a module that is not served with a JavaScript MIME type.
+nginx and older Apache versions have no `.mjs` entry in their MIME type table.
+
+For nginx, add this to your Friendica server block:
+
+```nginx
+  # The include has to stay, a bare types block would replace the whole table.
+  include mime.types;
+
+  types {
+    text/javascript mjs;
+  }
+```
+
+For Apache, add this to your `.htaccess`:
+
+```apache
+AddType text/javascript .mjs
+```
+
+Both ship with `.htaccess-dist` and `mods/sample-nginx.config` since Friendica 2026.08.
+An existing configuration is never updated automatically.
+
 ### 400 and 4xx "File not found" errors
 
 First check your file permissions.
@@ -432,57 +458,6 @@ Retry the installation. As soon as the database has been created,
 ```sh
 chmod 644 config/local.config.php
 ```
-
-### Suhosin issues
-
-Some configurations with "suhosin" security are configured without an ability to
-run external processes. Friendica requires this ability. Following are some notes
-provided by one of our members.
-
-> On my server I use the php protection system Suhosin [http://www.hardened-php.net/suhosin/].
-> One of the things it does is to block certain functions like proc_open, as
-> configured in `/etc/php5/conf.d/suhosin.ini`:
->
->     suhosin.executor.func.blacklist = proc_open, ...
->
-> For those sites like Friendica that really need these functions they can be
-> enabled, e.g. in `/etc/apache2/sites-available/friendica`:
->
-> 	<Directory /var/www/friendica/>
-> 	  php_admin_value suhosin.executor.func.blacklist none
-> 	  php_admin_value suhosin.executor.eval.blacklist none
-> 	</Directory>
->
-> This enables every function for Friendica if accessed via browser, but not for
-> the cronjob that is called via php command line. I attempted to enable it for
-> cron by using something like:
->
-> 	*/10 * * * * cd /var/www/friendica/friendica/ && sudo -u www-data /usr/bin/php \
->       -d suhosin.executor.func.blacklist=none \
->       -d suhosin.executor.eval.blacklist=none -f bin/console.php
->
-> This worked well for simple test cases, but the friendica-cron still failed
-> with a fatal error:
->
-> 	suhosin[22962]: ALERT - function within blacklist called: proc_open()
->     (attacker 'REMOTE_ADDR not set', file '/var/www/friendica/friendica/boot.php',
->     line 1341)
->
-> After a while I noticed, that `bin/console.php worker` calls further PHP scripts via `proc_open`.
-> These scripts themselves also use `proc_open` and fail, because they are NOT
-> called with `-d suhosin.executor.func.blacklist=none`.
->
->  So the simple solution is to put the correct parameters into `config/local.config.php`:
->
-> 	'config' => [
-> 		//Location of PHP command line processor
-> 		'php_path' => '/usr/bin/php -d suhosin.executor.func.blacklist=none \
->               -d suhosin.executor.eval.blacklist=none',
-> 	],
->
-> This is obvious as soon as you notice that the friendica-cron uses `proc_open`
-> to execute PHP scripts that also use `proc_open`, but it took me quite some time to find that out.
-> I hope this saves some time for other people using suhosin with function blocklists.
 
 ### Unable to create all mysql tables on MySQL 5.7.17 or newer
 

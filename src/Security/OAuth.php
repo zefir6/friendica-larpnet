@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -77,11 +77,11 @@ class OAuth
 			$authorization = $_SERVER['REDIRECT_REMOTE_USER'] ?? '';
 		}
 
-		if (substr($authorization, 0, 7) != 'Bearer ') {
+		if (!str_starts_with((string) $authorization, 'Bearer ')) {
 			return [];
 		}
 
-		$condition = ['access_token' => trim(substr($authorization, 7))];
+		$condition = ['access_token' => trim(substr((string) $authorization, 7))];
 
 		$token = DBA::selectFirst('application-view', ['uid', 'id', 'name', 'website', 'created_at', 'read', 'write', 'follow', 'push'], $condition);
 		if (!DBA::isResult($token)) {

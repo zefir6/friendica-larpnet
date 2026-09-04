@@ -1,8 +1,8 @@
 <?php
 
 /**
- * Copyright (C) 2010-2024, the Friendica project
- * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+ * Copyright (C) 2010-2026, the Friendica project
+ * SPDX-FileCopyrightText: 2010-2026 the Friendica project
  *
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
@@ -26,44 +26,23 @@ use Friendica\Util\DateTimeFormat;
 use Friendica\Util\Strings;
 use Psr\Log\LoggerInterface;
 use stdClass;
+use Friendica\Content\Post\Entity\PostMedia;
 
 /**
  * Class to process AT protocol messages
  */
 class Processor
 {
-	/** @var Database */
-	private $db;
-
-	/** @var LoggerInterface */
-	private $logger;
-
-	/** @var BaseURL */
-	private $baseURL;
-
-	/** @var ATProtocol */
-	private $atprotocol;
-
-	/** @var Actor */
-	private $actor;
-
 	/**
 	 * Processor constructor.
 	 *
-	 * @param Database $database
+	 * @param Database $db
 	 * @param LoggerInterface $logger
 	 * @param BaseURL $baseURL
 	 * @param ATProtocol $atprotocol
 	 * @param Actor $actor
 	 */
-	public function __construct(Database $database, LoggerInterface $logger, BaseURL $baseURL, ATProtocol $atprotocol, Actor $actor)
-	{
-		$this->db         = $database;
-		$this->logger     = $logger;
-		$this->baseURL    = $baseURL;
-		$this->atprotocol = $atprotocol;
-		$this->actor      = $actor;
-	}
+	public function __construct(private readonly Database $db, private readonly LoggerInterface $logger, private readonly BaseURL $baseURL, private readonly ATProtocol $atprotocol, private readonly Actor $actor) {}
 
 	/**
 	 * Process account events and update contact archive state.
@@ -633,9 +612,9 @@ class Processor
 		krsort($facets);
 
 		foreach ($facets as $facet) {
-			$prefix   = substr($text, 0, $facet->index->byteStart);
-			$linktext = substr($text, $facet->index->byteStart, $facet->index->byteEnd - $facet->index->byteStart);
-			$suffix   = substr($text, $facet->index->byteEnd);
+			$prefix   = substr((string) $text, 0, $facet->index->byteStart);
+			$linktext = substr((string) $text, $facet->index->byteStart, $facet->index->byteEnd - $facet->index->byteStart);
+			$suffix   = substr((string) $text, $facet->index->byteEnd);
 
 			$url  = '';
 			$type = '$type';
@@ -648,7 +627,7 @@ class Processor
 
 					case 'app.bsky.richtext.facet#mention':
 						$url = $feature->did;
-						if (substr($linktext, 0, 1) == '@') {
+						if (str_starts_with($linktext, '@')) {
 							$prefix .= '@';
 							$linktext = substr($linktext, 1);
 						}
@@ -656,7 +635,7 @@ class Processor
 
 					case 'app.bsky.richtext.facet#tag':
 						Tag::store($uri_id, Tag::HASHTAG, $feature->tag);
-						$url      = $this->baseURL . '/search?tag=' . urlencode($feature->tag);
+						$url      = $this->baseURL . '/search?tag=' . urlencode((string) $feature->tag);
 						$linktext = '#' . $feature->tag;
 						break;
 
@@ -689,7 +668,7 @@ class Processor
 				foreach ($embed->images as $image) {
 					$media = [
 						'uri-id'      => $item['uri-id'],
-						'type'        => Post\Media::IMAGE,
+						'type'        => PostMedia::TYPE_IMAGE,
 						'url'         => $image->fullsize,
 						'preview'     => $image->thumb,
 						'description' => $image->alt,
@@ -703,7 +682,7 @@ class Processor
 			case 'app.bsky.embed.video#view':
 				$media = [
 					'uri-id'      => $item['uri-id'],
-					'type'        => Post\Media::HLS,
+					'type'        => PostMedia::TYPE_HLS,
 					'url'         => $embed->playlist,
 					'preview'     => $embed->thumbnail,
 					'description' => $embed->alt                 ?? '',
@@ -716,7 +695,7 @@ class Processor
 			case 'app.bsky.embed.external#view':
 				$media = [
 					'uri-id'      => $item['uri-id'],
-					'type'        => Post\Media::HTML,
+					'type'        => PostMedia::TYPE_HTML,
 					'url'         => $embed->external->uri,
 					'preview'     => $embed->external->thumb ?? null,
 					'name'        => $embed->external->title,
@@ -784,13 +763,13 @@ class Processor
 	private function addStarterpack(array $item, stdClass $record)
 	{
 		$this->logger->debug('Received starterpack', ['uri-id' => $item['uri-id'], 'guid' => $item['guid'], 'uri' => $record->uri]);
-		if (!preg_match('#^at://(.+)/app.bsky.graph.starterpack/(.+)#', $record->uri, $matches)) {
+		if (!preg_match('#^at://(.+)/app.bsky.graph.starterpack/(.+)#', (string) $record->uri, $matches)) {
 			return;
 		}
 
 		$media = [
 			'uri-id'      => $item['uri-id'],
-			'type'        => Post\Media::HTML,
+			'type'        => PostMedia::TYPE_HTML,
 			'url'         => 'https://bsky.app/starter-pack/' . $matches[1] . '/' . $matches[2],
 			'name'        => $record->record->name,
 			'description' => $record->record->description ?? '',
@@ -1042,7 +1021,7 @@ class Processor
 		$class->cid = array_pop($elements);
 		$class->uri = implode(':', $elements);
 
-		if ((substr_count($class->uri, '/') == 2) && (substr_count($class->cid, '/') == 2)) {
+		if ((substr_count($class->uri, '/') == 2) && (substr_count((string) $class->cid, '/') == 2)) {
 			$class->uri .= ':' . $class->cid;
 			$class->cid = '';
 		}

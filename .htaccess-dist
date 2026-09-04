@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2010 - 2024 the Friendica project
+# SPDX-FileCopyrightText: 2010-2026 the Friendica project
 #
 # SPDX-License-Identifier: CC0-1.0
 
@@ -11,6 +11,8 @@ Options -Multiviews
 Options -Indexes
 AddType application/x-java-archive .jar
 AddType audio/ogg .oga
+# Older Apache versions don't know .mjs.
+AddType text/javascript .mjs
 
 # deny access to log files (friendica.log or php.out)
 <FilesMatch "\.(out|log)$">

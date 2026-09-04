@@ -12,18 +12,18 @@ use Friendica\DI;
 <!DOCTYPE html>
 <html lang="<?php echo DI::l10n()->getCurrentLang(); ?>">
 <head>
-	<title><?php if(!empty($page['title'])) {
+	<title><?php if (!empty($page['title'])) {
 		echo $page['title'];
 	} ?></title>
 	<script>var baseurl="<?php echo Friendica\DI::baseUrl() ?>";</script>
-	<?php if(!empty($page['htmlhead'])) {
+	<?php if (!empty($page['htmlhead'])) {
 		echo $page['htmlhead'];
 	} ?>
 </head>
 <body class="minimal">
 	<section>
 		<div  class="generic-page-wrapper">
-			<?php if(!empty($page['content'])) {
+			<?php if (!empty($page['content'])) {
 				echo $page['content'];
 			} ?>
 		</div>

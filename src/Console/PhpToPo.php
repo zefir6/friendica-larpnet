@@ -1,13 +1,12 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 namespace Friendica\Console;
 
-use Friendica\AppHelper;
 use stdClass;
 
 /**
@@ -20,14 +19,10 @@ class PhpToPo extends \Asika\SimpleConsole\Console
 	private $normBaseMsgIds  = [];
 	public const NORM_REGEXP = "|[\\\]|";
 
-	/** @var AppHelper */
-	private $appHelper;
-
-	public function __construct(AppHelper $appHelper, array $argv = null)
-	{
+	public function __construct(
+		?array $argv = null,
+	) {
 		parent::__construct($argv);
-
-		$this->appHelper = $appHelper;
 	}
 
 	protected function getHelp()
@@ -83,10 +78,14 @@ HELP;
 
 		// start !
 		include_once($phpfile);
+		/**
+		 * $a will be filled by including $phpfile
+		 * @var stdClass $a
+		 */
 
 		$out = '';
 		$out .= "# FRIENDICA Distributed Social Network\n";
-		$out .= "# Copyright (C) 2010-2023, the Friendica project\n";
+		$out .= "# Copyright (C) 2010-2026, the Friendica project\n";
 		$out .= "# This file is distributed under the same license as the Friendica package.\n";
 		$out .= "# \n";
 		$out .= 'msgid ""' . "\n";
@@ -214,7 +213,7 @@ HELP;
 	private function startsWith($haystack, $needle)
 	{
 		// search backwards starting from haystack length characters from the end
-		return $needle === "" || strrpos($haystack, (string) $needle, -strlen($haystack)) !== false;
+		return $needle === "" || strrpos((string) $haystack, (string) $needle, -strlen((string) $haystack)) !== false;
 	}
 
 	/**
@@ -232,7 +231,7 @@ HELP;
 		$str = str_replace('"', '\"', $str);
 		$str = str_replace("\t", '\t', $str);
 		$str = str_replace("\n", '\n"' . "\n" . '"', $str);
-		if (strpos($str, "\n") !== false && $str[0] !== '"') {
+		if (str_contains($str, "\n") && $str[0] !== '"') {
 			$str = '"' . "\n" . $str;
 		}
 
@@ -242,7 +241,7 @@ HELP;
 
 	private function findOriginalMsgId($str)
 	{
-		$norm_str = preg_replace(self::NORM_REGEXP, "", $str);
+		$norm_str = preg_replace(self::NORM_REGEXP, "", (string) $str);
 		if (array_key_exists($norm_str, $this->normBaseMsgIds)) {
 			return $this->normBaseMsgIds[$norm_str];
 		}

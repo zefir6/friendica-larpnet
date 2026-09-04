@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+ * SPDX-FileCopyrightText: 2010-2026 the Friendica project
  *
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -111,4 +111,8 @@ li.notification-seen {
 	background-color: #252C33;
 	border: 3px solid #364e59;
 	color: #989898;
+}
+.settings-section,
+.settings-subsection {
+	background-color: #252C33;
 }

@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -190,6 +190,28 @@ class Post
 		$params['limit'] = 1;
 
 		$result = self::select($fields, $condition, $params);
+
+		if (is_bool($result)) {
+			return $result;
+		} else {
+			$row = self::fetch($result);
+			DBA::close($result);
+			return $row;
+		}
+	}
+
+	/**
+	 * Retrieve a single record from the post-origin-view view and returns it in an associative array
+	 *
+	 * @return bool|array
+	 * @throws \Exception
+	 * @see   DBA::select
+	 */
+	public static function selectOriginFirst(array $fields = [], array $condition = [], array $params = [])
+	{
+		$params['limit'] = 1;
+
+		$result = self::selectOrigin($fields, $condition, $params);
 
 		if (is_bool($result)) {
 			return $result;
@@ -458,7 +480,7 @@ class Post
 				0, $uid, $uid, $uid],
 		);
 
-		$select_string = implode(', ', array_map([DBA::class, 'quoteIdentifier'], $selected));
+		$select_string = implode(', ', array_map(DBA::quoteIdentifier(...), $selected));
 
 		$condition_string = DBA::buildCondition($condition);
 		$param_string     = DBA::buildParameter($params);
