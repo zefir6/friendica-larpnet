@@ -17,12 +17,12 @@
 			</button>
 			{{if ! $new_circle}}
 				<a class="widget-action-top pull-right widget-action faded-icon" id="sidebar-edit-circle" href="{{$circle_page}}" data-toggle="tooltip" title="{{$edit_circles_text}}">
-					<i class="fa fa-pencil" aria-hidden="true"></i>
+					<i class="ri ri-pencil-line" aria-hidden="true"></i>
 				</a>
 			{{else}}
 				<a class="widget-action-top pull-right widget-action faded-icon" id="sidebar-new-circle"
 					onclick="javascript:$('#circle-new-form').fadeIn('fast');" data-toggle="tooltip" title="{{$createtext}}">
-					<i class="fa fa-plus" aria-hidden="true"></i>
+					<i class="ri ri-add-line" aria-hidden="true"></i>
 				</a>
 				<form id="circle-new-form" action="circle/new" method="post" style="display:none;">
 					<div class="form-group">
@@ -48,7 +48,7 @@
 						{{if $circle.edit}}
 							{{* if the circle is editable show a little pencil for editing *}}
 							<a id="edit-sidebar-circle-element-{{$circle.id}}" class="circle-edit-tool pull-right faded-icon" href="{{$circle.edit.href}}" data-toggle="tooltip" title="{{$edittext}}">
-								<i class="fa fa-pencil" aria-hidden="true"></i>
+								<i class="ri ri-pencil-line" aria-hidden="true"></i>
 							</a>
 						{{/if}}
 						<a id="sidebar-circle-element-{{$circle.id}}" class="sidebar-circle-element" href="{{$circle.href}}">{{$circle.text}}</a>

@@ -34,12 +34,12 @@
 					<div class="additional-info text-muted">
 						<div class="wall-item-ago" style="margin-left:0;">
 							<small> 
-							<span class="fa fa-clock"></span><time class="dt-scheduled" datetime="">{{$scheduled_at}} <span class="datetime">{{$row.scheduled_at}}</span></time>
+							<span class="ri ri-time-line"></span><time class="dt-scheduled" datetime="">{{$scheduled_at}} <span class="datetime">{{$row.scheduled_at}}</span></time>
 						{{** lockview() function will not work because post gets ID after going live **}}
 						{{if $row.item.private}}
 							<span class="navicon lock" title="{{$row.item.lock}}" data-toggle="tooltip">
 								<small>
-									<i class="fa fa-lock"></i>
+									<i class="ri ri-lock-line"></i>
 								</small>
 							</span>
 						{{/if}}
@@ -67,13 +67,13 @@
 				<div class="wall-item-links"></div>
 				<div class="wall-item-tags">
 					{{foreach $row.item.hashtags as $tag}}
-						<span class="tag label btn-info sm">{{$tag nofilter}} <i class="fa fa-bolt" aria-hidden="true"></i></span>
+						<span class="tag label btn-info sm">{{$tag nofilter}}</span>
 					{{/foreach}}
 					{{foreach $row.item.mentions as $tag}}
-						<span class="mention label btn-warning sm">{{$tag nofilter}} <i class="fa fa-user" aria-hidden="true"></i></span>
+						<span class="mention label btn-warning sm">{{$tag nofilter}}</span>
 					{{/foreach}}
 					{{foreach $row.item.implicit_mentions as $tag}}
-						<span class="mention label label-default sm">{{$tag nofilter}} <i class="fa fa-eye-slash" aria-hidden="true"></i></span>
+						<span class="mention label label-default sm">{{$tag nofilter}} <i class="ri ri-eye-off-line" aria-hidden="true"></i></span>
 					{{/foreach}}
 				</div>
 			</div>
@@ -82,7 +82,7 @@
 							<span class="wall-item-actions-right">
 								<form action="{{$basefurl}}/profile/{{$nickname}}/schedule" method="post" style="width:100%;">
 									<input type="hidden" name="form_security_token" value="{{$form_security_token}}">
-									<button type="submit" name="delete" value="{{$row.id}}" title="{{$delete}}" class="btn-link navicon fa fa-trash" style="float:right;border:none!important;background:transparent!important;box-shadow:none;"></button>
+									<button type="submit" name="delete" value="{{$row.id}}" title="{{$delete}}" class="btn-link navicon ri ri-delete-bin-line" style="float:right;border:none!important;background:transparent!important;box-shadow:none;"></button>
 								</form>
 							</span>						
 						</div>

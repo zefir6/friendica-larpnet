@@ -80,39 +80,39 @@
 					{{* commented out because it isn't implemented yet
 					<li>
 						<button type="button" class="btn-link icon bb-img" style="cursor: pointer;" title="{{$edimg}}" data-role="insert-formatting" data-comment=" " data-bbcode="img" data-id="desc">
-							<i class="fa fa-picture-o"></i>
+							<i class="ri ri-image-line"></i>
 						</button>
 					</li>
 					*}}
 					<li>
 						<button type="button" class="btn-link icon bb-url" style="cursor: pointer;" title="{{$edurl}}" data-role="insert-formatting" data-comment=" " data-bbcode="url" data-id="desc">
-							<i class="fa fa-link"></i>
+							<i class="ri ri-link"></i>
 						</button>
 					</li>
 					<li>
 						<button type="button" class="btn-link icon bb-video" style="cursor: pointer;" title="{{$edvideo}}" data-role="insert-formatting" data-comment=" " data-bbcode="video" data-id="desc">
-							<i class="fa fa-video-camera"></i>
+							<i class="ri ri-video-line"></i>
 						</button>
 					</li>
 
 					<li>
 						<button type="button" class="btn-link icon underline" style="cursor: pointer;" title="{{$eduline}}" data-role="insert-formatting" data-comment=" " data-bbcode="u" data-id="desc">
-							<i class="fa fa-underline"></i>
+							<i class="ri ri-underline"></i>
 						</button>
 					</li>
 					<li>
 						<button type="button" class="btn-link icon italic" style="cursor: pointer;" title="{{$editalic}}" data-role="insert-formatting" data-comment=" " data-bbcode="i" data-id="desc">
-							<i class="fa fa-italic"></i>
+							<i class="ri ri-italic"></i>
 						</button>
 					</li>
 					<li>
 						<button type="button" class="btn-link icon bold" style="cursor: pointer;"  title="{{$edbold}}" data-role="insert-formatting" data-comment=" " data-bbcode="b" data-id="desc">
-							<i class="fa fa-bold"></i>
+							<i class="ri ri-bold"></i>
 						</button>
 					</li>
 					<li>
 						<button type="button" class="btn-link icon quote" style="cursor: pointer;" title="{{$edquote}}" data-role="insert-formatting" data-comment=" " data-bbcode="quote" data-id="desc">
-							<i class="fa fa-quote-left"></i>
+							<i class="ri ri-double-quotes-l"></i>
 						</button>
 					</li>
 				</ul>

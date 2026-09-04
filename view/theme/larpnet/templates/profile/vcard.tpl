@@ -47,12 +47,12 @@
 					<div id="dfrn-request-link-button">
 						{{if $unfollow_link}}
 							<a id="dfrn-request-link" class="btn btn-labeled btn-primary" href="{{$unfollow_link}}">
-								<span><i class="fa fa-user-times"></i></span>
+								<span><i class="ri ri-user-unfollow-line"></i></span>
 								<span>{{$unfollow}}</span>
 							</a>
 						{{else}}
 							<a id="dfrn-request-link" class="btn btn-labeled btn-primary" href="{{$follow_link}}">
-								<span><i class="fa fa-user-plus"></i></span>
+								<span><i class="ri ri-user-add-line"></i></span>
 								<span>{{$follow}}</span>
 							</a>
 						{{/if}}
@@ -61,7 +61,7 @@
 				{{if $subscribe_feed_link}}
 					<div id="subscribe-feed-link-button">
 						<a id="subscribe-feed-link" class="btn btn-labeled btn-primary" href="{{$subscribe_feed_link}}">
-							<span><i class="fa fa-rss"></i></span>
+							<span><i class="ri ri-rss-line"></i></span>
 							<span>{{$subscribe_feed}}</span>
 						</a>
 					</div>
@@ -69,7 +69,7 @@
 				{{if $wallmessage_link}}
 					<div id="wallmessage-link-button">
 						<button type="button" id="wallmessage-link" class="btn btn-labeled btn-primary" onclick="openWallMessage('{{$wallmessage_link}}')">
-							<span><i class="fa fa-envelope"></i></span>
+							<span><i class="ri ri-mail-line"></i></span>
 							<span>{{$wallmessage}}</span>
 						</button>
 					</div>
@@ -77,7 +77,7 @@
 				{{if $profile.addr && !$is_owner}}
 					<div id="jotOpen" class="pull-right">
 						<button type="button" id="mention-link" class="action-button btn btn-labeled btn-primary" onclick="openWallMessage('{{$mention_url}}')">
-							<i class="fa fa-lg fa-pencil"></i>
+							<i class="ri ri-lg ri-pencil-line"></i>
 							<span>{{$mention_label}}</span>
 						</button>
 					</div>
@@ -85,7 +85,7 @@
 				{{if $network_label}}
 					<div id="showgroup-button">
 						<a id="showgroup" class="btn btn-labeled btn-primary" href="{{$network_url}}">
-							<span><i class="fa fa-group"></i></span>
+							<span><i class="ri ri-group-line"></i></span>
 							<span>{{$network_label}}</span>
 						</a>
 					</div>
@@ -97,7 +97,7 @@
 
 		{{if $location}}
 			<div class="location detail">
-				<span class="location-label icon"><i class="fa fa-map-marker" title="{{$location}}"></i></span>
+				<span class="location-label icon"><i class="ri ri-map-pin-line" title="{{$location}}"></i></span>
 				<span class="adr">
 					{{if $profile.address}}<p class="street-address p-street-address">{{$profile.address nofilter}}</p>
 					{{/if}}
@@ -108,14 +108,14 @@
 
 		{{if $profile.xmpp}}
 			<div class="xmpp">
-				<span class="xmpp-label icon"><i class="fa fa-xmpp" title="{{$xmpp}}"></i></span>
+				<span class="xmpp-label icon"><i class="ri ri-chat-3-line" title="{{$xmpp}}"></i></span>
 				<span class="xmpp-data"><a href="xmpp:{{$profile.xmpp}}" rel="me" target="_blank" rel="noopener noreferrer">{{include file="sub/punct_wrap.tpl" text=$profile.xmpp}}</a></span>
 			</div>
 		{{/if}}
 
 		{{if $profile.matrix}}
 			<div class="matrix">
-				<span class="matrix-label icon"><i class="fa fa-matrix-org" title="{{$matrix}}"></i></span>
+				<span class="matrix-label icon"><i class="ri ri-grid-line" title="{{$matrix}}"></i></span>
 				<span class="matrix-data"><a href="matrix:{{$profile.matrix}}" rel="me" target="_blank" rel="noopener noreferrer">{{include file="sub/punct_wrap.tpl" text=$profile.matrix}}</a></span>
 			</div>
 		{{/if}}
@@ -128,7 +128,7 @@
 
 		{{if $homepage}}
 			<div class="homepage detail">
-				<span class="homepage-label icon"><i class="fa fa-external-link" title="{{$homepage}}"></i></span>
+				<span class="homepage-label icon"><i class="ri ri-external-link-line" title="{{$homepage}}"></i></span>
 				<span class="homepage-url u-url"><a href="{{$profile.homepage}}" rel="me" target="_blank" rel="noopener noreferrer">{{include file="sub/punct_wrap.tpl" text=$profile.homepage}}</a>{{if $profile.homepage_verified}}
 					<span title="{{$homepage_verified}}">✔</span>{{/if}}</span>
 			</div>

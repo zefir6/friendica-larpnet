@@ -1694,13 +1694,13 @@ textarea.comment-edit-text:focus + .comment-edit-form .preview {
 	overflow-y: overlay;
 }
 /* ACL */
-.fa.lock:before {
-	font-family: ForkAwesome;
-	content: "\f023";
+.ri.lock:before {
+	font-family: remixicon;
+	content: "\eece";
 }
-.fa.unlock:before {
-	font-family: ForkAwesome;
-	content: "\f09c";
+.ri.unlock:before {
+	font-family: remixicon;
+	content: "\eed2";
 }
 
 #acl-wrapper label.panel-heading {
@@ -3304,14 +3304,14 @@ ul li:hover .contact-wrapper .contact-action-link:hover {
 }
 details.profile-jot-net[open] summary:before,
 .panel .section-subtitle-wrapper .accordion-toggle:before {
-	font-family: ForkAwesome;
-	content: "\f0d7";
+	font-family: remixicon;
+	content: "\ea4e";
 	padding-right: 5px;
 }
 details.profile-jot-net summary:before,
 .panel .section-subtitle-wrapper .accordion-toggle.collapsed:before {
-	font-family: ForkAwesome;
-	content: "\f0da";
+	font-family: remixicon;
+	content: "\ea6e";
 }
 details.profile-jot-net summary:before {
 	padding-right: 5px;
@@ -3349,9 +3349,9 @@ details.profile-jot-net[open] summary:before {
 }
 
 #larpnet-accents input[type="radio"]:checked + label::before {
-	content: '\f00c';
+	content: '\eb7b';
 	color: white;
-	font-family: ForkAwesome;
+	font-family: remixicon;
 	font-weight: normal;
 	font-size: 18px;
 }
@@ -3425,15 +3425,15 @@ details.profile-jot-net[open] summary:before {
 	padding-right: 10px;
 }
 span.widget > .fakelink > h3:before {
-	font-family: ForkAwesome;
-	content: "\f0da"; /* Right Plain Pointer */
+	font-family: remixicon;
+	content: "\ea6e"; /* Right Plain Pointer */
 	margin-left: 4px;
 }
 div.widget > .fakelink > h3:before,
 #sidebar-circle-header > .fakelink > h3:before,
 #sidebar-group-header > .fakelink > h3:before {
-	font-family: ForkAwesome;
-	content: "\f0d7"; /* Bottom Plain Pointer */
+	font-family: remixicon;
+	content: "\ea4e"; /* Bottom Plain Pointer */
 }
 
 .widget button.fakelink {
@@ -3635,8 +3635,8 @@ li.addon {
 	transition: border 0.15s ease-in-out, color 0.15s ease-in-out;
 }
 #adminpage li .icon.on:after {
-	font-family: "ForkAwesome";
-	content: "\f00c";
+	font-family: "remixicon";
+	content: "\eb7b";
 	display: inline-block;
 	position: absolute;
 	width: 16px;
