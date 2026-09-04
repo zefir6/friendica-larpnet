@@ -20,7 +20,7 @@ $larpnet = 'view/theme/larpnet';
 		echo $page['title'];
 	} ?></title>
 	<meta name="viewport" content="initial-scale=1.0">
-	<meta request="<?php echo htmlspecialchars($_REQUEST['pagename']) ?>">
+	<meta request="<?php echo htmlspecialchars((string) $_REQUEST['pagename']) ?>">
 	<script type="text/javascript">var baseurl="<?php echo DI::baseUrl() ?>";</script>
 	<script type="text/javascript">var larpnet="<?php echo $larpnet; ?>";</script>
 	<?php if (!empty($page['htmlhead'])) {

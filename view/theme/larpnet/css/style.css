@@ -350,9 +350,9 @@ btn-eventnav:hover {
 }
 .toggle-handle {
 	background-color: #fff;
-	border-width: 0 1px;
 	border: 1px solid transparent;
 	border-color: #ccc;
+	border-width: 0 1px;
 }
 .form-control-sm,
 .input-group-sm > .form-control,
@@ -2463,7 +2463,7 @@ img.acpopup-img {
 	cursor: pointer;
 }
 #remote-friends-in-common {
-	background-color: rgba(247, 247, 247, $contentbg_transp)
+	background-color: rgba(247, 247, 247, $contentbg_transp);
 	border-radius: 4px;
 	color: #444;
 	display: grid;

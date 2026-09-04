@@ -36,7 +36,7 @@ class LarpnetPushConfig extends BaseApi
 
 		$this->earlyJsonExit([
 			'enabled'    => true,
-			'ntfy_url'   => rtrim($ntfyUrl, '/'),
+			'ntfy_url'   => rtrim((string) $ntfyUrl, '/'),
 			'ntfy_topic' => LarpnetPush::getOrCreateTopic($uid),
 			'ntfy_token' => $ntfyToken,
 		]);

@@ -2,3 +2,10 @@ scripts/
 .git/
 .github/
 .docker/
+.claude/
+.DS_Store
+.env
+# Local dev secrets (DB credentials, site keys) - must never be baked into the image.
+config/local.config.php
+# Built fresh by the Dockerfile via composer install; never trust a local copy.
+vendor/

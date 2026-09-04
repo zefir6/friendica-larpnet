@@ -35,7 +35,7 @@ const LARPNET_SCHEME_ACCENT_PINK   = '#d900a9';
 const LARPNET_DEFAULT_SCHEME = 'light';
 const LARPNET_CUSTOM_SCHEME  = '---';
 
-function larpnet_init(AppHelper $appHelper)
+function larpnet_init(AppHelper $appHelper): void
 {
 	global $larpnet;
 	$larpnet = 'view/theme/larpnet';
@@ -59,7 +59,7 @@ EOT;
 	}
 }
 
-function larpnet_install()
+function larpnet_install(): void
 {
 	Hook::register('prepare_body_final', 'view/theme/larpnet/theme.php', 'larpnet_item_photo_links');
 	Hook::register('item_photo_menu', 'view/theme/larpnet/theme.php', 'larpnet_item_photo_menu');
@@ -81,7 +81,7 @@ function larpnet_install()
  *
  * @param array $nav_info The nav info array: nav, banner, userinfo, sitelocation
  */
-function larpnet_nav_labels(array &$nav_info)
+function larpnet_nav_labels(array &$nav_info): void
 {
 	if (!empty($nav_info['nav']['network'])) {
 		$nav_info['nav']['network'][4] = DI::l10n()->t('Contacts posts');
@@ -149,7 +149,7 @@ function larpnet_get_or_create_ntfy_topic(int $uid): string
 	return LarpnetPush::getOrCreateTopic($uid);
 }
 
-function larpnet_head(string &$b)
+function larpnet_head(string &$b): void
 {
 	if (DI::appHelper()->getCurrentTheme() !== 'larpnet') {
 		return;
@@ -253,7 +253,7 @@ JS;
 
 	$config = json_encode([
 		'vapidKey'  => $ntfyVapidKey,
-		'ntfyUrl'   => rtrim($ntfyUrl, '/'),
+		'ntfyUrl'   => rtrim((string) $ntfyUrl, '/'),
 		'ntfyToken' => (string) $ntfyToken,
 		'ntfyTopic' => $topic,
 		'swUrl'     => $swUrl,
@@ -267,19 +267,19 @@ JS;
 // ---------------------------------------------------------------------------
 // Content/nav hooks
 
-function larpnet_item_photo_links(&$body_info)
+function larpnet_item_photo_links(&$body_info): void
 {
 	$occurence = 0;
 	$p         = Plaintext::getBoundariesPosition($body_info['html'], '<a', '>');
 	while ($p !== false && ($occurence++ < 500)) {
-		$link    = substr($body_info['html'], $p['start'], $p['end'] - $p['start']);
+		$link    = substr((string) $body_info['html'], $p['start'], $p['end'] - $p['start']);
 		$matches = [];
 
 		preg_match('/\/photos\/[\w]+\/image\/([\w]+)/', $link, $matches);
 		if ($matches) {
 			$newlink = str_replace($matches[0], "/photo/{$matches[1]}", $link);
 			$newlink = preg_replace('#href="([^"]+)/contact/redir/(\d+)&url=([^"]+)"#', 'href="$1/contact/redir/$2&quiet=1&url=$3"', $newlink);
-			$newlink = preg_replace('/\/[?&]zrl=([^&"]+)/', '', $newlink);
+			$newlink = preg_replace('/\/[?&]zrl=([^&"]+)/', '', (string) $newlink);
 
 			$body_info['html'] = str_replace($link, $newlink, $body_info['html']);
 		}
@@ -288,17 +288,17 @@ function larpnet_item_photo_links(&$body_info)
 	}
 }
 
-function larpnet_item_photo_menu(&$arr)
+function larpnet_item_photo_menu(&$arr): void
 {
 	foreach ($arr['menu'] as $k => $v) {
-		if (strpos($v, 'message/new/') === 0) {
+		if (str_starts_with((string) $v, 'message/new/')) {
 			$v               = 'javascript:addToModal(\'' . $v . '\'); return false;';
 			$arr['menu'][$k] = $v;
 		}
 	}
 }
 
-function larpnet_contact_photo_menu(&$args)
+function larpnet_contact_photo_menu(&$args): void
 {
 	$cid = $args['contact']['id'];
 
@@ -311,12 +311,12 @@ function larpnet_contact_photo_menu(&$args)
 		}
 	}
 
-	if (strpos($pmlink, 'message/new/' . $cid) !== false) {
+	if (str_contains($pmlink, 'message/new/' . $cid)) {
 		$args['menu']['pm'][3] = 'modal';
 	}
 }
 
-function larpnet_remote_nav(array &$nav_info)
+function larpnet_remote_nav(array &$nav_info): void
 {
 	if (DI::mode()->has(Mode::MAINTENANCEDISABLED)) {
 		$homelink = DI::userSession()->getMyUrl();
@@ -362,7 +362,7 @@ function larpnet_remote_nav(array &$nav_info)
 	}
 }
 
-function larpnet_display_item(&$arr)
+function larpnet_display_item(&$arr): void
 {
 	$followThread = [];
 	if (

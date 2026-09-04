@@ -27,7 +27,7 @@ class NtfyPush
 
 		try {
 			$notification = DI::notification()->selectOneById($nid);
-		} catch (NotFoundException $e) {
+		} catch (NotFoundException) {
 			DI::logger()->info('NtfyPush: notification not found', ['nid' => $nid]);
 			return;
 		}

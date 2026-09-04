@@ -155,5 +155,90 @@
     "no-undef": {
       "count": 7
     }
+  },
+  "view/theme/larpnet/js/compose.js": {
+    "no-unsafe-negation": {
+      "count": 1
+    }
+  },
+  "view/theme/larpnet/js/hovercard.js": {
+    "no-unused-vars": {
+      "count": 1
+    },
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "view/theme/larpnet/js/jot.js": {
+    "no-unassigned-vars": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 6
+    }
+  },
+  "view/theme/larpnet/js/mod_admin.js": {
+    "no-undef": {
+      "count": 8
+    }
+  },
+  "view/theme/larpnet/js/mod_events.js": {
+    "eqeqeq": {
+      "count": 2
+    },
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "view/theme/larpnet/js/modal.js": {
+    "no-undef": {
+      "count": 27
+    },
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "view/theme/larpnet/js/module/admin/logs/view.js": {
+    "eqeqeq": {
+      "count": 6
+    },
+    "no-prototype-builtins": {
+      "count": 1
+    },
+    "no-redeclare": {
+      "count": 1
+    },
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "view/theme/larpnet/js/push.js": {
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "view/theme/larpnet/js/sw.js": {
+    "no-undef": {
+      "count": 3
+    },
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "view/theme/larpnet/js/textedit.js": {
+    "no-undef": {
+      "count": 8
+    }
+  },
+  "view/theme/larpnet/js/theme.js": {
+    "eqeqeq": {
+      "count": 11
+    },
+    "no-redeclare": {
+      "count": 6
+    },
+    "no-undef": {
+      "count": 8
+    }
   }
 }
