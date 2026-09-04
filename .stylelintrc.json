@@ -6,6 +6,7 @@
 		"vendor/**",
 		"view/asset/**",
 		"view/theme/frio/frameworks/**",
+		"view/theme/larpnet/frameworks/**",
 		"**/*.min.css",
 		"**/*.min.*.css",
 		"view/fonts/**",
@@ -49,7 +50,9 @@
 		{
 			"files": [
 				"view/theme/frio/css/*.css",
-				"view/theme/frio/scheme/*.css"
+				"view/theme/frio/scheme/*.css",
+				"view/theme/larpnet/css/*.css",
+				"view/theme/larpnet/scheme/*.css"
 			],
 			"rules": {
 				"declaration-property-value-no-unknown": null

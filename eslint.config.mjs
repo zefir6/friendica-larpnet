@@ -78,6 +78,7 @@ export default [
 			// Vendored front-end code
 			"view/asset/**",
 			"view/theme/frio/frameworks/**",
+			"view/theme/larpnet/frameworks/**",
 			"**/*.min.js",
 			// Vendored libraries living outside the directories above; each of
 			// these carries a foreign SPDX-FileCopyrightText header.
