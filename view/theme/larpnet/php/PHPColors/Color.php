@@ -283,7 +283,7 @@ class Color
 	public function isLight($color = false, $lighterThan = 130)
 	{
 		// Get our color
-		$color = ($color) ? $color : $this->_hex;
+		$color = $color ?: $this->_hex;
 
 		// Calculate straight from rbg
 		$r = hexdec($color[0] . $color[1]);
@@ -302,7 +302,7 @@ class Color
 	public function isDark($color = false, $darkerThan = 130)
 	{
 		// Get our color
-		$color = ($color) ? $color:$this->_hex;
+		$color = $color ?: $this->_hex;
 
 		// Calculate straight from rbg
 		$r = hexdec($color[0] . $color[1]);

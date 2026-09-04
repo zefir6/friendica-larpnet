@@ -18,7 +18,7 @@ use Friendica\DI;
  *
  * @todo Check if this is really needed.
  */
-function load_page(AppHelper $appHelper)
+function load_page(AppHelper $appHelper): void
 {
 	if (isset($_GET['mode']) && ($_GET['mode'] == 'minimal')) {
 		require 'view/theme/larpnet/minimal.php';
@@ -49,7 +49,7 @@ function is_modal()
 	$modalpages = get_modalpage_list();
 
 	foreach ($modalpages as $r => $value) {
-		if (strpos($_REQUEST['pagename'], $value) !== false) {
+		if (str_contains((string) $_REQUEST['pagename'], (string) $value)) {
 			$is_modal = true;
 		}
 	}
@@ -111,7 +111,7 @@ function is_standard_page($pagetitle)
 	$standardpages    = get_standard_page_list();
 
 	foreach ($standardpages as $r => $value) {
-		if (strpos($pagetitle, $value) !== false) {
+		if (str_contains($pagetitle, (string) $value)) {
 			$is_standard_page = true;
 		}
 	}

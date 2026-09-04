@@ -63,7 +63,7 @@ if ($scheme != LARPNET_CUSTOM_SCHEME) {
 	}
 }
 
-$nav_bg = $nav_bg ?? DI::pConfig()->get($uid, 'larpnet', 'nav_bg', DI::config()->get('larpnet', 'nav_bg', '#708fa0'));
+$nav_bg ??= DI::pConfig()->get($uid, 'larpnet', 'nav_bg', DI::config()->get('larpnet', 'nav_bg', '#708fa0'));
 
 echo '<meta name="theme-color" content="' . $nav_bg . '" />';
 ?>
@@ -110,7 +110,7 @@ if (!$minimal && DI::config()->get('larpnet', 'profile_banner', 1) && DI::args()
 		} else {
 			$remoteContact = Contact::selectFirst(['id', 'header'], ['nick' => $profileNick, 'uid' => 0]);
 			if (DBA::isResult($remoteContact) && !empty($remoteContact['header'])) {
-				$scheme = parse_url($remoteContact['header'], PHP_URL_SCHEME);
+				$scheme = parse_url((string) $remoteContact['header'], PHP_URL_SCHEME);
 				if (in_array($scheme, ['http', 'https'], true)) {
 					$profileBannerUrl = $remoteContact['header'];
 				}
@@ -120,7 +120,7 @@ if (!$minimal && DI::config()->get('larpnet', 'profile_banner', 1) && DI::args()
 
 	if ($showBanner) {
 		$bannerStyle = $profileBannerUrl
-			? ' style="background-image: url(\'' . htmlspecialchars($profileBannerUrl) . '\')"'
+			? ' style="background-image: url(\'' . htmlspecialchars((string) $profileBannerUrl) . '\')"'
 			: '';
 		$editBtn = $isOwnProfile
 			? '<a href="/settings/addons" id="change-profile-banner" target="_top" title="Zmień baner profilu"><i class="fa fa-picture-o"></i></a>'

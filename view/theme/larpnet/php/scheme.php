@@ -56,7 +56,7 @@ function larpnet_get_scheme_info($scheme)
 		foreach ($ll as $l) {
 			$l = trim($l, "\t\n\r */");
 			if ($l != '') {
-				$values = array_map('trim', explode(':', $l, 2));
+				$values = array_map(trim(...), explode(':', $l, 2));
 				if (count($values) < 2) {
 					continue;
 				}
