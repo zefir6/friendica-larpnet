@@ -142,3 +142,15 @@ cp .env.example .env       # fill in REGISTRY_URL, REGISTRY_USER, REGISTRY_PASSW
 ```
 
 If the registry is behind Cloudflare and upload fails, open an SSH tunnel and set `REGISTRY_PUSH_URL=localhost:5000` in `.env`.
+
+### Applying the database schema after deploy
+
+After rolling out a new image (whether via the `release-*` tag flow or `./build.sh --release`), apply any pending schema changes with:
+
+```bash
+./scripts/dbstructure-safe-update.sh
+```
+
+Run this from the docker host, not `bin/console.php dbstructure update` directly. It wraps that same command but auto-recovers from MySQL error 1553 ("Cannot drop index ... needed in a foreign key constraint") — a class of failure where an addon or core table's foreign-key-backed index needs to change and Friendica's schema differ doesn't drop the FK constraint first, which otherwise aborts the *entire* update. The wrapper detects that specific failure, drops the offending FK constraint itself, and retries. Edit `COMPOSE_FILE`/`FRIENDICA_SERVICE`/`DB_SERVICE` at the top of the script (or override via env vars) to match the target host's compose setup — these differ between `friendica-larpnet` (dev, `.docker/compose.yaml`, services `php`/`db`) and the deployed larpnet-test/prod hosts (services named e.g. `friendica-test`).
+
+This exact error previously took down an upgrade because `addon/larpnet_fcm/`'s `dbstructure_definition` hook declared a `'foreign'` key on `fcm-token`.`application-id` without a matching entry in `'indexes'` — fixed at the source in that file, but the wrapper stays as a general safety net for any other table that hits the same class of problem in the future.
