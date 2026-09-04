@@ -49,9 +49,15 @@ function larpnet_fcm_dbstructure_definition(array &$data)
 			'updated'        => ['type' => 'datetime', 'not null' => '1', 'default' => DBA::NULL_DATETIME, 'comment' => 'Last (re-)registration time. Note: DBA::replace() on the token-unique key is a delete+reinsert, so this is not a first-registration timestamp'],
 		],
 		'indexes' => [
-			'PRIMARY' => ['id'],
-			'token'   => ['UNIQUE', 'token(190)'],
-			'uid'     => ['uid'],
+			'PRIMARY'         => ['id'],
+			'token'           => ['UNIQUE', 'token(190)'],
+			'uid'             => ['uid'],
+			// Must stay declared: 'application-id' has a 'foreign' key above, and
+			// MySQL/MariaDB refuses to drop an index still backing a foreign key
+			// constraint (error 1553). Omitting this entry makes dbstructure's
+			// differ queue a DROP INDEX for it on every future schema diff while
+			// the FK constraint keeps blocking that very statement.
+			'application-id' => ['application-id'],
 		],
 	];
 }
