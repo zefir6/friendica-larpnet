@@ -74,27 +74,27 @@
 
 				{{if !in_array($order_users,[$th_users.2.1, $th_users.3.1, $th_users.4.1]) }}
 					<td>
-						<i class="fa
-							{{if $u.page_flags_raw==0}}fa-user{{/if}}		{{* PAGE_NORMAL *}}
-							{{if $u.page_flags_raw==1}}fa-bullhorn{{/if}}		{{* PAGE_SOAPBOX *}}
-							{{if $u.page_flags_raw==2}}fa-users{{/if}}		{{* PAGE_COMMUNITY *}}
-							{{if $u.page_flags_raw==3}}fa-heart{{/if}}		{{* PAGE_FREELOVE *}}
-							{{if $u.page_flags_raw==4}}fa-rss{{/if}}		{{* PAGE_BLOG *}}
-							{{if $u.page_flags_raw==5}}fa-user-secret{{/if}}	{{* PAGE_PRVGROUP *}}
-							{{if $u.page_flags_raw==6}}fa-users{{/if}}		{{* PAGE_COMM_MAN *}}
+						<i class="ri
+							{{if $u.page_flags_raw==0}}ri-user-line{{/if}}		{{* PAGE_NORMAL *}}
+							{{if $u.page_flags_raw==1}}ri-megaphone-line{{/if}}		{{* PAGE_SOAPBOX *}}
+							{{if $u.page_flags_raw==2}}ri-team-line{{/if}}		{{* PAGE_COMMUNITY *}}
+							{{if $u.page_flags_raw==3}}ri-heart-line{{/if}}		{{* PAGE_FREELOVE *}}
+							{{if $u.page_flags_raw==4}}ri-rss-line{{/if}}		{{* PAGE_BLOG *}}
+							{{if $u.page_flags_raw==5}}ri-spy-line{{/if}}	{{* PAGE_PRVGROUP *}}
+							{{if $u.page_flags_raw==6}}ri-team-line{{/if}}		{{* PAGE_COMM_MAN *}}
 								" title="{{$u.page_flags}}">
 						</i>
 						{{if $u.page_flags_raw==0 && $u.account_type_raw > 0}}
-						<i class="fa
-							{{if $u.account_type_raw==1}}fa-sitemap{{/if}}		{{* ACCOUNT_TYPE_ORGANISATION *}}
-							{{if $u.account_type_raw==2}}fa-newspaper-o{{/if}}	{{* ACCOUNT_TYPE_NEWS *}}
-							{{if $u.account_type_raw==3}}fa-comments{{/if}}		{{* ACCOUNT_TYPE_COMMUNITY *}}
+						<i class="ri
+							{{if $u.account_type_raw==1}}ri-building-4-line{{/if}}		{{* ACCOUNT_TYPE_ORGANISATION *}}
+							{{if $u.account_type_raw==2}}ri-newspaper-line{{/if}}	{{* ACCOUNT_TYPE_NEWS *}}
+							{{if $u.account_type_raw==3}}ri-discuss-line{{/if}}		{{* ACCOUNT_TYPE_COMMUNITY *}}
 							" title="{{$u.account_type}}">
 						</i>
 						{{/if}}
-						{{if $u.is_admin}}<i class="fa fa-user-secret text-primary" title="{{$siteadmin}}"></i>{{/if}}
-						{{if $u.blocked}}<i class="fa fa-ban text-danger" title="{{$blocked}}"></i>{{/if}}
-						{{if $u.account_expired}}<i class="fa fa-clock-o text-warning" title="{{$accountexpired}}"></i>{{/if}}
+						{{if $u.is_admin}}<i class="ri ri-medal-2-fill text-primary" title="{{$siteadmin}}"></i>{{/if}}
+						{{if $u.blocked}}<i class="ri ri-forbid-2-line text-danger" title="{{$blocked}}"></i>{{/if}}
+						{{if $u.account_expired}}<i class="ri ri-time-line text-warning" title="{{$accountexpired}}"></i>{{/if}}
 					</td>
 				{{/if}}
 
@@ -138,11 +138,11 @@
 				{{if $u.is_deletable}}
 					{{if $u.blocked}}
 						<a href="{{$baseurl}}/moderation/users/blocked/unblock/{{$u.uid}}?t={{$form_security_token}}" class="admin-settings-action-link" title="{{$unblock}}">
-							<i class="fa fa-check-circle-o" aria-hidden="true"></i>
+							<i class="ri ri-checkbox-circle-line" aria-hidden="true"></i>
 						</a>
 					{{/if}}
 						<a href="{{$baseurl}}/moderation/users/blocked/delete/{{$u.uid}}?t={{$form_security_token}}" class="admin-settings-action-link" title="{{$delete}}" onclick="return confirm_delete('{{$confirm_delete}}','{{$u.name}}')">
-							<i class="fa fa-trash" aria-hidden="true"></i>
+							<i class="ri ri-delete-bin-line" aria-hidden="true"></i>
 						</a>
 				{{else}}
 						&nbsp;
@@ -154,10 +154,10 @@
 		</table>
 		<div class="panel-footer">
 			<button type="submit" name="page_users_unblock" value="1" class="btn btn-primary">
-				<i class="fa fa-check-circle-o" aria-hidden="true"></i> {{$unblock}}
+				<i class="ri ri-checkbox-circle-line" aria-hidden="true"></i> {{$unblock}}
 			</button>
 			<button type="submit" name="page_users_delete" value="1" class="btn btn-danger" onclick="return confirm_delete('{{$confirm_delete_multi}}')">
-				<i class="fa fa-trash" aria-hidden="true"></i> {{$delete}}
+				<i class="ri ri-delete-bin-line" aria-hidden="true"></i> {{$delete}}
 			</button>
 		</div>
 		{{$pager nofilter}}

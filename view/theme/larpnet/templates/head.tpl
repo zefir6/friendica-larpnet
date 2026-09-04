@@ -30,7 +30,7 @@
 <link rel="stylesheet"
 	href="view/theme/larpnet/frameworks/bootstrap/css/bootstrap-theme.min.css?v={{$VERSION}}"
 	type="text/css" media="screen" />
-<link rel="stylesheet" href="view/asset/fork-awesome/css/fork-awesome.min.css?v={{$VERSION}}"
+<link rel="stylesheet" href="view/asset/remixicon/fonts/remixicon.css?v={{$VERSION}}"
 	type="text/css" media="screen" />
 <link rel="stylesheet"
 	href="view/theme/larpnet/frameworks/jasny/css/jasny-bootstrap.min.css?v={{$VERSION}}"
