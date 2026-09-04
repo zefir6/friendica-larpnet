@@ -1,7 +1,7 @@
 <?php
 
-/* Copyright (C) 2010-2024, the Friendica project
- * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+/* Copyright (C) 2010-2026, the Friendica project
+ * SPDX-FileCopyrightText: 2010-2026 the Friendica project
  *
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
@@ -91,6 +91,11 @@ return [
 		// Days of inactivity after which an admin is considered inactive. "0" means that there will be no check for inactivity.
 		'admin_inactivity_limit' => 30,
 
+		// allowed_internal_hosts (Array)
+		// Internal hosts that server-side requests may reach. Wildcards are allowed.
+		// See block_private_addresses.
+		'allowed_internal_hosts' => [],
+
 		// allowed_link_protocols (Array)
 		// Allowed protocols in links URLs, add at your own risk. http(s) is always allowed.
 		'allowed_link_protocols' => ['ftp://', 'ftps://', 'mailto:', 'cid:', 'gopher://'],
@@ -138,6 +143,11 @@ return [
 		// bulk_delivery (Boolean)
 		// Delivers AP messages in a bulk (experimental)
 		'bulk_delivery' => false,
+
+		// block_private_addresses (Boolean)
+		// Refuse server-side requests to non-public IP addresses, including redirects.
+		// The node's base URL and allowed_internal_hosts are exempt.
+		'block_private_addresses' => true,
 
 		// block_local_dir (Boolean)
 		// Deny public access to the local user directory.
@@ -361,7 +371,6 @@ return [
 
 		// logger_config (String)
 		// Sets the logging adapter of Friendica globally (syslog, stream)
-		// @deprecated 2026.01 The value `monolog` is deprecated, please use `stream` or `syslog` instead.
 		'logger_config' => 'stream',
 
 		// syslog_flags (Integer)
@@ -459,7 +468,7 @@ return [
 		],
 
 		// minimum_posting_interval (Integer)
-		// Minimum interval between two feed posts per user
+		// Minimum interval in minutes between two feed posts per user
 		'minimum_posting_interval' => 0,
 
 		// no_count (Boolean)
@@ -804,8 +813,9 @@ return [
 			'https://bsky.app'           => ['Bluesky', 'https://bsky.app/profile/{did}', 'https://bsky.app/profile/{did}/post/{rkey}'],
 			'https://blacksky.community' => ['Blacksky', 'https://blacksky.community/profile/{did}', 'https://blacksky.community/profile/{did}/post/{rkey}'],
 			'https://deer.social'        => ['Deer', 'https://deer.social/profile/{did}', 'https://deer.social/profile/{did}/post/{rkey}'],
-			'https://reddwarf.app'       => ['Red Dwarf', 'https://reddwarf.app/profile/{did}', 'https://reddwarf.app/profile/{did}/post/{rkey}'],
 			'https://klearsky.pages.dev' => ['Klearsky', 'https://klearsky.pages.dev/?ref=blueskydirectory#/profile/feeds?account={did}', 'https://klearsky.pages.dev/#/post?uri=at://{did}/{collection}/{rkey}'],
+			'https://mu.social'          => ['mu', 'https://mu.social/profile/{did}', 'https://mu.social/profile/{did}/post/{rkey}'],
+			'https://reddwarf.app'       => ['Red Dwarf', 'https://reddwarf.app/profile/{did}', 'https://reddwarf.app/profile/{did}/post/{rkey}'],
 		],
 		// jetstream (URL)
 		// Path to the jetstream service. Available servers from Bluesky are:

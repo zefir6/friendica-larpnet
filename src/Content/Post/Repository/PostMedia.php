@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -15,6 +15,7 @@ use Friendica\Content\Item;
 use Friendica\Content\Post\Collection\PostMedias as PostMediasCollection;
 use Friendica\Content\Post\Entity\PostMedia as PostMediaEntity;
 use Friendica\Content\Post\Factory\PostMedia as PostMediaFactory;
+use Friendica\Content\Text\HTML;
 use Friendica\Core\Config\Capability\IManageConfigValues;
 use Friendica\Core\PConfig\Capability\IManagePersonalConfigValues;
 use Friendica\Core\Renderer;
@@ -39,36 +40,24 @@ class PostMedia extends BaseRepository
 {
 	protected static $table_name = 'post-media';
 
-	/** @var PostMediaFactory */
-	protected $factory;
-	/** @var IManagePersonalConfigValues */
-	private $pConfig;
-	/** @var IManageConfigValues */
-	private $config;
-	/** @var BaseURL */
-	private $baseURL;
-	/** @var Item */
-	private $item;
-
 	/**
 	 * PostMedia repository constructor.
-	 *
-	 * @param Database $database Database connection wrapper
-	 * @param LoggerInterface $logger PSR-3 logger
-	 * @param PostMediaFactory $factory Factory for creating entities
-	 * @param IManagePersonalConfigValues $pConfig Personal configuration access
-	 * @param IManageConfigValues $config Global configuration access
-	 * @param BaseURL $baseURL Base URL helper
-	 * @param Item $item Item helper
 	 */
-	public function __construct(Database $database, LoggerInterface $logger, PostMediaFactory $factory, IManagePersonalConfigValues $pConfig, IManageConfigValues $config, BaseURL $baseURL, Item $item)
-	{
-		parent::__construct($database, $logger, $factory);
+	public function __construct(
+		Database $database,
+		LoggerInterface $logger,
+		private readonly PostMediaFactory $entityFactory,
+		private readonly IManagePersonalConfigValues $pConfig,
+		private readonly IManageConfigValues $config,
+		private readonly BaseURL $baseURL,
+	) {
+		parent::__construct($database, $logger, $entityFactory);
+	}
 
-		$this->baseURL = $baseURL;
-		$this->pConfig = $pConfig;
-		$this->config  = $config;
-		$this->item    = $item;
+	/** @not-deprecated */
+	protected function getFactory(): PostMediaFactory
+	{
+		return $this->entityFactory;
 	}
 
 	/**
@@ -88,7 +77,7 @@ class PostMedia extends BaseRepository
 		$Entities = new PostMediasCollection();
 		foreach ($rows as $fields) {
 			try {
-				$Entities[] = $this->factory->createFromTableRow($fields);
+				$Entities[] = $this->getFactory()->createFromTableRow($fields);
 			} catch (\Throwable $e) {
 				$this->logger->warning('Invalid media row', ['code' => $e->getCode(), 'message' => $e->getMessage(), 'fields' => $fields]);
 			}
@@ -108,7 +97,7 @@ class PostMedia extends BaseRepository
 	{
 		$fields = $this->_selectFirstRowAsArray(['id' => $postMediaId]);
 
-		return $this->factory->createFromTableRow($fields);
+		return $this->getFactory()->createFromTableRow($fields);
 	}
 
 	/**
@@ -120,7 +109,7 @@ class PostMedia extends BaseRepository
 	 */
 	public function selectByUriId(int $uriId, array $types = []): PostMediasCollection
 	{
-		$condition = ["`uri-id` = ? AND `type` != ?", $uriId, Post\Media::UNKNOWN];
+		$condition = ["`uri-id` = ? AND `type` != ?", $uriId, PostMediaEntity::TYPE_UNKNOWN];
 
 		if (!empty($types)) {
 			$condition = DBA::mergeConditions($condition, ['type' => $types]);
@@ -139,7 +128,7 @@ class PostMedia extends BaseRepository
 	 */
 	public function selectByURL(int $uriId, string $url, array $types = []): ?PostMediaEntity
 	{
-		$condition = ["`uri-id` = ? AND `url` = ? AND `type` != ?", $uriId, $url, Post\Media::UNKNOWN];
+		$condition = ["`uri-id` = ? AND `url` = ? AND `type` != ?", $uriId, $url, PostMediaEntity::TYPE_UNKNOWN];
 
 		if (!empty($types)) {
 			$condition = DBA::mergeConditions($condition, ['type' => $types]);
@@ -378,7 +367,7 @@ class PostMedia extends BaseRepository
 	public function createFromUrl(string $url): PostMediaEntity
 	{
 		$data  = ParseUrl::getSiteinfoCached($url);
-		$media = $this->factory->createFromParseUrl($data);
+		$media = $this->getFactory()->createFromParseUrl($data);
 		return $this->fetchAdditionalData($media);
 	}
 
@@ -392,7 +381,7 @@ class PostMedia extends BaseRepository
 	{
 		$data = $this->getFields($postMedia, true);
 		$data = Post\Media::fetchAdditionalData($data);
-		return $this->factory->createFromTableRow($data);
+		return $this->getFactory()->createFromTableRow($data);
 	}
 
 	/**
@@ -413,12 +402,12 @@ class PostMedia extends BaseRepository
 			$data['author-url'] = '';
 		}
 
-		$parts = parse_url($data['url']);
+		$parts = parse_url((string) $data['url']);
 		if (!empty($parts['scheme']) && !empty($parts['host'])) {
 			if (empty($data['publisher-name'])) {
 				$data['publisher-name'] = $parts['host'];
 			}
-			if (empty($data['publisher-url']) || empty(parse_url($data['publisher-url'], PHP_URL_SCHEME))) {
+			if (empty($data['publisher-url']) || empty(parse_url((string) $data['publisher-url'], PHP_URL_SCHEME))) {
 				$data['publisher-url'] = $parts['scheme'] . '://' . $parts['host'];
 
 				if (!empty($parts['port'])) {
@@ -434,7 +423,7 @@ class PostMedia extends BaseRepository
 		}
 		$data['name'] = str_replace(['http://', 'https://'], '', $data['name']);
 
-		return $this->factory->createFromTableRow($data);
+		return $this->getFactory()->createFromTableRow($data);
 	}
 
 	/**
@@ -458,7 +447,7 @@ class PostMedia extends BaseRepository
 
 		$tmp = new DOMDocument();
 		$doc = new DOMDocument();
-		@$doc->loadHTML(mb_convert_encoding('<span>' . $html . '</span>', 'HTML-ENTITIES', "UTF-8"), LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+		@$doc->loadHTML(HTML::toNumericEntities('<span>' . $html . '</span>'), LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
 		$xpath = new DOMXPath($doc);
 		$list  = $xpath->query('//a[@class="embed"]');
 		foreach ($list as $node) {
@@ -476,7 +465,7 @@ class PostMedia extends BaseRepository
 			}
 
 			if ($uri_id > 0) {
-				$media = $this->selectByURL($uri_id, $href, [Post\Media::HTML, Post\Media::AUDIO, Post\Media::VIDEO, Post\Media::HLS]);
+				$media = $this->selectByURL($uri_id, $href, [PostMediaEntity::TYPE_HTML, PostMediaEntity::TYPE_AUDIO, PostMediaEntity::TYPE_VIDEO, PostMediaEntity::TYPE_HLS]);
 			}
 			if (!isset($media)) {
 				$media = $this->createFromUrl($href);
@@ -492,9 +481,9 @@ class PostMedia extends BaseRepository
 
 			if (!$local_visitor && !$this->displayMedia($media)) {
 				$player = '<span></span>';
-			} elseif ($media->type === Post\Media::AUDIO) {
+			} elseif ($media->type === PostMediaEntity::TYPE_AUDIO) {
 				$player = $this->getAudioAttachment($media);
-			} elseif (in_array($media->type, [Post\Media::VIDEO, Post\Media::HLS])) {
+			} elseif (in_array($media->type, [PostMediaEntity::TYPE_VIDEO, PostMediaEntity::TYPE_HLS])) {
 				$player = $this->getVideoAttachment($media, $uid);
 			} elseif ($allow_embed && $media->hasPlayerUrl() && $media->hasPlayerHeight()) {
 				$player = $this->getPlayerIframe($media);
@@ -506,7 +495,7 @@ class PostMedia extends BaseRepository
 			if ($player === '') {
 				continue;
 			}
-			@$tmp->loadHTML(mb_convert_encoding($player, 'HTML-ENTITIES', "UTF-8"), LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+			@$tmp->loadHTML(HTML::toNumericEntities($player), LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
 			$div      = $tmp->documentElement;
 			$imported = $doc->importNode($div, true);
 			$node->parentNode->replaceChild($imported, $node);
@@ -518,7 +507,7 @@ class PostMedia extends BaseRepository
 		}
 
 		$html = trim($doc->saveHTML());
-		if (substr($html, 0, 6) == '<span>' && substr($html, -7) == '</span>') {
+		if (str_starts_with($html, '<span>') && str_ends_with($html, '</span>')) {
 			$html = substr($html, 6, -7);
 		}
 		return $html;
@@ -550,12 +539,14 @@ class PostMedia extends BaseRepository
 			if ($this->config->get('system', 'videojs')) {
 				$template = 'content/videojs.tpl';
 			} else {
-				$template = $postMedia->type == Post\Media::HLS ? 'content/hls.tpl' : 'content/video.tpl';
+				$template = $postMedia->type == PostMediaEntity::TYPE_HLS ? 'content/hls.tpl' : 'content/video.tpl';
 			}
 			$media = Renderer::replaceMacros(Renderer::getMarkupTemplate($template), [
 				'$video' => [
-					'id'          => $postMedia->id,
-					'src'         => (string) $postMedia->url,
+					'id'  => $postMedia->id,
+					'src' => $postMedia->type == PostMediaEntity::TYPE_HLS
+						? Post\Media::resolvePlaylistUrl((string) $postMedia->url)
+						: (string) $postMedia->url,
 					'name'        => $postMedia->name ?: $postMedia->url,
 					'preview'     => $preview_url,
 					'mime'        => (string) $postMedia->mimetype,
@@ -648,7 +639,7 @@ class PostMedia extends BaseRepository
 		}
 
 		return Renderer::replaceMacros(Renderer::getMarkupTemplate($postMedia->embedHeight ? 'content/embed-iframe.tpl' : 'content/embed-iframe-resize.tpl'), [
-			'id'           => 'iframe-' . hash('md5', $postMedia->embedHtml),
+			'id'           => 'iframe-' . hash('md5', (string) $postMedia->embedHtml),
 			'src'          => $postMedia->embedHtml,
 			'height'       => $height,
 			'width'        => $width,

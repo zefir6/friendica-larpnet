@@ -1,12 +1,12 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
 <div id='adminpage' class='adminpage'>
 	<h1>{{$title}} - {{$page}} ({{$count}})</h1>
-	
+	<div class="settings-section">
 	<p>{{$info}}</p>
 	<table>
 		<colgroup>
@@ -36,4 +36,5 @@
 		</tr>
 		{{/foreach}}
 	</table>
+	</div>
 </div>

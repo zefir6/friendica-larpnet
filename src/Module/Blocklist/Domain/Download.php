@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -20,17 +20,9 @@ use Psr\Log\LoggerInterface;
 
 class Download extends \Friendica\BaseModule
 {
-	private DomainPatternBlocklist $blocklist;
-	private IManageConfigValues $config;
-	private IHandleUserSessions $session;
-
-	public function __construct(DomainPatternBlocklist $blocklist, IHandleUserSessions $session, IManageConfigValues $config, L10n $l10n, App\BaseURL $baseUrl, App\Arguments $args, LoggerInterface $logger, Profiler $profiler, Response $response, array $server, array $parameters = [])
+	public function __construct(private readonly DomainPatternBlocklist $blocklist, private readonly IHandleUserSessions $session, private readonly IManageConfigValues $config, L10n $l10n, App\BaseURL $baseUrl, App\Arguments $args, LoggerInterface $logger, Profiler $profiler, Response $response, array $server, array $parameters = [])
 	{
 		parent::__construct($l10n, $baseUrl, $args, $logger, $profiler, $response, $server, $parameters);
-
-		$this->blocklist = $blocklist;
-		$this->config    = $config;
-		$this->session   = $session;
 	}
 
 	/**

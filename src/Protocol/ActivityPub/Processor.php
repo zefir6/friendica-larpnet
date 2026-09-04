@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -39,6 +39,8 @@ use Friendica\Util\JsonLD;
 use Friendica\Util\Network;
 use Friendica\Util\Strings;
 use Friendica\Worker\FetchMissingActivity;
+use GuzzleHttp\Psr7\Uri;
+use Friendica\Content\Post\Entity\PostMedia;
 
 /**
  * ActivityPub Processor Protocol class
@@ -87,7 +89,7 @@ class Processor
 	public static function normalizeMentionLinks(string $body): string
 	{
 		$body = preg_replace('%\[url=([^\[\]]*)]([#@!])(.*?)\[/url]%ism', '$2[url=$1]$3[/url]', $body);
-		$body = preg_replace('%([#@!])\[zrl=([^\[\]]*)](.*?)\[/zrl]%ism', '$1[url=$2]$3[/url]', $body);
+		$body = preg_replace('%([#@!])\[zrl=([^\[\]]*)](.*?)\[/zrl]%ism', '$1[url=$2]$3[/url]', (string) $body);
 		return $body;
 	}
 
@@ -153,7 +155,7 @@ class Processor
 		}
 
 		$data                  = ['uri-id' => $uriid];
-		$data['type']          = Post\Media::UNKNOWN;
+		$data['type']          = PostMedia::TYPE_UNKNOWN;
 		$data['url']           = $attachment['url'];
 		$data['mimetype']      = $attachment['mediaType']     ?? null;
 		$data['height']        = $attachment['height']        ?? null;
@@ -246,7 +248,7 @@ class Processor
 		$item['changed'] = DateTimeFormat::utcNow();
 		$item['edited']  = DateTimeFormat::utc($activity['updated']);
 
-		Post\Media::deleteByURIId($item['uri-id'], [Post\Media::AUDIO, Post\Media::VIDEO, Post\Media::IMAGE, Post\Media::HTML, Post\Media::HLS, Post\Media::TORRENT]);
+		Post\Media::deleteByURIId($item['uri-id'], [PostMedia::TYPE_AUDIO, PostMedia::TYPE_VIDEO, PostMedia::TYPE_IMAGE, PostMedia::TYPE_HTML, PostMedia::TYPE_HLS, PostMedia::TYPE_TORRENT]);
 		$item = self::processContent($activity, $item);
 		if (empty($item)) {
 			Queue::remove($activity);
@@ -499,7 +501,7 @@ class Processor
 			}
 		}
 
-		if (!$item['isGroup'] && !empty($activity['receiver_urls']['as:audience'])) {
+		if (isset($activity['receiver_urls']) && isset($activity['receiver_urls']['as:audience']) && is_array($activity['receiver_urls']['as:audience'])) {
 			foreach ($activity['receiver_urls']['as:audience'] as $audience) {
 				$actor = APContact::getByURL($audience, false);
 				if (($actor['type'] ?? 'Person') == 'Group') {
@@ -703,7 +705,7 @@ class Processor
 	 */
 	public static function isActivityGone(string $url): bool
 	{
-		if (Network::isUrlBlocked($url)) {
+		if (Network::isUriBlocked(new Uri($url))) {
 			return true;
 		}
 
@@ -1182,35 +1184,18 @@ class Processor
 
 			$item['uid'] = $receiver;
 
-			$type = $activity['reception_type'][$receiver] ?? Receiver::TARGET_UNKNOWN;
-			switch ($type) {
-				case Receiver::TARGET_TO:
-					$item['post-reason'] = Item::PR_TO;
-					break;
-				case Receiver::TARGET_CC:
-					$item['post-reason'] = Item::PR_CC;
-					break;
-				case Receiver::TARGET_BTO:
-					$item['post-reason'] = Item::PR_BTO;
-					break;
-				case Receiver::TARGET_BCC:
-					$item['post-reason'] = Item::PR_BCC;
-					break;
-				case Receiver::TARGET_AUDIENCE:
-					$item['post-reason'] = Item::PR_AUDIENCE;
-					break;
-				case Receiver::TARGET_FOLLOWER:
-					$item['post-reason'] = Item::PR_FOLLOWER;
-					break;
-				case Receiver::TARGET_ANSWER:
-					$item['post-reason'] = Item::PR_COMMENT;
-					break;
-				case Receiver::TARGET_GLOBAL:
-					$item['post-reason'] = Item::PR_GLOBAL;
-					break;
-				default:
-					$item['post-reason'] = Item::PR_NONE;
-			}
+			$type                = $activity['reception_type'][$receiver] ?? Receiver::TARGET_UNKNOWN;
+			$item['post-reason'] = match ($type) {
+				Receiver::TARGET_TO       => Item::PR_TO,
+				Receiver::TARGET_CC       => Item::PR_CC,
+				Receiver::TARGET_BTO      => Item::PR_BTO,
+				Receiver::TARGET_BCC      => Item::PR_BCC,
+				Receiver::TARGET_AUDIENCE => Item::PR_AUDIENCE,
+				Receiver::TARGET_FOLLOWER => Item::PR_FOLLOWER,
+				Receiver::TARGET_ANSWER   => Item::PR_COMMENT,
+				Receiver::TARGET_GLOBAL   => Item::PR_GLOBAL,
+				default                   => Item::PR_NONE,
+			};
 
 			$item['post-reason'] = Item::getPostReason($item);
 
@@ -1428,14 +1413,14 @@ class Processor
 				continue;
 			}
 
-			$hash = substr($tag['name'], 0, 1);
+			$hash = substr((string) $tag['name'], 0, 1);
 			$type = 0;
 
 			if ($tag['type'] == 'Mention') {
 				if (in_array($hash, [Tag::TAG_CHARACTER[Tag::MENTION],
 					Tag::TAG_CHARACTER[Tag::EXCLUSIVE_MENTION],
 					Tag::TAG_CHARACTER[Tag::IMPLICIT_MENTION]])) {
-					$tag['name'] = substr($tag['name'], 1);
+					$tag['name'] = substr((string) $tag['name'], 1);
 				}
 				$type = Tag::IMPLICIT_MENTION;
 
@@ -1447,7 +1432,7 @@ class Processor
 				}
 			} elseif ($tag['type'] == 'Hashtag') {
 				if ($hash == Tag::TAG_CHARACTER[Tag::HASHTAG]) {
-					$tag['name'] = substr($tag['name'], 1);
+					$tag['name'] = substr((string) $tag['name'], 1);
 				}
 				$type = Tag::HASHTAG;
 			}
@@ -1466,9 +1451,9 @@ class Processor
 			foreach ($receivers[$element] ?? [] as $receiver) {
 				if ($receiver == ActivityPub::PUBLIC_COLLECTION) {
 					$name = Receiver::PUBLIC_COLLECTION;
-				} elseif ($path = parse_url($receiver, PHP_URL_PATH)) {
+				} elseif ($path = parse_url((string) $receiver, PHP_URL_PATH)) {
 					$name = trim($path, '/');
-				} elseif ($host = parse_url($receiver, PHP_URL_HOST)) {
+				} elseif ($host = parse_url((string) $receiver, PHP_URL_HOST)) {
 					$name = $host;
 				} else {
 					DI::logger()->warning('Unable to coerce name from receiver', ['element' => $element, 'type' => $type, 'receiver' => $receiver]);
@@ -1531,9 +1516,9 @@ class Processor
 			foreach ($key_interaction as $interaction) {
 				if ($interaction == ActivityPub::PUBLIC_COLLECTION) {
 					$name = Receiver::PUBLIC_COLLECTION;
-				} elseif ($path = parse_url($interaction, PHP_URL_PATH)) {
+				} elseif ($path = parse_url((string) $interaction, PHP_URL_PATH)) {
 					$name = trim($path, '/');
-				} elseif ($host = parse_url($interaction, PHP_URL_HOST)) {
+				} elseif ($host = parse_url((string) $interaction, PHP_URL_HOST)) {
 					$name = $host;
 				} else {
 					DI::logger()->warning('Unable to coerce name from interaction', ['key' => $key, 'interaction' => $interaction]);
@@ -1566,9 +1551,9 @@ class Processor
 					}
 					$name       = $author['nick'] ?: $author['url'];
 					$capability = $author['url'];
-				} elseif ($path = parse_url($capability, PHP_URL_PATH)) {
+				} elseif ($path = parse_url((string) $capability, PHP_URL_PATH)) {
 					$name = trim($path, '/');
-				} elseif ($host = parse_url($capability, PHP_URL_HOST)) {
+				} elseif ($host = parse_url((string) $capability, PHP_URL_HOST)) {
 					$name = $host;
 				} else {
 					DI::logger()->warning('Unable to coerce name from capability', ['element' => $element, 'type' => $type, 'capability' => $capability]);
@@ -1628,7 +1613,7 @@ class Processor
 				// Trying to generate a title out of the body
 				$title = $item['body'];
 
-				while (preg_match('#^(@\[url=([^\]]+)].*?\[\/url]\s)(.*)#is', $title, $matches)) {
+				while (preg_match('#^(@\[url=([^\]]+)].*?\[\/url]\s)(.*)#is', (string) $title, $matches)) {
 					$title = $matches[3];
 				}
 
@@ -1779,7 +1764,7 @@ class Processor
 	 */
 	public static function fetchMissingActivity(string $url, array $child = [], string $relay_actor = '', int $completion = Receiver::COMPLETION_MANUAL, int $uid = 0): ?string
 	{
-		if (Network::isUrlBlocked($url)) {
+		if (Network::isUriBlocked(new Uri($url))) {
 			return null;
 		}
 
@@ -1809,7 +1794,7 @@ class Processor
 			$object = self::refetchObjectOnHostDifference($object, $url);
 		}
 
-		if (empty($object) || !is_array($object)) {
+		if (empty($object)) {
 			DI::logger()->notice('Invalid JSON data', ['url' => $url, 'content-type' => $curlResult->getContentType()]);
 			return null;
 		}
@@ -1857,7 +1842,11 @@ class Processor
 		$object_id = JsonLD::fetchElement($ldobject, 'as:object', '@id');
 
 		if (!in_array($type, Receiver::CONTENT_TYPES) && !empty($object_id)) {
-			if (($type == 'as:Announce') && !empty($relay_actor) && ($completion = Receiver::COMPLETION_RELAY)) {
+			if (
+				$type == 'as:Announce'
+				&& !empty($relay_actor)
+				&& $completion === Receiver::COMPLETION_RELAY
+			) {
 				if (Item::searchByLink($object_id)) {
 					return $object_id;
 				}
@@ -1985,7 +1974,7 @@ class Processor
 					DI::logger()->debug('Replies id is already in the list of children', ['depth' => count($child['children']), 'children' => $child['children'], 'id' => $id]);
 					continue;
 				}
-				if (parse_url($id, PHP_URL_HOST) == parse_url($url, PHP_URL_HOST)) {
+				if (parse_url((string) $id, PHP_URL_HOST) == parse_url($url, PHP_URL_HOST)) {
 					DI::logger()->debug('Incluced activity will be processed', ['replies' => $url, 'id' => $id]);
 					self::processActivity($reply, $id, $child, '', Receiver::COMPLETION_REPLIES);
 					++$fetched;
@@ -2034,7 +2023,7 @@ class Processor
 		}
 
 		$url_host = parse_url($url, PHP_URL_HOST);
-		$id_host  = parse_url($id, PHP_URL_HOST);
+		$id_host  = parse_url((string) $id, PHP_URL_HOST);
 
 		if ($id_host == $url_host) {
 			return $object;
@@ -2064,25 +2053,25 @@ class Processor
 		$actor         = JsonLD::fetchElement($ldobject, 'as:actor', '@id');
 		$attributed_to = JsonLD::fetchElement($ldobject, 'as:attributedTo', '@id');
 
-		$id_host = parse_url($id, PHP_URL_HOST);
+		$id_host = parse_url((string) $id, PHP_URL_HOST);
 
 		if (!empty($actor) && !in_array($type, Receiver::CONTENT_TYPES) && !empty($object_id)) {
-			$actor_host = parse_url($actor, PHP_URL_HOST);
+			$actor_host = parse_url((string) $actor, PHP_URL_HOST);
 			if ($actor_host != $id_host) {
 				DI::logger()->notice('Host mismatch between received id and actor', ['id-host' => $id_host, 'actor-host' => $actor_host, 'id' => $id, 'type' => $type, 'object-id' => $object_id, 'object_type' => $object_type, 'actor' => $actor, 'attributed_to' => $attributed_to]);
 				return false;
 			}
 			if (!empty($object_type)) {
 				$object_attributed_to = JsonLD::fetchElement($ldobject['as:object'], 'as:attributedTo', '@id');
-				$attributed_to_host   = parse_url($object_attributed_to, PHP_URL_HOST);
-				$object_id_host       = parse_url($object_id, PHP_URL_HOST);
+				$attributed_to_host   = parse_url((string) $object_attributed_to, PHP_URL_HOST);
+				$object_id_host       = parse_url((string) $object_id, PHP_URL_HOST);
 				if (!empty($attributed_to_host) && ($attributed_to_host != $object_id_host)) {
 					DI::logger()->notice('Host mismatch between received object id and attributed actor', ['id-object-host' => $object_id_host, 'attributed-host' => $attributed_to_host, 'id' => $id, 'type' => $type, 'object-id' => $object_id, 'object_type' => $object_type, 'actor' => $actor, 'object_attributed_to' => $object_attributed_to]);
 					return false;
 				}
 			}
 		} elseif (!empty($attributed_to)) {
-			$attributed_to_host = parse_url($attributed_to, PHP_URL_HOST);
+			$attributed_to_host = parse_url((string) $attributed_to, PHP_URL_HOST);
 			if ($attributed_to_host != $id_host) {
 				DI::logger()->notice('Host mismatch between received id and attributed actor', ['id-host' => $id_host, 'attributed-host' => $attributed_to_host, 'id' => $id, 'type' => $type, 'object-id' => $object_id, 'object_type' => $object_type, 'actor' => $actor, 'attributed_to' => $attributed_to]);
 				return false;
@@ -2141,8 +2130,8 @@ class Processor
 		$attributed_to = JsonLD::fetchElement($activity['as:object'], 'as:attributedTo', '@id');
 		$authorid      = Contact::getIdForURL($attributed_to);
 
-		$content = JsonLD::fetchElement($activity['as:object'], 'as:name', '@value')           ?? '';
-		$content .= ' ' . JsonLD::fetchElement($activity['as:object'], 'as:summary', '@value') ?? '';
+		$content = (string) JsonLD::fetchElement($activity['as:object'], 'as:name', '@value');
+		$content .= ' ' . (string) JsonLD::fetchElement($activity['as:object'], 'as:summary', '@value');
 		$content .= ' ' . HTML::toBBCode(JsonLD::fetchElement($activity['as:object'], 'as:content', '@value') ?? '');
 
 		$attachments = JsonLD::fetchElementArray($activity['as:object'], 'as:attachment') ?? [];
@@ -2159,10 +2148,10 @@ class Processor
 		$tags        = Receiver::processTags(JsonLD::fetchElementArray($activity['as:object'], 'as:tag') ?? []);
 		if (!empty($tags)) {
 			foreach ($tags as $tag) {
-				if (($tag['type'] != 'Hashtag') && !strpos($tag['type'], ':Hashtag') || empty($tag['name'])) {
+				if (($tag['type'] != 'Hashtag') && !strpos((string) $tag['type'], ':Hashtag') || empty($tag['name'])) {
 					continue;
 				}
-				$messageTags[] = ltrim(mb_strtolower($tag['name']), '#');
+				$messageTags[] = ltrim(mb_strtolower((string) $tag['name']), '#');
 			}
 		}
 
@@ -2529,6 +2518,7 @@ class Processor
 			$check_id = true;
 		}
 
+		// @todo this is triggered by follow request done by the system user. Question is if we should care.
 		if (empty($uid)) {
 			DI::logger()->notice('User could not be detected', ['activity' => $activity]);
 			Queue::remove($activity);
@@ -2773,8 +2763,8 @@ class Processor
 					continue;
 				}
 
-				$hash = substr($tag['name'], 0, 1);
-				$name = substr($tag['name'], 1);
+				$hash = substr((string) $tag['name'], 0, 1);
+				$name = substr((string) $tag['name'], 1);
 				if (!in_array($hash, Tag::TAG_CHARACTER)) {
 					$hash = '';
 					$name = $tag['name'];

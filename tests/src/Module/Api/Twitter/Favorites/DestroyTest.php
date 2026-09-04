@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -27,10 +27,11 @@ class DestroyTest extends ApiTestCase
 	 *
 	 * @return void
 	 */
-	public function testApiFavoritesCreateDestroyWithInvalidId()
+	public function testApiFavoritesCreateDestroyWithInvalidId(): void
 	{
 		$this->expectException(BadRequestException::class);
 
+		// @phpstan-ignore method.deprecated
 		(new Destroy(DI::mstdnError(), DI::appHelper(), DI::l10n(), DI::baseUrl(), DI::args(), DI::logger(), DI::profiler(), DI::apiResponse(), []))
 			->run($this->httpExceptionMock);
 	}
@@ -40,33 +41,16 @@ class DestroyTest extends ApiTestCase
 	 *
 	 * @return void
 	 */
-	public function testApiFavoritesCreateDestroyWithDestroyAction()
+	public function testApiFavoritesCreateDestroyWithDestroyAction(): void
 	{
+		// @phpstan-ignore method.deprecated
 		$response = (new Destroy(DI::mstdnError(), DI::appHelper(), DI::l10n(), DI::baseUrl(), DI::args(), DI::logger(), DI::profiler(), DI::apiResponse(), []))
 			->run($this->httpExceptionMock, [
-				'id' => 3
+				'id' => 3,
 			]);
 
 		$json = $this->toJson($response);
 
 		self::assertStatus($json);
-	}
-
-	/**
-	 * Test the api_favorites_create_destroy() function without an authenticated user.
-	 *
-	 * @return void
-	 */
-	public function testApiFavoritesCreateDestroyWithoutAuthenticatedUser()
-	{
-		self::markTestIncomplete('Needs refactoring of Lists - replace filter_input() with $request parameter checks');
-
-		/*
-		$this->expectException(\Friendica\Network\HTTPException\UnauthorizedException::class);
-		DI::args()->setArgv(['api', '1.1', 'favorites', 'create.json']);
-		BasicAuth::setCurrentUserID();
-		$_SESSION['authenticated'] = false;
-		api_favorites_create_destroy('json');
-		*/
 	}
 }

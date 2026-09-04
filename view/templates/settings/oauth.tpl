@@ -1,6 +1,6 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
@@ -24,7 +24,7 @@
 					{{foreach $apps as $app}}
 					<tr>
 						<td>{{$app.name}}</td>
-						<td>{{$app.website}}</td>
+						<td style="word-break: break-all;">{{$app.website}}</td>
 						<td>{{$app.created_at}}</td>
 						<td>
 							<button type="submit" class="btn" title="{{$delete}}" name="delete" value="{{$app.id}}">

@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -31,25 +31,25 @@ class Manifest extends BaseModule
 			'shortcuts'   => [
 				[
 					'name' => 'Latest posts',
-					'url'  => '/network'
+					'url'  => '/network',
 				],
 				[
 					'name' => 'Messages',
-					'url'  => '/message'
+					'url'  => '/message',
 				],
 				[
 					'name' => 'Notifications',
-					'url'  => '/notifications/system'
+					'url'  => '/notifications/system',
 				],
 				[
 					'name' => 'Contacts',
-					'url'  => '/contact'
+					'url'  => '/contact',
 				],
 				[
 					'name' => 'Calendar',
-					'url'  => '/calendar'
-				]
-			]
+					'url'  => '/calendar',
+				],
+			],
 		];
 
 		/// @TODO If the admin provides their own touch icon, the manifest will regress
@@ -71,7 +71,7 @@ class Manifest extends BaseModule
 				],
 			];
 		} elseif ($theme === 'larpnet') {
-			$base = DI::baseUrl() . '/view/theme/' . $theme . '/img/';
+			$base              = DI::baseUrl() . '/view/theme/' . $theme . '/img/';
 			$manifest['icons'] = [
 				[
 					'src'     => $base . 'larpnet-192.png',
@@ -147,6 +147,6 @@ class Manifest extends BaseModule
 			$manifest['theme_color'] = $theme_color;
 		}
 
-		$this->jsonExit($manifest, 'application/manifest+json');
+		$this->earlyJsonExit($manifest, 'application/manifest+json');
 	}
 }

@@ -1,6 +1,6 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
@@ -8,7 +8,7 @@
 <script type="text/javascript">
 	$("#comment-edit-text-input").editor_autocomplete(baseurl + '/search/acl');
 
-	$(document).ready(function() {
+	window.onDocumentReady('body', function() {
 		$("#comment-edit-text-input").bbco_autocomplete('bbcode');
 		$('#mail-conversation').perfectScrollbar();
 		$('#message-preview').perfectScrollbar();

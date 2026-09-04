@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -19,16 +19,9 @@ use Friendica\Model\Post;
 
 class Notification extends BaseFactory
 {
-	/** @var Account */
-	private $mstdnAccountFactory;
-	/** @var Status */
-	private $mstdnStatusFactory;
-
-	public function __construct(LoggerInterface $logger, Account $mstdnAccountFactory, Status $mstdnStatusFactoryFactory)
+	public function __construct(LoggerInterface $logger, private readonly Account $mstdnAccountFactory, private readonly Status $mstdnStatusFactory)
 	{
 		parent::__construct($logger);
-		$this->mstdnAccountFactory = $mstdnAccountFactory;
-		$this->mstdnStatusFactory  = $mstdnStatusFactoryFactory;
 	}
 
 	/**
@@ -50,7 +43,7 @@ class Notification extends BaseFactory
 		if ($Notification->targetUriId) {
 			try {
 				$status = $this->mstdnStatusFactory->createFromUriId($Notification->targetUriId, $Notification->uid);
-			} catch (\Exception $exception) {
+			} catch (\Exception) {
 				$status = null;
 			}
 		} else {

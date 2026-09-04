@@ -1,6 +1,6 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
@@ -20,7 +20,7 @@
 						type="text" name="q"
 						placeholder="{{$l10n.Search}}" value="{{$q}}">
 					<button class="btn btn-lg btn-primary"
-						type="submit"><i class="fa fa-search fa-fw fa-lg" aria-hidden="true"></i></button>
+						type="submit"><i class="ri ri-search-line ri-fw ri-lg" aria-hidden="true"></i></button>
 						<a href="{{$baseurl}}/admin/logs/view" class="btn btn-default">{{$l10n.Show_all}}</a>
 				</div>
 			</div>

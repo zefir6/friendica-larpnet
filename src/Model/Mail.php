@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -45,7 +45,7 @@ class Mail
 		}
 
 		if (empty($msg['guid'])) {
-			$msg['guid'] = Item::guidFromUri($msg['uri'], parse_url($msg['from-url'], PHP_URL_HOST));
+			$msg['guid'] = DI::postUriGenerator()->guidFromUri($msg['uri'], parse_url((string) $msg['from-url'], PHP_URL_HOST));
 		}
 
 		$msg['created'] = (!empty($msg['created']) ? DateTimeFormat::utc($msg['created']) : DateTimeFormat::utcNow());
@@ -146,7 +146,7 @@ class Mail
 		Photo::setPermissionFromBody($body, $sender_uid, $me['id'], '<' . $contact['id'] . '>', '', '', '');
 
 		$guid = System::createUUID();
-		$uri  = Item::newURI($guid);
+		$uri  = DI::postUriGenerator()->newURI($guid);
 
 		$convid = 0;
 		$reply  = false;
@@ -202,9 +202,9 @@ class Mail
 				'replied'    => 0,
 				'uri'        => $uri,
 				'parent-uri' => $replyto,
-				'created'    => DateTimeFormat::utcNow()
+				'created'    => DateTimeFormat::utcNow(),
 			],
-			false
+			false,
 		);
 
 		/**

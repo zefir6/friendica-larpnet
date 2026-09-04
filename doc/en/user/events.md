@@ -26,13 +26,13 @@ Following one of the methods mentioned above you reach a form to enter the event
 Fields marked with a *** have to be filled.
 
 * **Event Starts**: enter the date/time of the start of the event here
-* **Event Finishes**: enter the finishing date/time for the event here
+* **Event Ends**: enter the end date/time for the event here
 
 When you click in one of these fields a pop-up will be opened that allows you to pick the day and the time.
 If you double-clicked on the day box in the calendar these fields will be pre-filled for you.
-The finishing date/time has to be after the beginning date/time of the event.
+The end date/time has to be after the beginning date/time of the event.
 But you don't have to specify it.
-If the event is open-ended or the finishing date/time does not matter, just select the box below the two first fields.
+If the event is open-ended or the end date/time does not matter, just select the box below the two first fields.
 
 * **Title**: a title for the event
 * **Description**: a longer description for the event

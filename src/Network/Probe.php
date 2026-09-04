@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -11,8 +11,8 @@ use DOMDocument;
 use DOMXPath;
 use Exception;
 use Friendica\Content\Text\HTML;
-use Friendica\Core\Hook;
 use Friendica\Core\Protocol;
+use Friendica\Event\ArrayFilterEvent;
 use Friendica\Database\DBA;
 use Friendica\DI;
 use Friendica\Model\Contact;
@@ -214,9 +214,7 @@ class Probe
 
 		if ($network != Protocol::ACTIVITYPUB) {
 			$data = self::detect($uri, $network, $uid, $ap_profile);
-			if (!is_array($data)) {
-				$data = [];
-			}
+
 			if (empty($data) || (!empty($ap_profile) && empty($network) && (($data['network'] ?? '') != Protocol::DFRN))) {
 				$networks = $data['networks'] ?? [];
 				unset($data['networks']);
@@ -346,7 +344,7 @@ class Probe
 					}
 					break;
 				case 'robots':
-					if (strpos($content, 'noindex') !== false) {
+					if (str_contains($content, 'noindex')) {
 						return true;
 					}
 					break;
@@ -443,7 +441,7 @@ class Probe
 
 			if (is_null($webfinger)) {
 				$webfinger = self::getWebfinger('http://' . $host . self::WEBFINGER, HttpClientAccept::JRD_JSON, '', $uri);
-				if (self::$isTimeout || is_null($webfinger)) {
+				if (is_null($webfinger)) {
 					return [];
 				}
 				$baseurl = 'http://' . $host;
@@ -476,7 +474,7 @@ class Probe
 	 */
 	private static function getWebfinger(string $template, string $type, string $uri, string $addr): ?array
 	{
-		if (Network::isUrlBlocked($template)) {
+		if (Network::isUriBlocked(new Uri($template))) {
 			DI::logger()->info('Domain is blocked', ['url' => $template]);
 			return null;
 		}
@@ -531,20 +529,22 @@ class Probe
 			'result'  => null,
 		];
 
-		Hook::callAll('probe_detect', $hookData);
+		$hookData = DI::eventDispatcher()->dispatch(
+			new ArrayFilterEvent(ArrayFilterEvent::PROBE_DETECT, $hookData),
+		)->getArray();
 
 		if (isset($hookData['result'])) {
 			return is_array($hookData['result']) ? $hookData['result'] : [];
 		}
 
 		$parts = parse_url($uri);
-		if (empty($parts['scheme']) && empty($parts['host']) && (empty($parts['path']) || strpos($parts['path'], '@') === false)) {
+		if (empty($parts['scheme']) && empty($parts['host']) && (empty($parts['path']) || !str_contains($parts['path'], '@'))) {
 			DI::logger()->info('URI was not detectable, probe for AT Protocol now', ['uri' => $uri]);
 			return self::atProtocol($uri);
 		}
 
 		// If the URI starts with "mailto:" then jump directly to the mail detection
-		if (strpos($uri, 'mailto:') !== false) {
+		if (str_contains($uri, 'mailto:')) {
 			$uri = str_replace('mailto:', '', $uri);
 			return self::mail($uri, $uid);
 		}
@@ -599,7 +599,7 @@ class Probe
 		} else {
 			// We overwrite the detected nick with our try if the previous routines hadn't detected it.
 			// Additionally, it is overwritten when the nickname doesn't make sense (contains spaces).
-			if ((empty($result['nick']) || (strstr($result['nick'], ' '))) && ($nick != '')) {
+			if ((empty($result['nick']) || (strstr((string) $result['nick'], ' '))) && ($nick != '')) {
 				$result['nick'] = $nick;
 			}
 
@@ -647,7 +647,7 @@ class Probe
 				[HttpClientOptions::TIMEOUT => DI::config()->get('system', 'xrd_timeout', 20), HttpClientOptions::REQUEST => HttpClientRequest::CONTACTINFO],
 			);
 		} catch (\Throwable $e) {
-			DI::logger()->notice($e->getMessage(), ['url' => $url, 'type' => $type, 'class' => get_class($e)]);
+			DI::logger()->notice($e->getMessage(), ['url' => $url, 'type' => $type, 'class' => $e::class]);
 			return null;
 		}
 
@@ -837,7 +837,7 @@ class Probe
 			} elseif (($link['rel'] == ActivityNamespace::WEBFINGERAVATAR) && !empty($link['href'])) {
 				$data['photo'] = $link['href'];
 			} elseif (($link['rel'] == ActivityNamespace::DIASPORA_SEED) && !empty($link['href'])) {
-				$data['baseurl'] = trim($link['href'], '/');
+				$data['baseurl'] = trim((string) $link['href'], '/');
 			} elseif (($link['rel'] == ActivityNamespace::DIASPORA_GUID) && !empty($link['href'])) {
 				$data['guid'] = $link['href'];
 			}
@@ -849,14 +849,14 @@ class Probe
 					$data['url'] = $alias;
 				} elseif (Network::isValidHttpUrl($alias) && !Strings::compareLink($alias, $data['url'])) {
 					$data['alias'] = $alias;
-				} elseif (substr($alias, 0, 5) == 'acct:') {
+				} elseif (str_starts_with($alias, 'acct:')) {
 					$data['addr'] = substr($alias, 5);
 				}
 			}
 		}
 
-		if (!empty($webfinger['subject']) && (substr($webfinger['subject'], 0, 5) == 'acct:')) {
-			$data['addr'] = substr($webfinger['subject'], 5);
+		if (!empty($webfinger['subject']) && (str_starts_with((string) $webfinger['subject'], 'acct:'))) {
+			$data['addr'] = substr((string) $webfinger['subject'], 5);
 		}
 
 		if (!isset($data['network']) || ($hcard_url == '')) {
@@ -941,20 +941,20 @@ class Probe
 
 			$search = $xpath->query("//*[contains(concat(' ', @class, ' '), ' searchable ')]", $vcard); // */
 			if ($search->length > 0) {
-				$data['hide'] = (strtolower($search->item(0)->nodeValue) != 'true');
+				$data['hide'] = (strtolower((string) $search->item(0)->nodeValue) != 'true');
 			}
 
 			$search = $xpath->query("//*[contains(concat(' ', @class, ' '), ' key ')]", $vcard); // */
 			if ($search->length > 0) {
 				$data['pubkey'] = $search->item(0)->nodeValue;
-				if (strstr($data['pubkey'], 'RSA ')) {
+				if (strstr((string) $data['pubkey'], 'RSA ')) {
 					$data['pubkey'] = Crypto::rsaToPem($data['pubkey']);
 				}
 			}
 
 			$search = $xpath->query("//*[@id='pod_location']", $vcard); // */
 			if ($search->length > 0) {
-				$data['baseurl'] = trim($search->item(0)->nodeValue, '/');
+				$data['baseurl'] = trim((string) $search->item(0)->nodeValue, '/');
 			}
 		}
 
@@ -1013,7 +1013,7 @@ class Probe
 			if (($link['rel'] == ActivityNamespace::HCARD) && !empty($link['href'])) {
 				$hcard_url = $link['href'];
 			} elseif (($link['rel'] == ActivityNamespace::DIASPORA_SEED) && !empty($link['href'])) {
-				$data['baseurl'] = trim($link['href'], '/');
+				$data['baseurl'] = trim((string) $link['href'], '/');
 			} elseif (($link['rel'] == ActivityNamespace::WEBFINGERPROFILE) && !empty($link['href'])) {
 				$data['url'] = $link['href'];
 			} elseif (($link['rel'] == ActivityNamespace::FEED) && !empty($link['href'])) {
@@ -1033,14 +1033,14 @@ class Probe
 			foreach ($webfinger['aliases'] as $alias) {
 				if (Network::isValidHttpUrl($alias) && !Strings::compareLink($alias, $data['url'])) {
 					$data['alias'] = $alias;
-				} elseif (substr($alias, 0, 5) == 'acct:') {
+				} elseif (str_starts_with($alias, 'acct:')) {
 					$data['addr'] = substr($alias, 5);
 				}
 			}
 		}
 
-		if (!empty($webfinger['subject']) && (substr($webfinger['subject'], 0, 5) == 'acct:')) {
-			$data['addr'] = substr($webfinger['subject'], 5);
+		if (!empty($webfinger['subject']) && (str_starts_with((string) $webfinger['subject'], 'acct:'))) {
+			$data['addr'] = substr((string) $webfinger['subject'], 5);
 		}
 
 		// Fetch further information from the hcard
@@ -1055,14 +1055,13 @@ class Probe
 			&& !empty($data['guid'])
 			&& !empty($data['baseurl'])
 			&& !empty($data['pubkey'])
-			&& $hcard_url !== ''
 		) {
 			$data['network']          = Protocol::DIASPORA;
 			$data['manually-approve'] = false;
 
 			// The Diaspora handle must always be lowercase
 			if (!empty($data['addr'])) {
-				$data['addr'] = strtolower($data['addr']);
+				$data['addr'] = strtolower((string) $data['addr']);
 			}
 
 			// We have to overwrite the detected value for "notify" since Hubzilla doesn't send it
@@ -1125,7 +1124,7 @@ class Probe
 
 		$base = $xpath->evaluate('string(/html/head/base/@href)') ?: $base;
 
-		$baseParts = parse_url($base);
+		$baseParts = parse_url((string) $base);
 		if (empty($baseParts['host'])) {
 			return $href;
 		}
@@ -1140,14 +1139,14 @@ class Probe
 
 		if (!empty($hrefParts['path'])) {
 			// Root path case (/path) including relative scheme case (//host/path)
-			if ($hrefParts['path'] && $hrefParts['path'][0] == '/') {
+			if ($hrefParts['path'][0] == '/') {
 				$path = $hrefParts['path'];
 			} else {
 				$path = $path . '/' . $hrefParts['path'];
 
 				// Resolve arbitrary relative path
 				// Lifted from https://www.php.net/manual/en/function.realpath.php#84012
-				$parts     = array_filter(explode('/', $path), 'strlen');
+				$parts     = array_filter(explode('/', $path), fn (string $p): bool => $p !== '');
 				$absolutes = [];
 				foreach ($parts as $part) {
 					if ('.' == $part) {
@@ -1183,7 +1182,7 @@ class Probe
 	{
 		if (parse_url($uri, PHP_URL_SCHEME) == 'did') {
 			$did = $uri;
-		} elseif (parse_url($uri, PHP_URL_PATH) == $uri && strpos($uri, '@') === false) {
+		} elseif (parse_url($uri, PHP_URL_PATH) == $uri && !str_contains($uri, '@')) {
 			$did = DI::atProtocol()->getDid($uri);
 			if (empty($did)) {
 				return [];
@@ -1270,7 +1269,7 @@ class Probe
 		}
 
 		$feed = $curlResult->getBodyString();
-		if (strpos($curlResult->getContentType(), 'xml') !== false) {
+		if (str_contains($curlResult->getContentType(), 'xml')) {
 			$feed_data = Feed::import($feed);
 		}
 
@@ -1343,8 +1342,9 @@ class Probe
 
 		$mailbox  = Email::constructMailboxName($mailacct);
 		$password = '';
-		openssl_private_decrypt(hex2bin($mailacct['pass']), $password, $user['prvkey']);
+		openssl_private_decrypt(hex2bin((string) $mailacct['pass']), $password, $user['prvkey']);
 		$mbox = Email::connect($mailbox, $mailacct['user'], $password);
+
 		if ($mbox === false) {
 			return [];
 		}
@@ -1372,23 +1372,23 @@ class Probe
 
 		$x = Email::messageMeta($mbox, $msgs[0]);
 
-		if (stristr($x[0]->from, $uri)) {
+		if (stristr((string) $x[0]->from, $uri)) {
 			$adr = imap_rfc822_parse_adrlist($x[0]->from, '');
-		} elseif (stristr($x[0]->to, $uri)) {
+		} elseif (stristr((string) $x[0]->to, $uri)) {
 			$adr = imap_rfc822_parse_adrlist($x[0]->to, '');
 		}
 
 		if (isset($adr)) {
 			foreach ($adr as $feadr) {
-				if ((strcasecmp($feadr->mailbox, $data['name']) == 0)
-					&& (strcasecmp($feadr->host, $phost) == 0)
+				if ((strcasecmp((string) $feadr->mailbox, $data['name']) == 0)
+					&& (strcasecmp((string) $feadr->host, $phost) == 0)
 					&& !empty($feadr->personal)
 				) {
 					$personal     = imap_mime_header_decode($feadr->personal);
 					$data['name'] = '';
 					foreach ($personal as $perspart) {
 						if ($perspart->charset != 'default') {
-							$data['name'] .= iconv($perspart->charset, 'UTF-8//IGNORE', $perspart->text);
+							$data['name'] .= iconv((string) $perspart->charset, 'UTF-8//IGNORE', (string) $perspart->text);
 						} else {
 							$data['name'] .= $perspart->text;
 						}
@@ -1397,9 +1397,7 @@ class Probe
 			}
 		}
 
-		if ($mbox !== false) {
-			imap_close($mbox);
-		}
+		imap_close($mbox);
 
 		return $data;
 	}
@@ -1689,7 +1687,7 @@ class Probe
 					],
 				],
 			];
-		} catch (Exception $e) {
+		} catch (Exception) {
 			// Default values for nonexistent targets
 			$data = [
 				'name'  => $url, 'nick' => $url, 'url' => $url, 'network' => Protocol::PHANTOM,

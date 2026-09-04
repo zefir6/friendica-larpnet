@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -9,7 +9,9 @@ namespace Friendica\Model\Post;
 
 use FFMpeg\FFMpeg;
 use Friendica\Content\PageInfo;
+use Friendica\Content\Post\Entity\PostMedia;
 use Friendica\Content\Text\BBCode;
+use Friendica\Core\Cache\Enum\Duration;
 use Friendica\Core\Protocol;
 use Friendica\Core\System;
 use Friendica\Database\Database;
@@ -43,22 +45,38 @@ use GuzzleHttp\Psr7\Uri;
  */
 class Media
 {
-	public const UNKNOWN     = 0;
-	public const IMAGE       = 1;
-	public const VIDEO       = 2;
-	public const AUDIO       = 3;
-	public const TEXT        = 4;
-	public const APPLICATION = 5;
-	public const TORRENT     = 16;
-	public const HTML        = 17;
-	public const XML         = 18;
-	public const PLAIN       = 19;
-	public const ACTIVITY    = 20;
-	public const ACCOUNT     = 21;
-	public const HLS         = 22;
-	public const JSON        = 23;
-	public const LD          = 24;
-	public const DOCUMENT    = 128;
+	/** @deprecated 2026.08 Use PostMedia::TYPE_UNKNOWN instead */
+	public const UNKNOWN = PostMedia::TYPE_UNKNOWN;
+	/** @deprecated 2026.08 Use PostMedia::TYPE_IMAGE instead */
+	public const IMAGE = PostMedia::TYPE_IMAGE;
+	/** @deprecated 2026.08 Use PostMedia::TYPE_VIDEO instead */
+	public const VIDEO = PostMedia::TYPE_VIDEO;
+	/** @deprecated 2026.08 Use PostMedia::TYPE_AUDIO instead */
+	public const AUDIO = PostMedia::TYPE_AUDIO;
+	/** @deprecated 2026.08 Use PostMedia::TYPE_TEXT instead */
+	public const TEXT = PostMedia::TYPE_TEXT;
+	/** @deprecated 2026.08 Use PostMedia::TYPE_APPLICATION instead */
+	public const APPLICATION = PostMedia::TYPE_APPLICATION;
+	/** @deprecated 2026.08 Use PostMedia::TYPE_TORRENT instead */
+	public const TORRENT = PostMedia::TYPE_TORRENT;
+	/** @deprecated 2026.08 Use PostMedia::TYPE_HTML instead */
+	public const HTML = PostMedia::TYPE_HTML;
+	/** @deprecated 2026.08 Use PostMedia::TYPE_XML instead */
+	public const XML = PostMedia::TYPE_XML;
+	/** @deprecated 2026.08 Use PostMedia::TYPE_PLAIN instead */
+	public const PLAIN = PostMedia::TYPE_PLAIN;
+	/** @deprecated 2026.08 Use PostMedia::TYPE_ACTIVITY instead */
+	public const ACTIVITY = PostMedia::TYPE_ACTIVITY;
+	/** @deprecated 2026.08 Use PostMedia::TYPE_ACCOUNT instead */
+	public const ACCOUNT = PostMedia::TYPE_ACCOUNT;
+	/** @deprecated 2026.08 Use PostMedia::TYPE_HLS instead */
+	public const HLS = PostMedia::TYPE_HLS;
+	/** @deprecated 2026.08 Use PostMedia::TYPE_JSON instead */
+	public const JSON = PostMedia::TYPE_JSON;
+	/** @deprecated 2026.08 Use PostMedia::TYPE_LD instead */
+	public const LD = PostMedia::TYPE_LD;
+	/** @deprecated 2026.08 Use PostMedia::TYPE_DOCUMENT instead */
+	public const DOCUMENT = PostMedia::TYPE_DOCUMENT;
 
 	/**
 	 * Insert a post-media record
@@ -82,7 +100,7 @@ class Media
 		// "document" has got the lowest priority. So when the same file is both attached as document
 		// and embedded as picture then we only store the picture or replace the document
 		$found = DBA::selectFirst('post-media', ['type'], ['uri-id' => $media['uri-id'], 'url' => $media['url']]);
-		if (!$force && !empty($found) && (!in_array($found['type'], [self::UNKNOWN, self::DOCUMENT]) || ($media['type'] == self::DOCUMENT))) {
+		if (!$force && !empty($found) && (!in_array($found['type'], [PostMedia::TYPE_UNKNOWN, PostMedia::TYPE_DOCUMENT]) || ($media['type'] == PostMedia::TYPE_DOCUMENT))) {
 			DI::logger()->info('Media already exists', ['uri-id' => $media['uri-id'], 'url' => $media['url'], 'found' => $found['type'], 'new' => $media['type']]);
 			return false;
 		}
@@ -93,6 +111,11 @@ class Media
 		}
 
 		$media['url'] = Network::sanitizeUrl($media['url']);
+
+		if (!empty($media['player-url']) && !self::isEmbeddablePlayerUrl($media['player-url'])) {
+			DI::logger()->notice('Dropped unsafe player-url', ['uri-id' => $media['uri-id'], 'player-url' => $media['player-url']]);
+			unset($media['player-url']);
+		}
 
 		$media = self::unsetEmptyFields($media);
 		$media = DI::dbaDefinition()->truncateFieldsForTable('post-media', $media);
@@ -111,6 +134,12 @@ class Media
 		if (array_diff_assoc($media, $stored)) {
 			$result = DBA::insert('post-media', $media, Database::INSERT_UPDATE);
 			$id     = $media['id'] ?? DBA::lastInsertId();
+			if (empty($id)) {
+				// When the entry had already existed, the insert turned into an update
+				// and no insert id is provided. So we fetch the id via the unique key.
+				$existing = DBA::selectFirst('post-media', ['id'], ['uri-id' => $media['uri-id'], 'url' => $media['url']]);
+				$id       = $existing['id'] ?? null;
+			}
 			DI::logger()->info('Updated media', ['result' => $result, 'id' => $id, 'media' => $media]);
 		} else {
 			$id = null;
@@ -145,6 +174,42 @@ class Media
 		if (isset($media['publisher-image'])) {
 			Post\Link::getByLink($media['uri-id'], $media['publisher-image']);
 		}
+	}
+
+	/**
+	 * Checks whether a player URL is safe to render into an iframe "src".
+	 *
+	 * The player iframe (content/iframe.tpl) is sandboxed with
+	 * "allow-same-origin allow-scripts", so a same-origin src runs with this
+	 * instance's origin and could read the viewer's DOM and cookies. Only
+	 * absolute, cross-origin http(s) URLs (including protocol-relative
+	 * "//host/…" ones) are considered safe; relative paths, URLs pointing back
+	 * at the local host and non-HTTP schemes such as "javascript:"/"data:" are
+	 * rejected.
+	 *
+	 * @param string $url
+	 * @return bool
+	 */
+	private static function isEmbeddablePlayerUrl(string $url): bool
+	{
+		$url = trim($url);
+		if ($url === '') {
+			return false;
+		}
+
+		// Resolve protocol-relative URLs (//host/path) against https for the check
+		if (str_starts_with($url, '//')) {
+			$url = 'https:' . $url;
+		}
+
+		$scheme = strtolower(parse_url($url, PHP_URL_SCHEME));
+		$host   = parse_url($url, PHP_URL_HOST);
+
+		if (empty($host) || !in_array($scheme, ['http', 'https'], true)) {
+			return false;
+		}
+
+		return !DI::baseUrl()->isLocalUrl($url);
 	}
 
 	/**
@@ -192,7 +257,7 @@ class Media
 	public static function getAttachElement(string $href, int $length, string $type, string $title = ''): string
 	{
 		$media = self::fetchAdditionalData([
-			'type'        => self::DOCUMENT,
+			'type'        => PostMedia::TYPE_DOCUMENT,
 			'url'         => $href,
 			'size'        => $length,
 			'mimetype'    => $type,
@@ -229,7 +294,7 @@ class Media
 	{
 		if (DI::baseUrl()->isLocalUrl($media['url'])) {
 			$media = self::fetchLocalData($media);
-			if (preg_match('|.*?/search\?(.+)|', $media['url'], $matches)) {
+			if (preg_match('|.*?/search\?(.+)|', (string) $media['url'], $matches)) {
 				return $media;
 			}
 			if (empty($media['mimetype']) || empty($media['size'])) {
@@ -237,12 +302,12 @@ class Media
 			}
 		}
 
-		if (($media['type'] == self::HLS) && empty($media['mimetype'])) {
+		if (($media['type'] == PostMedia::TYPE_HLS) && empty($media['mimetype'])) {
 			$media['mimetype'] = 'application/vnd.apple.mpegurl';
 		}
 
 		// Fetch the mimetype or size if missing.
-		if (Network::isValidHttpUrl($media['url']) && (empty($media['mimetype']) || $media['type'] == self::HTML) && ($media['type'] != self::IMAGE)) {
+		if (Network::isValidHttpUrl($media['url']) && (empty($media['mimetype']) || $media['type'] == PostMedia::TYPE_HTML) && ($media['type'] != PostMedia::TYPE_IMAGE)) {
 			$timeout = DI::config()->get('system', 'xrd_timeout');
 			try {
 				$curlResult = DI::httpClient()->head($media['url'], [HttpClientOptions::ACCEPT_CONTENT => HttpClientAccept::AS_DEFAULT, HttpClientOptions::TIMEOUT => $timeout, HttpClientOptions::REQUEST => HttpClientRequest::CONTENTTYPE]);
@@ -269,13 +334,13 @@ class Media
 			}
 		}
 
-		if (($media['type'] != self::DOCUMENT) && !empty($media['mimetype'])) {
+		if (($media['type'] != PostMedia::TYPE_DOCUMENT) && !empty($media['mimetype'])) {
 			$media = self::addType($media);
 		}
 
 		DI::logger()->debug('Got type for url', ['type' => $media['type'], 'mimetype' => $media['mimetype'] ?? '', 'url' => $media['url']]);
 
-		if ($media['type'] == self::IMAGE) {
+		if ($media['type'] == PostMedia::TYPE_IMAGE) {
 			$imagedata = Images::getInfoFromURLCached($media['url'], empty($media['description']));
 			if ($imagedata) {
 				$media['mimetype'] = $imagedata['mime'];
@@ -297,29 +362,29 @@ class Media
 			$media = self::addPreviewData($media);
 		}
 
-		if ($media['type'] === self::VIDEO) {
+		if ($media['type'] === PostMedia::TYPE_VIDEO) {
 			$media = self::getVideoInformationByFFMPEG($media);
 			$media = self::getVideoDimensionsByID3($media);
 		}
 
-		if ($media['type'] === self::HLS) {
+		if ($media['type'] === PostMedia::TYPE_HLS) {
 			$media = self::getHLSVideoDimensions($media);
 		}
 
-		if (in_array($media['type'], [self::TEXT, self::ACTIVITY, self::LD, self::JSON, self::HTML, self::XML, self::PLAIN])) {
+		if (in_array($media['type'], [PostMedia::TYPE_TEXT, PostMedia::TYPE_ACTIVITY, PostMedia::TYPE_LD, PostMedia::TYPE_JSON, PostMedia::TYPE_HTML, PostMedia::TYPE_XML, PostMedia::TYPE_PLAIN])) {
 			$media = self::addAccount($media);
 		}
 
-		if (in_array($media['type'], [self::ACTIVITY, self::LD, self::JSON]) || (self::isFederatedServer($media['url']) && !in_array($media['type'], [self::HLS, self::AUDIO, self::VIDEO]))) {
+		if (in_array($media['type'], [PostMedia::TYPE_ACTIVITY, PostMedia::TYPE_LD, PostMedia::TYPE_JSON]) || (self::isFederatedServer($media['url']) && !in_array($media['type'], [PostMedia::TYPE_HLS, PostMedia::TYPE_AUDIO, PostMedia::TYPE_VIDEO]))) {
 			$media = self::addActivity($media);
 		}
 
-		if (in_array($media['type'], [self::HTML, self::LD, self::JSON])) {
+		if (in_array($media['type'], [PostMedia::TYPE_HTML, PostMedia::TYPE_LD, PostMedia::TYPE_JSON])) {
 			$media = self::addPage($media);
 		}
 
 		if (empty($media['name'])) {
-			$media['name'] = basename(parse_url($media['url'], PHP_URL_PATH));
+			$media['name'] = basename(parse_url((string) $media['url'], PHP_URL_PATH));
 		}
 		return $media;
 	}
@@ -374,29 +439,29 @@ class Media
 	{
 		$id = Item::fetchByLink($media['url'], 0, ActivityPub\Receiver::COMPLETION_ASYNC, $media['mimetype'] ?? '');
 		if (empty($id)) {
-			$media['type'] = $media['type'] == self::ACTIVITY ? self::JSON : $media['type'];
+			$media['type'] = $media['type'] == PostMedia::TYPE_ACTIVITY ? PostMedia::TYPE_JSON : $media['type'];
 			return $media;
 		}
 
 		$item = Post::selectFirst([], ['id' => $id, 'network' => Protocol::FEDERATED]);
 		if (empty($item['id'])) {
 			DI::logger()->debug('Not a federated activity', ['id' => $id, 'uri-id' => $media['uri-id'], 'url' => $media['url']]);
-			$media['type'] = $media['type'] == self::ACTIVITY ? self::JSON : $media['type'];
+			$media['type'] = $media['type'] == PostMedia::TYPE_ACTIVITY ? PostMedia::TYPE_JSON : $media['type'];
 			return $media;
 		}
 
 		if ($item['uri-id'] == $media['uri-id']) {
 			DI::logger()->info('Media-Uri-Id is identical to Uri-Id', ['uri-id' => $media['uri-id']]);
-			$media['type'] = $media['type'] == self::ACTIVITY ? self::JSON : $media['type'];
+			$media['type'] = $media['type'] == PostMedia::TYPE_ACTIVITY ? PostMedia::TYPE_JSON : $media['type'];
 			return $media;
 		}
 
 		if (
 			!empty($item['plink']) && Strings::compareLink($item['plink'], $media['url'])
-			&& parse_url($item['plink'], PHP_URL_HOST) != parse_url($item['uri'], PHP_URL_HOST)
+			&& parse_url((string) $item['plink'], PHP_URL_HOST) != parse_url((string) $item['uri'], PHP_URL_HOST)
 		) {
 			DI::logger()->debug('Not a link to an activity', ['uri-id' => $media['uri-id'], 'url' => $media['url'], 'plink' => $item['plink'], 'uri' => $item['uri']]);
-			$media['type'] = $media['type'] == self::ACTIVITY ? self::JSON : $media['type'];
+			$media['type'] = $media['type'] == PostMedia::TYPE_ACTIVITY ? PostMedia::TYPE_JSON : $media['type'];
 			return $media;
 		}
 
@@ -411,7 +476,7 @@ class Media
 			$gserver = DBA::selectFirst('gserver', ['url', 'site_name'], ['id' => $contact['gsid']]);
 		}
 
-		$media['type']            = self::ACTIVITY;
+		$media['type']            = PostMedia::TYPE_ACTIVITY;
 		$media['media-uri-id']    = $item['uri-id'];
 		$media['height']          = null;
 		$media['width']           = null;
@@ -429,7 +494,7 @@ class Media
 		$media['publisher-image'] = null;
 
 		if (!empty($item['language'])) {
-			$media['language'] = array_key_first(json_decode($item['language'], true));
+			$media['language'] = array_key_first(json_decode((string) $item['language'], true));
 		}
 
 		$media['published'] = $item['created'];
@@ -460,7 +525,7 @@ class Media
 			$gserver = DBA::selectFirst('gserver', ['url', 'site_name'], ['id' => $contact['gsid']]);
 		}
 
-		$media['type']            = self::ACCOUNT;
+		$media['type']            = PostMedia::TYPE_ACCOUNT;
 		$media['media-uri-id']    = $contact['uri-id'];
 		$media['height']          = null;
 		$media['width']           = null;
@@ -508,7 +573,7 @@ class Media
 			$media['name']           = $data['title']                 ?? null;
 		}
 
-		$media['type']            = self::HTML;
+		$media['type']            = PostMedia::TYPE_HTML;
 		$media['size']            = $data['size']             ?? null;
 		$media['author-url']      = $data['author_url']       ?? null;
 		$media['author-name']     = $data['author_name']      ?? null;
@@ -553,7 +618,7 @@ class Media
 		}
 
 		$media                = ['uri-id' => $uri_id];
-		$media['type']        = Post\Media::UNKNOWN;
+		$media['type']        = PostMedia::TYPE_UNKNOWN;
 		$media['url']         = $element['src'];
 		$media['mimetype']    = $element['contenttype'] ?? null;
 		$media['name']        = $element['name']        ?? null;
@@ -575,7 +640,7 @@ class Media
 	 */
 	private static function fetchLocalData(array $media): array
 	{
-		if (preg_match('|.*?/attach/(\d+)|', $media['url'], $matches)) {
+		if (preg_match('|.*?/attach/(\d+)|', (string) $media['url'], $matches)) {
 			$attachment = Attach::selectFirst(['id', 'filename', 'filetype', 'filesize'], ['id' => $matches[1]]);
 			if (!empty($attachment)) {
 				$media['attach-id'] = $attachment['id'];
@@ -586,7 +651,7 @@ class Media
 			return $media;
 		}
 
-		if (!preg_match('|.*?/photo/(.*[a-fA-F0-9])\-(.*[0-9])\..*[\w]|', $media['url'], $matches)) {
+		if (!preg_match('|.*?/photo/(.*[a-fA-F0-9])\-(.*[0-9])\..*[\w]|', (string) $media['url'], $matches)) {
 			return $media;
 		}
 		$photo = Photo::selectFirst(['type', 'datasize', 'width', 'height', 'blurhash'], ['resource-id' => $matches[1], 'scale' => $matches[2]]);
@@ -632,44 +697,44 @@ class Media
 		$type = explode('/', current(explode(';', $mimeType)));
 		if (count($type) < 2) {
 			DI::logger()->info('Unknown MimeType', ['type' => $type, 'media' => $mimeType]);
-			return self::UNKNOWN;
+			return PostMedia::TYPE_UNKNOWN;
 		}
 
 		$filetype = strtolower($type[0]);
 		$subtype  = strtolower($type[1]);
 
 		if ($filetype == 'image') {
-			$type = self::IMAGE;
+			$type = PostMedia::TYPE_IMAGE;
 		} elseif (($filetype == 'video') && in_array($subtype, ['x-mpegurl', 'mpegurl'])) {
-			$type = self::HLS;
+			$type = PostMedia::TYPE_HLS;
 		} elseif ($filetype == 'video') {
-			$type = self::VIDEO;
+			$type = PostMedia::TYPE_VIDEO;
 		} elseif (($filetype == 'audio') && in_array($subtype, ['x-mpegurl', 'mpegurl'])) {
-			$type = self::HLS;
+			$type = PostMedia::TYPE_HLS;
 		} elseif ($filetype == 'audio') {
-			$type = self::AUDIO;
+			$type = PostMedia::TYPE_AUDIO;
 		} elseif (($filetype == 'text') && ($subtype == 'html')) {
-			$type = self::HTML;
+			$type = PostMedia::TYPE_HTML;
 		} elseif (($filetype == 'text') && ($subtype == 'xml')) {
-			$type = self::XML;
+			$type = PostMedia::TYPE_XML;
 		} elseif (($filetype == 'text') && ($subtype == 'plain')) {
-			$type = self::PLAIN;
+			$type = PostMedia::TYPE_PLAIN;
 		} elseif ($filetype == 'text') {
-			$type = self::TEXT;
+			$type = PostMedia::TYPE_TEXT;
 		} elseif (($filetype == 'application') && ($subtype == 'x-bittorrent')) {
-			$type = self::TORRENT;
+			$type = PostMedia::TYPE_TORRENT;
 		} elseif (($filetype == 'application') && in_array($subtype, ['vnd.apple.mpegurl', 'x-mpegurl', 'mpegurl'])) {
-			$type = self::HLS;
+			$type = PostMedia::TYPE_HLS;
 		} elseif (($filetype == 'application') && ($subtype == 'activity+json')) {
-			$type = self::ACTIVITY;
+			$type = PostMedia::TYPE_ACTIVITY;
 		} elseif (($filetype == 'application') && ($subtype == 'ld+json')) {
-			$type = self::LD;
+			$type = PostMedia::TYPE_LD;
 		} elseif (($filetype == 'application') && ($subtype == 'json')) {
-			$type = self::JSON;
+			$type = PostMedia::TYPE_JSON;
 		} elseif ($filetype == 'application') {
-			$type = self::APPLICATION;
+			$type = PostMedia::TYPE_APPLICATION;
 		} else {
-			$type = self::UNKNOWN;
+			$type = PostMedia::TYPE_UNKNOWN;
 			DI::logger()->info('Unknown type', ['filetype' => $filetype, 'subtype' => $subtype, 'media' => $mimeType]);
 		}
 
@@ -812,7 +877,7 @@ class Media
 		$media = self::setModified($media, $curlResult->getHeader('Last-Modified')[0] ?? '');
 
 		foreach (explode("\n", $curlResult->getBodyString() ?? '') as $line) {
-			if (strpos(trim($line), '#EXT-X-STREAM-INF') === 0) {
+			if (str_starts_with(trim($line), '#EXT-X-STREAM-INF')) {
 				if (preg_match('/RESOLUTION=([\d]+)x([\d]+)/', $line, $matches)) {
 					$resolutions[$matches[1]] = [(int) $matches[1], (int) $matches[2]];
 				}
@@ -833,6 +898,38 @@ class Media
 		DI::logger()->debug('Detected HLS resolutions', ['uri-id' => $media['uri-id'], 'url' => $media['url'], 'resolution' => $resolution]);
 
 		return $media;
+	}
+
+	/**
+	 * Resolve an HLS playlist URL to the address the browser finally ends up on
+	 *
+	 * Some sites hand out a permalink that only redirects
+	 * to a CDN. A browser following that redirect fails CORS on the intermediate
+	 * response, so hls.js has to be pointed at the resolved URL directly. The
+	 * redirect target may change over time, hence this runs at render time and is
+	 * only cached for a short while.
+	 *
+	 * @param string $url Playlist URL as stored with the media
+	 * @return string Resolved URL, or the input when it can't be resolved
+	 */
+	public static function resolvePlaylistUrl(string $url): string
+	{
+		$cacheKey = 'hls-playlist-url:' . $url;
+
+		$resolved = DI::cache()->get($cacheKey);
+		if (!is_null($resolved)) {
+			return $resolved;
+		}
+
+		$curlResult = DI::httpClient()->get($url, HttpClientAccept::HLS, [HttpClientOptions::REQUEST => HttpClientRequest::MEDIAVERIFIER]);
+
+		$resolved = ($curlResult->isSuccess() && $curlResult->isRedirectUrl() && $curlResult->getRedirectUrl() !== '')
+			? $curlResult->getRedirectUrl()
+			: $url;
+
+		DI::cache()->set($cacheKey, $resolved, Duration::QUARTER_HOUR);
+
+		return $resolved;
 	}
 
 	/**
@@ -902,7 +999,7 @@ class Media
 		$unshared_body = $body = preg_replace("/\[img\=([0-9]*)x([0-9]*)\](.*?)\[\/img\]$endmatchpattern/ism", '[img]$3[/img]', $body);
 
 		$attachments = [];
-		if (preg_match_all("#\[url=([^\]]+?)\]\s*\[img=([^\[\]]*)\]([^\[\]]*)\[\/img\]\s*\[/url\]$endmatchpattern#ism", $body, $pictures, PREG_SET_ORDER)) {
+		if (preg_match_all("#\[url=([^\]]+?)\]\s*\[img=([^\[\]]*)\]([^\[\]]*)\[\/img\]\s*\[/url\]$endmatchpattern#ism", (string) $body, $pictures, PREG_SET_ORDER)) {
 			foreach ($pictures as $picture) {
 				if (self::isLinkToImagePage($picture[1], $picture[2])) {
 					$body  = str_replace($picture[0], '', $body);
@@ -910,7 +1007,7 @@ class Media
 
 					$attachments[$image] = [
 						'uri-id'      => $uriid,
-						'type'        => self::IMAGE,
+						'type'        => PostMedia::TYPE_IMAGE,
 						'url'         => $image,
 						'preview'     => $picture[2],
 						'description' => $picture[3],
@@ -920,7 +1017,7 @@ class Media
 
 					$attachments[$picture[1]] = [
 						'uri-id'      => $uriid,
-						'type'        => self::IMAGE,
+						'type'        => PostMedia::TYPE_IMAGE,
 						'url'         => $picture[1],
 						'preview'     => $picture[2],
 						'description' => $picture[3],
@@ -930,7 +1027,7 @@ class Media
 
 					$attachments[$picture[1]] = [
 						'uri-id'      => $uriid,
-						'type'        => self::UNKNOWN,
+						'type'        => PostMedia::TYPE_UNKNOWN,
 						'url'         => $picture[1],
 						'preview'     => $picture[2],
 						'description' => $picture[3],
@@ -939,15 +1036,15 @@ class Media
 			}
 		}
 
-		if (preg_match_all("/\[img=([^\[\]]*)\]([^\[\]]*)\[\/img\]$endmatchpattern/Usi", $body, $pictures, PREG_SET_ORDER)) {
+		if (preg_match_all("/\[img=([^\[\]]*)\]([^\[\]]*)\[\/img\]$endmatchpattern/Usi", (string) $body, $pictures, PREG_SET_ORDER)) {
 			foreach ($pictures as $picture) {
 				$body = str_replace($picture[0], '', $body);
 
-				$attachments[$picture[1]] = ['uri-id' => $uriid, 'type' => self::IMAGE, 'url' => $picture[1], 'description' => $picture[2]];
+				$attachments[$picture[1]] = ['uri-id' => $uriid, 'type' => PostMedia::TYPE_IMAGE, 'url' => $picture[1], 'description' => $picture[2]];
 			}
 		}
 
-		if (preg_match_all("#\[url=([^\]]+?)\]\s*\[img\]([^\[]+?)\[/img\]\s*\[/url\]$endmatchpattern#ism", $body, $pictures, PREG_SET_ORDER)) {
+		if (preg_match_all("#\[url=([^\]]+?)\]\s*\[img\]([^\[]+?)\[/img\]\s*\[/url\]$endmatchpattern#ism", (string) $body, $pictures, PREG_SET_ORDER)) {
 			foreach ($pictures as $picture) {
 				if (self::isLinkToImagePage($picture[1], $picture[2])) {
 					$body  = str_replace($picture[0], '', $body);
@@ -955,7 +1052,7 @@ class Media
 
 					$attachments[$image] = [
 						'uri-id'      => $uriid,
-						'type'        => self::IMAGE,
+						'type'        => PostMedia::TYPE_IMAGE,
 						'url'         => $image,
 						'preview'     => $picture[2],
 						'description' => null,
@@ -965,7 +1062,7 @@ class Media
 
 					$attachments[$picture[1]] = [
 						'uri-id'      => $uriid,
-						'type'        => self::IMAGE,
+						'type'        => PostMedia::TYPE_IMAGE,
 						'url'         => $picture[1],
 						'preview'     => $picture[2],
 						'description' => null,
@@ -975,7 +1072,7 @@ class Media
 
 					$attachments[$picture[1]] = [
 						'uri-id'      => $uriid,
-						'type'        => self::UNKNOWN,
+						'type'        => PostMedia::TYPE_UNKNOWN,
 						'url'         => $picture[1],
 						'preview'     => $picture[2],
 						'description' => null,
@@ -984,35 +1081,35 @@ class Media
 			}
 		}
 
-		if (preg_match_all("/\[img\]([^\[\]]*)\[\/img\]$endmatchpattern/ism", $body, $pictures, PREG_SET_ORDER)) {
+		if (preg_match_all("/\[img\]([^\[\]]*)\[\/img\]$endmatchpattern/ism", (string) $body, $pictures, PREG_SET_ORDER)) {
 			foreach ($pictures as $picture) {
 				$body = str_replace($picture[0], '', $body);
 
-				$attachments[$picture[1]] = ['uri-id' => $uriid, 'type' => self::IMAGE, 'url' => $picture[1]];
+				$attachments[$picture[1]] = ['uri-id' => $uriid, 'type' => PostMedia::TYPE_IMAGE, 'url' => $picture[1]];
 			}
 		}
 
-		if (preg_match_all("/\[audio\]([^\[\]]*)\[\/audio\]$endmatchpattern/ism", $body, $audios, PREG_SET_ORDER)) {
+		if (preg_match_all("/\[audio\]([^\[\]]*)\[\/audio\]$endmatchpattern/ism", (string) $body, $audios, PREG_SET_ORDER)) {
 			foreach ($audios as $audio) {
 				$body = str_replace($audio[0], '', $body);
 
-				$attachments[$audio[1]] = ['uri-id' => $uriid, 'type' => self::AUDIO, 'url' => $audio[1]];
+				$attachments[$audio[1]] = ['uri-id' => $uriid, 'type' => PostMedia::TYPE_AUDIO, 'url' => $audio[1]];
 			}
 		}
 
-		if (preg_match_all("/\[video\]([^\[\]]*)\[\/video\]$endmatchpattern/ism", $body, $videos, PREG_SET_ORDER)) {
+		if (preg_match_all("/\[video\]([^\[\]]*)\[\/video\]$endmatchpattern/ism", (string) $body, $videos, PREG_SET_ORDER)) {
 			foreach ($videos as $video) {
 				$body = str_replace($video[0], '', $body);
 
-				$attachments[$video[1]] = ['uri-id' => $uriid, 'type' => self::VIDEO, 'url' => $video[1]];
+				$attachments[$video[1]] = ['uri-id' => $uriid, 'type' => PostMedia::TYPE_VIDEO, 'url' => $video[1]];
 			}
 		}
 
-		if (preg_match_all("/\[embed\]([^\[\]]*)\[\/embed\]$endmatchpattern/ism", $body, $embeds, PREG_SET_ORDER)) {
+		if (preg_match_all("/\[embed\]([^\[\]]*)\[\/embed\]$endmatchpattern/ism", (string) $body, $embeds, PREG_SET_ORDER)) {
 			foreach ($embeds as $embed) {
 				$body = str_replace($embed[0], '', $body);
 
-				$attachments[$embed[1]] = ['uri-id' => $uriid, 'type' => self::UNKNOWN, 'url' => $embed[1]];
+				$attachments[$embed[1]] = ['uri-id' => $uriid, 'type' => PostMedia::TYPE_UNKNOWN, 'url' => $embed[1]];
 			}
 		}
 
@@ -1029,7 +1126,7 @@ class Media
 			}
 		}
 
-		return trim($body);
+		return trim((string) $body);
 	}
 
 	/**
@@ -1075,10 +1172,10 @@ class Media
 		$body = preg_replace("/([#@!])\[url\=(.*?)\](.*?)\[\/url\]/ism", '', $body);
 
 		// Search for pure links
-		if (preg_match_all("/\[url\](https?:.*?)\[\/url\]/ism", $body, $matches)) {
+		if (preg_match_all("/\[url\](https?:.*?)\[\/url\]/ism", (string) $body, $matches)) {
 			foreach ($matches[1] as $url) {
 				DI::logger()->info('Got page url (link without description)', ['uri-id' => $uriid, 'url' => $url]);
-				$result = self::insert(['uri-id' => $uriid, 'type' => self::UNKNOWN, 'url' => $url], false);
+				$result = self::insert(['uri-id' => $uriid, 'type' => PostMedia::TYPE_UNKNOWN, 'url' => $url], false);
 				if ($result && !in_array($network, [Protocol::ACTIVITYPUB, Protocol::DIASPORA])) {
 					self::revertHTMLType($uriid, $url, $fullbody);
 					DI::logger()->debug('Revert HTML type', ['uri-id' => $uriid, 'url' => $url]);
@@ -1091,10 +1188,10 @@ class Media
 		}
 
 		// Search for links with descriptions
-		if (preg_match_all("#\[url=(https?://.+?)].+?\[/url]#ism", $body, $matches)) {
+		if (preg_match_all("#\[url=(https?://.+?)].+?\[/url]#ism", (string) $body, $matches)) {
 			foreach ($matches[1] as $url) {
 				DI::logger()->info('Got page url (link with description)', ['uri-id' => $uriid, 'url' => $url]);
-				$result = self::insert(['uri-id' => $uriid, 'type' => self::UNKNOWN, 'url' => $url], false);
+				$result = self::insert(['uri-id' => $uriid, 'type' => PostMedia::TYPE_UNKNOWN, 'url' => $url], false);
 				if ($result && !in_array($network, [Protocol::ACTIVITYPUB, Protocol::DIASPORA])) {
 					self::revertHTMLType($uriid, $url, $fullbody);
 					DI::logger()->debug('Revert HTML type', ['uri-id' => $uriid, 'url' => $url]);
@@ -1121,7 +1218,7 @@ class Media
 		if (!empty($attachment['url']) && Network::getUrlMatch($attachment['url'], $url)) {
 			return;
 		}
-		DBA::update('post-media', ['type' => self::UNKNOWN], ['uri-id' => $uriid, 'type' => self::HTML, 'url' => $url]);
+		DBA::update('post-media', ['type' => PostMedia::TYPE_UNKNOWN], ['uri-id' => $uriid, 'type' => PostMedia::TYPE_HTML, 'url' => $url]);
 	}
 
 	/**
@@ -1141,7 +1238,7 @@ class Media
 		DI::logger()->info('Adding attachment data', ['data' => $data]);
 		$attachment = [
 			'uri-id'         => $uriid,
-			'type'           => self::HTML,
+			'type'           => PostMedia::TYPE_HTML,
 			'url'            => $data['url'],
 			'preview'        => $data['preview']       ?? null,
 			'description'    => $data['description']   ?? null,
@@ -1171,7 +1268,7 @@ class Media
 		}
 
 		foreach ($matches as $attachment) {
-			$media['type']        = self::DOCUMENT;
+			$media['type']        = PostMedia::TYPE_DOCUMENT;
 			$media['uri-id']      = $uriid;
 			$media['url']         = $attachment[1];
 			$media['size']        = $attachment[2];
@@ -1192,7 +1289,7 @@ class Media
 	 */
 	public static function getByURIId(int $uri_id, array $types = [])
 	{
-		$condition = ["`uri-id` = ? AND `type` != ?", $uri_id, self::UNKNOWN];
+		$condition = ["`uri-id` = ? AND `type` != ?", $uri_id, PostMedia::TYPE_UNKNOWN];
 
 		if (!empty($types)) {
 			$condition = DBA::mergeConditions($condition, ['type' => $types]);
@@ -1203,7 +1300,7 @@ class Media
 
 	public static function getByURL(int $uri_id, string $url, array $types = [])
 	{
-		$condition = ["`uri-id` = ? AND `url` = ? AND `type` != ?", $uri_id, $url, self::UNKNOWN];
+		$condition = ["`uri-id` = ? AND `url` = ? AND `type` != ?", $uri_id, $url, PostMedia::TYPE_UNKNOWN];
 
 		if (!empty($types)) {
 			$condition = DBA::mergeConditions($condition, ['type' => $types]);
@@ -1258,7 +1355,7 @@ class Media
 	 */
 	public static function existsByURIId(int $uri_id, array $types = []): bool
 	{
-		$condition = ["`uri-id` = ? AND `type` != ?", $uri_id, self::UNKNOWN];
+		$condition = ["`uri-id` = ? AND `type` != ?", $uri_id, PostMedia::TYPE_UNKNOWN];
 
 		if (!empty($types)) {
 			$condition = DBA::mergeConditions($condition, ['type' => $types]);
@@ -1307,7 +1404,7 @@ class Media
 	 *
 	 * @return string body
 	 */
-	public static function addAttachmentsToBody(int $uriid, string $body = '', array $types = [self::IMAGE, self::AUDIO, self::VIDEO]): string
+	public static function addAttachmentsToBody(int $uriid, string $body = '', array $types = [PostMedia::TYPE_IMAGE, PostMedia::TYPE_AUDIO, PostMedia::TYPE_VIDEO]): string
 	{
 		if (empty($body)) {
 			$item = Post::selectFirst(['body'], ['uri-id' => $uriid]);
@@ -1324,7 +1421,7 @@ class Media
 			$body = self::addAttachmentToBody($media, $body);
 		}
 
-		if (preg_match("/.*(\[attachment.*?\].*?\[\/attachment\]).*/ism", $original_body, $match)) {
+		if (preg_match("/.*(\[attachment.*?\].*?\[\/attachment\]).*/ism", (string) $original_body, $match)) {
 			$body .= "\n" . $match[1];
 		}
 
@@ -1337,11 +1434,11 @@ class Media
 			return $body;
 		}
 
-		if ($media['type'] == self::IMAGE) {
+		if ($media['type'] == PostMedia::TYPE_IMAGE) {
 			$body .= "\n" . Images::getBBCodeByUrl($media['url'], $media['preview'], $media['description'] ?? '');
-		} elseif ($media['type'] == self::AUDIO) {
+		} elseif ($media['type'] == PostMedia::TYPE_AUDIO) {
 			$body .= "\n[audio]" . $media['url'] . "[/audio]\n";
-		} elseif ($media['type'] == self::VIDEO) {
+		} elseif ($media['type'] == PostMedia::TYPE_VIDEO) {
 			$body .= "\n[video]" . $media['url'] . "[/video]\n";
 		} else {
 			$body .= "\n[url]" . $media['url'] . "[/url]\n";
@@ -1362,7 +1459,7 @@ class Media
 			return $body;
 		}
 
-		$links = self::getByURIId($uriid, [self::HTML]);
+		$links = self::getByURIId($uriid, [PostMedia::TYPE_HTML]);
 		if (empty($links)) {
 			return $body;
 		}
@@ -1398,7 +1495,7 @@ class Media
 	 */
 	public static function addHTMLLinkToBody(int $uriid, string $body): string
 	{
-		$links = self::getByURIId($uriid, [self::HTML]);
+		$links = self::getByURIId($uriid, [PostMedia::TYPE_HTML]);
 		if (empty($links)) {
 			return $body;
 		}
@@ -1471,7 +1568,7 @@ class Media
 	 */
 	public static function getActivityUriId(int $uri_id): int
 	{
-		$posts = self::getByURIId($uri_id, [self::ACTIVITY]);
+		$posts = self::getByURIId($uri_id, [PostMedia::TYPE_ACTIVITY]);
 		if (!$posts) {
 			return 0;
 		}

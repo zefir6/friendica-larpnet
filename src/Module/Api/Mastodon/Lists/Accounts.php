@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -22,6 +22,7 @@ class Accounts extends BaseApi
 	protected function delete(array $request = [])
 	{
 		$this->checkAllowedScope(self::SCOPE_WRITE);
+		$uid = self::getCurrentUserID();
 
 		$request = $this->getRequest([
 			'account_ids' => [], // Array of account IDs to remove from the list
@@ -31,12 +32,17 @@ class Accounts extends BaseApi
 			$this->logAndJsonError(422, $this->errorFactory->UnprocessableEntity());
 		}
 
+		if (!Circle::exists((int) $this->parameters['id'], $uid)) {
+			$this->logAndJsonError(404, $this->errorFactory->RecordNotFound());
+		}
+
 		Circle::removeMembers($this->parameters['id'], $request['account_ids']);
 	}
 
 	protected function post(array $request = [])
 	{
 		$this->checkAllowedScope(self::SCOPE_WRITE);
+		$uid = self::getCurrentUserID();
 
 		$request = $this->getRequest([
 			'account_ids' => [], // Array of account IDs to add to the list
@@ -44,6 +50,10 @@ class Accounts extends BaseApi
 
 		if (empty($request['account_ids']) || empty($this->parameters['id'])) {
 			$this->logAndJsonError(422, $this->errorFactory->UnprocessableEntity());
+		}
+
+		if (!Circle::exists((int) $this->parameters['id'], $uid)) {
+			$this->logAndJsonError(404, $this->errorFactory->RecordNotFound());
 		}
 
 		Circle::addMembers($this->parameters['id'], $request['account_ids']);
@@ -62,7 +72,7 @@ class Accounts extends BaseApi
 		}
 
 		$id = $this->parameters['id'];
-		if (!DBA::exists('group', ['id' => $id, 'uid' => $uid])) {
+		if (!Circle::exists((int) $id, $uid)) {
 			$this->logAndJsonError(404, $this->errorFactory->RecordNotFound());
 		}
 
@@ -102,7 +112,7 @@ class Accounts extends BaseApi
 			self::setBoundaries($member['contact-id']);
 			try {
 				$accounts[] = DI::mstdnAccount()->createFromContactId($member['contact-id'], $uid);
-			} catch (\Exception $exception) {
+			} catch (\Exception) {
 			}
 		}
 		DBA::close($members);
@@ -111,7 +121,7 @@ class Accounts extends BaseApi
 			$accounts = array_reverse($accounts);
 		}
 
-		self::setLinkHeader();
-		$this->jsonExit($accounts);
+		$this->setPaginationLinkHeader();
+		$this->earlyJsonExit($accounts);
 	}
 }

@@ -1,8 +1,8 @@
 <?php
 
 /**
- * Copyright (C) 2010-2024, the Friendica project
- * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+ * Copyright (C) 2010-2026, the Friendica project
+ * SPDX-FileCopyrightText: 2010-2026 the Friendica project
  *
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
@@ -112,7 +112,7 @@ if (!isset($nav_icon_hover_color)) {
 	if ($nihc->isLight()) {
 		$nav_icon_hover_color = '#' . $nihc->darken(10);
 	} else {
-		$nav_icon_hover_color = '#' . $nihc->lighten(20);
+		$nav_icon_hover_color = '#' . $nihc->lighten(13);
 	}
 }
 if (!isset($link_hover_color)) {
@@ -120,9 +120,9 @@ if (!isset($link_hover_color)) {
 	$lcolor = $lhc->getHex();
 
 	if ($lhc->isLight($lcolor, 75)) {
-		$link_hover_color = '#' . $lhc->darken(5);
+		$link_hover_color = '#' . $lhc->darken(20);
 	} else {
-		$link_hover_color = '#' . $lhc->lighten(5);
+		$link_hover_color = '#' . $lhc->lighten(20);
 	}
 }
 
@@ -166,7 +166,7 @@ $options = [
 	'$link_hover_color'            => $link_hover_color,
 	'$menu_background_hover_color' => $menu_background_hover_color,
 	'$btn_primary_color'           => $nav_icon_color,
-	'$btn_primary_hover_color'     => $menu_background_hover_color,
+	'$btn_primary_hover_color'     => $nav_icon_hover_color,
 	'$background_color'            => $background_color,
 	'$contentbg_transp'            => $contentbg_transp,
 	'$background_image'            => $background_image,
@@ -208,11 +208,11 @@ header('Last-Modified: ' . $modified);
 // Only send the CSS file if it was changed.
 /// @todo Check if this works at all (possibly clients are sending only the one or the other header) - compare with mod/photo.php
 if (isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && isset($_SERVER['HTTP_IF_NONE_MATCH'])) {
-	$cached_modified = gmdate('r', strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']));
+	$cached_modified = gmdate('r', strtotime((string) $_SERVER['HTTP_IF_MODIFIED_SINCE']));
 	$cached_etag     = str_replace(
 		['"', '-gzip'],
 		['', ''],
-		stripslashes($_SERVER['HTTP_IF_NONE_MATCH'])
+		stripslashes((string) $_SERVER['HTTP_IF_NONE_MATCH']),
 	);
 
 	if (($cached_modified == $modified) && ($cached_etag == $etag)) {

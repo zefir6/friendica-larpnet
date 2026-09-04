@@ -1,12 +1,15 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
 
 <nav id="follow-sidebar" class="widget">
-	<h3>{{$connect}}</h3>
+	<h3>
+		<i class="ri ri-user-add-line" aria-hidden="true"></i>
+		{{$connect}}
+	</h3>
 
 	<form action="contact/follow" method="post">
 		{{* The input field - For visual consistence we are using a search input field*}}

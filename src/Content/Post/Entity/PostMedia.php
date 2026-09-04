@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -51,20 +51,22 @@ use Psr\Http\Message\UriInterface;
  */
 class PostMedia extends BaseEntity
 {
-	const TYPE_UNKNOWN     = 0;
-	const TYPE_IMAGE       = 1;
-	const TYPE_VIDEO       = 2;
-	const TYPE_AUDIO       = 3;
-	const TYPE_TEXT        = 4;
-	const TYPE_APPLICATION = 5;
-	const TYPE_TORRENT     = 16;
-	const TYPE_HTML        = 17;
-	const TYPE_XML         = 18;
-	const TYPE_PLAIN       = 19;
-	const TYPE_ACTIVITY    = 20;
-	const TYPE_ACCOUNT     = 21;
-	const TYPE_HLS         = 22;
-	const TYPE_DOCUMENT    = 128;
+	public const TYPE_UNKNOWN     = 0;
+	public const TYPE_IMAGE       = 1;
+	public const TYPE_VIDEO       = 2;
+	public const TYPE_AUDIO       = 3;
+	public const TYPE_TEXT        = 4;
+	public const TYPE_APPLICATION = 5;
+	public const TYPE_TORRENT     = 16;
+	public const TYPE_HTML        = 17;
+	public const TYPE_XML         = 18;
+	public const TYPE_PLAIN       = 19;
+	public const TYPE_ACTIVITY    = 20;
+	public const TYPE_ACCOUNT     = 21;
+	public const TYPE_HLS         = 22;
+	public const TYPE_JSON        = 23;
+	public const TYPE_LD          = 24;
+	public const TYPE_DOCUMENT    = 128;
 
 	/** @var int */
 	protected $id;
@@ -172,7 +174,7 @@ class PostMedia extends BaseEntity
 		?int $embedWidth = null,
 		?int $embedHeight = null,
 		?string $pageType = null,
-		?array $schemaTypes = null
+		?array $schemaTypes = null,
 	) {
 		$this->uriId          = $uriId;
 		$this->url            = $url;
@@ -329,9 +331,9 @@ class PostMedia extends BaseEntity
 	 */
 	public function getPhotoPath(string $size = ''): string
 	{
-		return '/photo/media/' .
-			(Proxy::getPixelsFromSize($size) ? Proxy::getPixelsFromSize($size) . '/' : '') .
-			$this->id;
+		return '/photo/media/'
+			. (Proxy::getPixelsFromSize($size) ? Proxy::getPixelsFromSize($size) . '/' : '')
+			. $this->id;
 	}
 
 	/**
@@ -343,9 +345,9 @@ class PostMedia extends BaseEntity
 	 */
 	public function getPreviewPath(string $size = '', bool $blur = false): string
 	{
-		$path = '/photo/preview/' .
-			(Proxy::getPixelsFromSize($size) ? Proxy::getPixelsFromSize($size) . '/' : '') .
-			$this->id;
+		$path = '/photo/preview/'
+			. (Proxy::getPixelsFromSize($size) ? Proxy::getPixelsFromSize($size) . '/' : '')
+			. $this->id;
 
 		if ($blur) {
 			$path .= '?' . http_build_query(['blur' => true]);
@@ -435,7 +437,7 @@ class PostMedia extends BaseEntity
 			$this->embedWidth,
 			$this->embedHeight,
 			$this->pageType,
-			$this->schemaTypes
+			$this->schemaTypes,
 		);
 	}
 
@@ -475,7 +477,7 @@ class PostMedia extends BaseEntity
 			$this->embedWidth,
 			$this->embedHeight,
 			$this->pageType,
-			$this->schemaTypes
+			$this->schemaTypes,
 		);
 	}
 

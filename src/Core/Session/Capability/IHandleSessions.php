@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -18,6 +18,17 @@ interface IHandleSessions
 	 * @return self The own Session instance
 	 */
 	public function start(): IHandleSessions;
+
+	/**
+	 * Assign a new id to the current session, keeping its content
+	 *
+	 * Called whenever the privilege level of a session changes, so that an id
+	 * known before that change cannot be used afterwards. Session types without
+	 * a client-supplied id have nothing to rotate and do nothing here.
+	 *
+	 * @return self The own Session instance
+	 */
+	public function regenerateId(): IHandleSessions;
 
 	/**
 	 * Checks if the key exists in this session

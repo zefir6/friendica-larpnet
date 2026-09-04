@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -88,7 +88,7 @@ class Account extends BaseDataTransferObject
 	{
 		$this->id       = (string) $account['pid'];
 		$this->username = $account['nick'];
-		$this->acct     = strpos($account['url'], $baseUrl . '/') === 0
+		$this->acct     = str_starts_with((string) $account['url'], $baseUrl . '/')
 				? $account['nick']
 				: $account['addr'];
 		$this->display_name = $account['name'];

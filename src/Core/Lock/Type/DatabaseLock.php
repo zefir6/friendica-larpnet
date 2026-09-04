@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -26,16 +26,14 @@ class DatabaseLock extends AbstractLock
 	private $pid;
 
 	/**
-	 * @var Database The database connection of Friendica
-	 */
-	private $dba;
-
-	/**
 	 * @param int|null $pid The id of the current process (null means determine automatically)
 	 */
-	public function __construct(Database $dba, ?int $pid = null)
-	{
-		$this->dba = $dba;
+	public function __construct(/**
+				 * @var Database The database connection of Friendica
+				 */
+		private readonly Database $dba,
+		?int $pid = null,
+	) {
 		$this->pid = $pid ?? getmypid();
 	}
 

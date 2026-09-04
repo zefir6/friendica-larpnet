@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -40,7 +40,7 @@ class ContactDiscovery
 	 */
 	public static function workerLimitReached(): bool
 	{
-		$discovery_limit = (int)DI::config()->get('system', 'contact_discovery_limit');
+		$discovery_limit = (int) DI::config()->get('system', 'contact_discovery_limit');
 		$discovering     = Worker::countWorkersByCommand('ContactDiscovery');
 		if ($discovering >= $discovery_limit) {
 			DI::logger()->info('The number of currently running jobs exceed the limit', ['discovering' => $discovering, 'limit' => $discovery_limit]);

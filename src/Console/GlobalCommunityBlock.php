@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -21,15 +21,6 @@ class GlobalCommunityBlock extends \Asika\SimpleConsole\Console
 {
 	protected $helpOptions = ['h', 'help', '?'];
 
-	/**
-	 * @var Mode
-	 */
-	private $appMode;
-	/**
-	 * @var \Friendica\Core\L10n
-	 */
-	private $l10n;
-
 	protected function getHelp()
 	{
 		$help = <<<HELP
@@ -48,12 +39,9 @@ HELP;
 		return $help;
 	}
 
-	public function __construct(Mode $appMode, L10n $l10n, $argv = null)
+	public function __construct(private readonly Mode $appMode, private readonly L10n $l10n, $argv = null)
 	{
 		parent::__construct($argv);
-
-		$this->appMode = $appMode;
-		$this->l10n    = $l10n;
 	}
 
 	protected function doExecute(): int

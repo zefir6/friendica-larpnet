@@ -27,7 +27,7 @@ if (!isset($minimal)) {
 }
 
 $basepath            = DI::baseUrl()->getPath() ? "/" . DI::baseUrl()->getPath() . "/" : "/";
-$larpnet                = "view/theme/larpnet";
+$larpnet             = "view/theme/larpnet";
 $view_mode_class     = (DI::mode()->isMobile() || DI::mode()->isMobile()) ? 'mobile-view' : 'desktop-view';
 $is_singleuser       = DI::config()->get('system', 'singleuser');
 $is_singleuser_class = $is_singleuser ? "is-singleuser" : "is-not-singleuser";
@@ -38,7 +38,7 @@ $is_singleuser_class = $is_singleuser ? "is-singleuser" : "is-not-singleuser";
 			echo $page['title'];
 		} ?></title>
 		<meta request="<?php echo htmlspecialchars($_REQUEST['pagename'] ?? '') ?>">
-		<script  type="text/javascript">var baseurl = "<?php echo (string)DI::baseUrl(); ?>";</script>
+		<script  type="text/javascript">var baseurl = "<?php echo (string) DI::baseUrl(); ?>";</script>
 		<script type="text/javascript">var larpnet = "<?php echo 'view/theme/larpnet'; ?>";</script>
 <?php
 		// Because we use minimal for modals the header and the included js stuff should be only loaded
@@ -56,8 +56,8 @@ $scheme = larpnet_scheme_get_current_for_user($uid);
 if ($scheme != LARPNET_CUSTOM_SCHEME) {
 	if (file_exists('view/theme/larpnet/scheme/' . $scheme . '.php')) {
 		$schemefile    = 'view/theme/larpnet/scheme/' . $scheme . '.php';
-		$scheme_accent = DI::pConfig()->get($uid, 'larpnet', 'scheme_accent') ?:
-				DI::config()->get('larpnet', 'scheme_accent') ?: LARPNET_SCHEME_ACCENT_PURPLE;
+		$scheme_accent = DI::pConfig()->get($uid, 'larpnet', 'scheme_accent')
+				?: DI::config()->get('larpnet', 'scheme_accent') ?: LARPNET_SCHEME_ACCENT_PURPLE;
 
 		require_once $schemefile;
 	}
@@ -78,8 +78,8 @@ echo '<meta name="theme-color" content="' . $nav_bg . '" />';
 			str_replace(
 				"~system.banner~",
 				DI::config()->get('system', 'banner'),
-				$page['nav']
-			)
+				$page['nav'],
+			),
 		);
 	};
 

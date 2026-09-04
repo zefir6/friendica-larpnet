@@ -12,7 +12,7 @@ if [ -f /var/www/html/index.php ]; then
     src/Content/Item.php \
     src/Core/ACL.php \
     src/Model/Item.php \
-    src/Object/Post.php \
+    src/Content/Conversation/PostTemplateBuilder.php \
     src/Module/Item/Compose.php \
     src/Module/Item/Display.php \
     src/Module/Post/Share.php \

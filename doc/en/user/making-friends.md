@@ -29,7 +29,7 @@ Click that 'Connect' button, and it will take you to a 'Connect' form.
 The form is going to ask you for your Identity Address.
 This is necessary so that this person's website can find yours.
 
-If your Friendica site is called "demo.friendica.com" and your username/nickname on that site is "bob", you would enter "bob@demo.friendica.com" in this form.
+If your Friendica site is called "demo.friendica.com" and your username on that site is "bob", you would enter "bob@demo.friendica.com" in this form.
 
 Notice this looks just like an email address.
 It's meant to be that way.

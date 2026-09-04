@@ -1,4 +1,4 @@
-FROM friendica:2026.05-fpm
+FROM friendica:2026.08-rc-fpm
 
 # Wrapper entrypoint: copies larpnet-patched files on every start,
 # since the Friendica entrypoint only rsyncs on version upgrades.
@@ -28,7 +28,7 @@ COPY src/Model/LarpnetPush.php                    /usr/src/friendica/src/Model/L
 COPY src/Model/Mail.php                           /usr/src/friendica/src/Model/Mail.php
 COPY src/Model/Subscription.php                   /usr/src/friendica/src/Model/Subscription.php
 COPY src/Model/Item.php                           /usr/src/friendica/src/Model/Item.php
-COPY src/Object/Post.php                          /usr/src/friendica/src/Object/Post.php
+COPY src/Content/Conversation/PostTemplateBuilder.php /usr/src/friendica/src/Content/Conversation/PostTemplateBuilder.php
 COPY src/Module/Item/Compose.php                  /usr/src/friendica/src/Module/Item/Compose.php
 COPY src/Module/Item/Display.php                  /usr/src/friendica/src/Module/Item/Display.php
 COPY src/Module/Post/Share.php                    /usr/src/friendica/src/Module/Post/Share.php

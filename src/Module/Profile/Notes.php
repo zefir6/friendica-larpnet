@@ -1,13 +1,14 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 namespace Friendica\Module\Profile;
 
-use Friendica\Content\Conversation;
+use Friendica\Content\Conversation\ConversationRenderer;
+use Friendica\Content\Conversation\StatusEditor;
 use Friendica\Content\Nav;
 use Friendica\Content\Pager;
 use Friendica\Core\ACL;
@@ -37,13 +38,6 @@ use Psr\Log\LoggerInterface;
  */
 class Notes extends BaseProfile
 {
-	protected AppHelper $appHelper;
-	protected UserSession $userSession;
-	protected Mode $mode;
-	protected IManagePersonalConfigValues $pConfig;
-	protected IManageConfigValues $config;
-	protected Conversation $conversation;
-
 	/**
 	 * Notes constructor.
 	 *
@@ -60,17 +54,10 @@ class Notes extends BaseProfile
 	 * @param Mode $mode
 	 * @param IManagePersonalConfigValues $pConfig
 	 * @param IManageConfigValues $config
-	 * @param Conversation $conversation
 	 */
-	public function __construct(AppHelper $appHelper, UserSession $userSession, L10n $l10n, BaseURL $baseUrl, Arguments $args, LoggerInterface $logger, Profiler $profiler, \Friendica\Module\Response $response, array $server, array $parameters = [], Mode $mode, IManagePersonalConfigValues $pConfig, IManageConfigValues $config, Conversation $conversation)
+	public function __construct(protected AppHelper $appHelper, protected UserSession $userSession, L10n $l10n, BaseURL $baseUrl, Arguments $args, LoggerInterface $logger, Profiler $profiler, \Friendica\Module\Response $response, array $server, array $parameters, protected Mode $mode, protected IManagePersonalConfigValues $pConfig, protected IManageConfigValues $config, protected ConversationRenderer $conversationRenderer, protected StatusEditor $statusEditor)
 	{
 		parent::__construct($l10n, $baseUrl, $args, $logger, $profiler, $response, $server, $parameters);
-		$this->appHelper    = $appHelper;
-		$this->userSession  = $userSession;
-		$this->mode         = $mode;
-		$this->pConfig      = $pConfig;
-		$this->config       = $config;
-		$this->conversation = $conversation;
 	}
 
 	/**
@@ -92,7 +79,7 @@ class Notes extends BaseProfile
 
 		$o = parent::getTabsHTML('notes', true, $this->userSession->getLocalUserNickname(), false);
 
-		$o .= '<h3>' . $this->l10n->t('Personal notes') . '</h3>';
+		$o .= '<h2>' . $this->l10n->t('Personal notes') . '</h2>';
 
 		$x = [
 			'lockstate' => 'lock',
@@ -101,7 +88,7 @@ class Notes extends BaseProfile
 			'acl_data'  => '',
 		];
 
-		$o .= $this->conversation->statusEditor($x, $contactId);
+		$o .= $this->statusEditor->renderEditor($x, $contactId);
 
 		$condition = [
 			'uid'        => $this->userSession->getLocalUserId(),
@@ -138,7 +125,7 @@ class Notes extends BaseProfile
 		if (DBA::isResult($r)) {
 			$notes = Post::toArray($r);
 			$count = count($notes);
-			$o .= $this->conversation->render($notes, Conversation::MODE_NOTES, false);
+			$o .= $this->conversationRenderer->renderThreaded($notes, ConversationRenderer::MODE_NOTES, false, ConversationRenderer::ORDER_COMMENTED, $this->userSession->getLocalUserId(), $request);
 		}
 
 		$o .= $pager->renderMinimal($count);

@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -11,7 +11,7 @@ use Exception;
 use Friendica\Contact\Avatar;
 use Friendica\Contact\Header;
 use Friendica\Contact\Introduction\Exception\IntroductionNotFoundException;
-use Friendica\Content\Conversation as ConversationContent;
+use Friendica\Content\Conversation\ConversationRenderer;
 use Friendica\Content\Pager;
 use Friendica\Content\Text\HTML;
 use Friendica\Core\Protocol;
@@ -39,6 +39,8 @@ use Friendica\Worker\AddContact;
 use Friendica\Worker\ContactDiscovery;
 use Friendica\Worker\ContactDiscoveryForUser;
 use Friendica\Worker\UpdateContact;
+use GuzzleHttp\Psr7\Uri;
+use Friendica\Content\Post\Entity\PostMedia;
 
 /**
  * functions for interacting with a contact
@@ -435,7 +437,7 @@ class Contact
 	 *
 	 * @param string  $url    profile url
 	 * @param integer $uid    User ID of the contact
-	 * @param boolean $update true = always update, false = never update, null = update when not found or outdated
+	 * @param boolean|null $update true = always update, false = never update, null = update when not found or outdated
 	 * @param array   $fields Field list
 	 * @return array contact array
 	 */
@@ -941,7 +943,7 @@ class Contact
 			}
 
 			// We are adding a timestamp value so that other systems won't use cached content
-			$timestamp = strtotime($fields['avatar-date']);
+			$timestamp = strtotime((string) $fields['avatar-date']);
 
 			$prefix = DI::baseUrl() . '/photo/' . $avatar['resource-id'] . '-';
 			$suffix = Images::getExtensionByMimeType($avatar['type']) . '?ts=' . $timestamp;
@@ -1265,11 +1267,11 @@ class Contact
 		if ($contact['contact-type'] == Contact::TYPE_COMMUNITY) {
 			$mention_label = DI::l10n()->t('Post to group');
 			$mention_url   = 'compose/0?body=!' . $contact['addr'];
-			$network_label = DI::l10n()->t('View group');
+			$network_label = DI::l10n()->t('Group posts');
 		} else {
 			$mention_label = DI::l10n()->t('Mention');
 			$mention_url   = 'compose/0?body=@' . $contact['addr'];
-			$network_label = DI::l10n()->t('Network Posts');
+			$network_label = DI::l10n()->t('Posts');
 		}
 		$network_url = 'contact/' . $contact['id'] . '/conversations';
 
@@ -1277,9 +1279,9 @@ class Contact
 		$unfollow_link = '';
 		if (!$contact['self'] && Protocol::supportsFollow($contact['network'])) {
 			if ($contact['uid'] && in_array($contact['rel'], [self::SHARING, self::FRIEND])) {
-				$unfollow_link = 'contact/unfollow?url=' . urlencode($contact['url']) . '&auto=1';
+				$unfollow_link = 'contact/unfollow?url=' . urlencode((string) $contact['url']) . '&auto=1';
 			} elseif (!$contact['pending']) {
-				$follow_link = 'contact/follow?binurl=' . bin2hex($contact['url']) . '&auto=1';
+				$follow_link = 'contact/follow?binurl=' . bin2hex((string) $contact['url']) . '&auto=1';
 			}
 		}
 
@@ -1293,7 +1295,7 @@ class Contact
 			$menu = [
 				'profile'  => [DI::l10n()->t('View Profile'), $profile_link, true],
 				'network'  => [$network_label, $network_url, false],
-				'edit'     => [DI::l10n()->t('View Contact'), $contact_url, false],
+				'edit'     => [DI::l10n()->t('Settings'), $contact_url, false],
 				'follow'   => [DI::l10n()->t('Connect/Follow'), $follow_link, true],
 				'unfollow' => [DI::l10n()->t('Unfollow'), $unfollow_link, true],
 				'mention'  => [$mention_label, $mention_url, false],
@@ -1304,7 +1306,7 @@ class Contact
 				'profile'  => [DI::l10n()->t('View Profile'), $profile_link, true],
 				'photos'   => [DI::l10n()->t('View Photos'), $photos_link, true],
 				'network'  => [$network_label, $network_url, false],
-				'edit'     => [DI::l10n()->t('View Contact'), $contact_url, false],
+				'edit'     => [DI::l10n()->t('Settings'), $contact_url, false],
 				'pm'       => [DI::l10n()->t('Message'), $pm_url, false],
 				'follow'   => [DI::l10n()->t('Connect/Follow'), $follow_link, true],
 				'unfollow' => [DI::l10n()->t('Unfollow'), $unfollow_link, true],
@@ -1592,7 +1594,7 @@ class Contact
 			return false;
 		}
 
-		if (Network::isUrlBlocked($blocked['url'])) {
+		if (Network::isUriBlocked(new Uri($blocked['url']))) {
 			return true;
 		}
 
@@ -1672,7 +1674,7 @@ class Contact
 		if ($only_media) {
 			$condition = DBA::mergeConditions($condition, [
 				"`uri-id` IN (SELECT `uri-id` FROM `post-media` WHERE `type` IN (?, ?, ?, ?))",
-				Post\Media::AUDIO, Post\Media::IMAGE, Post\Media::VIDEO, Post\Media::HLS,
+				PostMedia::TYPE_AUDIO, PostMedia::TYPE_IMAGE, PostMedia::TYPE_VIDEO, PostMedia::TYPE_HLS,
 			]);
 		}
 
@@ -1688,7 +1690,7 @@ class Contact
 		$fields = array_merge(Item::DISPLAY_FIELDLIST, ['featured']);
 		$items  = Post::toArray(Post::selectForUser($uid, $fields, $condition, $params));
 
-		$o = DI::conversation()->render($items, ConversationContent::MODE_CONTACT_POSTS, isset($request['mode']) && ($request['mode'] == 'raw'));
+		$o = DI::conversationRenderer()->renderFlat($items, ConversationRenderer::MODE_CONTACT_POSTS, false, $uid);
 
 		if (DI::pConfig()->get($uid, 'system', 'infinite_scroll', true)) {
 			$o .= HTML::scrollLoader($request);
@@ -1762,12 +1764,12 @@ class Contact
 		$raw = isset($request['mode']) && ($request['mode'] == 'raw');
 
 		if (!$raw && !$update && ($pager->getStart() == 0)) {
-			$fields = ['uri-id', 'thr-parent-id', 'gravity', 'author-id', 'created'];
+			$fields = ['uri-id', 'created'];
 			$pinned = Post\Collection::selectToArrayForContact($cid, Post\Collection::FEATURED, $fields);
 			$items  = array_merge($items, $pinned);
 		}
 
-		$o = DI::conversation()->render($items, ConversationContent::MODE_CONTACTS, $update || $raw, false, 'pinned_created', $uid);
+		$o = DI::conversationRenderer()->renderThreaded($items, ConversationRenderer::MODE_CONTACTS, $update || $raw, ConversationRenderer::ORDER_PINNED_CREATED, $uid, $request);
 
 		if (!$update) {
 			if (DI::pConfig()->get($uid, 'system', 'infinite_scroll', true)) {
@@ -1790,27 +1792,13 @@ class Contact
 	 */
 	public static function getAccountType(int $type): string
 	{
-		switch ($type) {
-			case self::TYPE_ORGANISATION:
-				$account_type = DI::l10n()->t("Organisation");
-				break;
-
-			case self::TYPE_NEWS:
-				$account_type = DI::l10n()->t('News');
-				break;
-
-			case self::TYPE_COMMUNITY:
-				$account_type = DI::l10n()->t("Group");
-				break;
-
-			case self::TYPE_RELAY:
-				$account_type = DI::l10n()->t("Relay");
-				break;
-
-			default:
-				$account_type = "";
-				break;
-		}
+		$account_type = match ($type) {
+			self::TYPE_ORGANISATION => DI::l10n()->t("Organisation"),
+			self::TYPE_NEWS         => DI::l10n()->t('News'),
+			self::TYPE_COMMUNITY    => DI::l10n()->t("Group"),
+			self::TYPE_RELAY        => DI::l10n()->t("Relay"),
+			default                 => "",
+		};
 
 		return $account_type;
 	}
@@ -1838,6 +1826,32 @@ class Contact
 	public static function unblock(int $cid): bool
 	{
 		$return = self::update(['blocked' => false, 'block_reason' => null], ['id' => $cid]);
+
+		return $return;
+	}
+
+	/**
+	 * Hides a contact
+	 *
+	 * @param int $cid Contact id to hide
+	 * @return bool Whether it was successful
+	 */
+	public static function hide(int $cid): bool
+	{
+		$return = self::update(['hidden' => true], ['id' => $cid]);
+
+		return $return;
+	}
+
+	/**
+	 * Unhide a contact
+	 *
+	 * @param int $cid Contact id to unhide
+	 * @return bool Whether it was successful
+	 */
+	public static function unhide(int $cid): bool
+	{
+		$return = self::update(['hidden' => false], ['id' => $cid]);
 
 		return $return;
 	}
@@ -2019,29 +2033,22 @@ class Contact
 			$platform = '';
 		}
 
-		switch ($platform) {
-			case 'friendica':
-			case 'friendika':
-				$header = DI::baseUrl() . (new Header(DI::config()))->getMastodonBannerPath();
-				break;
-			case 'diaspora':
-				/**
-				 * Picture credits
-				 * @author  John Liu <https://www.flickr.com/photos/8047705@N02/>
-				 * @license CC BY 2.0 https://creativecommons.org/licenses/by/2.0/
-				 * @link    https://www.flickr.com/photos/8047705@N02/5572197407
-				 */
-				$header = DI::baseUrl() . '/images/diaspora-banner.jpg';
-				break;
-			default:
-				/**
-				 * Use a random picture.
-				 * The service provides random pictures from Unsplash.
-				 * @license https://unsplash.com/license
-				 */
-				$header = 'https://picsum.photos/seed/' . hash('ripemd128', $contact['url']) . '/960/300';
-				break;
-		}
+		$header = match ($platform) {
+			'friendica', 'friendika' => DI::baseUrl() . (new Header(DI::config()))->getMastodonBannerPath(),
+			/**
+			 * Picture credits
+			 * @author  John Liu <https://www.flickr.com/photos/8047705@N02/>
+			 * @license CC BY 2.0 https://creativecommons.org/licenses/by/2.0/
+			 * @link    https://www.flickr.com/photos/8047705@N02/5572197407
+			 */
+			'diaspora' => DI::baseUrl() . '/images/diaspora-banner.jpg',
+			/**
+			 * Use a random picture.
+			 * The service provides random pictures from Unsplash.
+			 * @license https://unsplash.com/license
+			 */
+			default => 'https://picsum.photos/seed/' . hash('ripemd128', (string) $contact['url']) . '/960/300',
+		};
 
 		return $header;
 	}
@@ -2252,7 +2259,7 @@ class Contact
 		}
 		$query_params = [];
 		if ($updated) {
-			$query_params['ts'] = strtotime($updated);
+			$query_params['ts'] = strtotime((string) $updated);
 		}
 		if ($static) {
 			$query_params['static'] = true;
@@ -2298,7 +2305,7 @@ class Contact
 			$guid    = $account['guid']    ?? '';
 		}
 
-		$guid = urlencode($guid);
+		$guid = urlencode((string) $guid);
 
 		$url = DI::baseUrl() . '/photo/header/';
 		switch ($size) {
@@ -2321,7 +2328,7 @@ class Contact
 
 		$query_params = [];
 		if ($updated) {
-			$query_params['ts'] = strtotime($updated);
+			$query_params['ts'] = strtotime((string) $updated);
 		}
 		if ($static) {
 			$query_params['static'] = true;
@@ -2738,10 +2745,10 @@ class Contact
 
 		$data = Probe::uri($contact['url'], $network, $contact['uid']);
 
-		if (in_array($data['network'], Protocol::FEDERATED) && (parse_url($data['url'], PHP_URL_SCHEME) == 'http')) {
+		if (in_array($data['network'], Protocol::FEDERATED) && (parse_url((string) $data['url'], PHP_URL_SCHEME) == 'http')) {
 			$ssl_url  = str_replace('http://', 'https://', $contact['url']);
 			$ssl_data = Probe::uri($ssl_url, $network, $contact['uid']);
-			if (($ssl_data['network'] == $data['network']) && (parse_url($ssl_data['url'], PHP_URL_SCHEME) != 'http')) {
+			if (($ssl_data['network'] == $data['network']) && (parse_url((string) $ssl_data['url'], PHP_URL_SCHEME) != 'http')) {
 				$data = $ssl_data;
 			}
 		}
@@ -2956,7 +2963,7 @@ class Contact
 		}
 
 		$update = false;
-		$guid   = ($ret['guid'] ?? '') ?: Item::guidFromUri($ret['url'], $ret['baseurl'] ?? $ret['alias'] ?? '');
+		$guid   = ($ret['guid'] ?? '') ?: DI::postUriGenerator()->guidFromUri($ret['url'], $ret['baseurl'] ?? $ret['alias'] ?? '');
 
 		// make sure to not overwrite existing values with blank entries except some technical fields
 		$keep = ['batch', 'notify', 'poll', 'request', 'confirm', 'poco', 'baseurl'];
@@ -3134,7 +3141,7 @@ class Contact
 			return $result;
 		}
 
-		if (Network::isUrlBlocked($url)) {
+		if (Network::isUriBlocked(new Uri($url))) {
 			$result['message'] = DI::l10n()->t('Blocked domain');
 			return $result;
 		}
@@ -3195,7 +3202,7 @@ class Contact
 
 		// do we have enough information?
 		if (empty($protocol) || ($protocol == Protocol::PHANTOM) || (empty($ret['url']) && empty($ret['addr']))) {
-			$result['message'] .= DI::l10n()->t('The profile address specified does not provide adequate information.') . '<br />';
+			$result['message'] .= DI::l10n()->t('The handle specified does not provide adequate information.') . '<br />';
 			if (empty($ret['poll'])) {
 				$result['message'] .= DI::l10n()->t('No compatible communication protocols or feeds were discovered.') . '<br />';
 			}
@@ -3205,7 +3212,7 @@ class Contact
 			if (empty($ret['url'])) {
 				$result['message'] .= DI::l10n()->t('No browser URL could be matched to this address.') . '<br />';
 			}
-			if (strpos($ret['url'], '@') !== false) {
+			if (str_contains((string) $ret['url'], '@')) {
 				$result['message'] .= DI::l10n()->t('Unable to match @-style Identity Address with a known protocol or email contact.') . '<br />';
 				$result['message'] .= DI::l10n()->t('Use mailto: in front of address to force email check.') . '<br />';
 			}
@@ -3556,7 +3563,7 @@ class Contact
 		while ($contact = DBA::fetch($contacts)) {
 			DI::logger()->notice('update_contact_birthday: ' . $contact['bd']);
 
-			$nextbd = DateTimeFormat::utcNow('Y') . substr($contact['bd'], 4);
+			$nextbd = DateTimeFormat::utcNow('Y') . substr((string) $contact['bd'], 4);
 
 			if (Event::createBirthday($contact, $nextbd)) {
 				// update bdyear
@@ -3693,7 +3700,7 @@ class Contact
 		}
 
 		// Only redirections to the same host do make sense
-		if (($url != '') && (parse_url($url, PHP_URL_HOST) != parse_url($contact['url'], PHP_URL_HOST))) {
+		if (($url != '') && (parse_url($url, PHP_URL_HOST) != parse_url((string) $contact['url'], PHP_URL_HOST))) {
 			return $url;
 		}
 
@@ -3884,5 +3891,38 @@ class Contact
 	public static function exists(array $condition): bool
 	{
 		return DBA::exists('contact', $condition);
+	}
+
+	/**
+	 * Returns the type of the given contact
+	 *
+	 * @param int    $id  The contact id
+	 * @param string $url The contact url
+	 * @return bool[] [administrator, moderator]
+	 * @throws \Exception
+	 */
+	public static function getType(int $id, string $url): array
+	{
+		$administrator = false;
+		$moderator     = false;
+		if (Contact::isLocalById($id)) {
+			$local_id = User::getIdForURL($url);
+			// check if contact is a Moderator
+			if (User::isModerator($local_id)) {
+				$moderator = true;
+			}
+			// check if contact is an Admin
+			if (User::isSiteAdmin($local_id)) {
+				$administrator = true;
+				$moderator     = false;
+				// do not show as Admin if this is a subaccount of an Admin
+				$check = User::getById($local_id, ['parent-uid']);
+				if ($check['parent-uid']) {
+					$administrator = false;
+				}
+			}
+		}
+
+		return [$administrator, $moderator];
 	}
 }

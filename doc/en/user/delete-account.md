@@ -17,4 +17,4 @@ We then send out a notification about the account removal to all of your contact
 For technical reasons some of your user data is still needed to transmit this removal message.
 This remaining data will be deleted after a period of around seven days.
 
-To disallow impersonation we have to save your used nickname, so that it can't be used again to register on this node.
+To prevent impersonation we have to save your used username, so that it can't be used again to register on this node.

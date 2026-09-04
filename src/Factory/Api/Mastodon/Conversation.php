@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -16,19 +16,9 @@ use Psr\Log\LoggerInterface;
 
 class Conversation extends BaseFactory
 {
-	/** @var Database */
-	private $dba;
-	/** @var Status */
-	private $mstdnStatusFactory;
-	/** @var Account */
-	private $mstdnAccountFactory;
-
-	public function __construct(LoggerInterface $logger, Database $dba, Status $mstdnStatusFactory, Account $mstdnAccountFactoryFactory)
+	public function __construct(LoggerInterface $logger, private readonly Database $dba, private readonly Status $mstdnStatusFactory, private readonly Account $mstdnAccountFactory)
 	{
 		parent::__construct($logger);
-		$this->dba                 = $dba;
-		$this->mstdnStatusFactory  = $mstdnStatusFactory;
-		$this->mstdnAccountFactory = $mstdnAccountFactoryFactory;
 	}
 
 	/**
@@ -67,13 +57,13 @@ class Conversation extends BaseFactory
 			// caller themselves, so they got excluded and `accounts` came back empty instead
 			// of showing the actual recipient. `contact-id` is invariant across the thread and
 			// always the other party by definition, regardless of who sent which message.
-			$contactId = $uid ? Contact::getPublicContactId((int)$mail['contact-id'], $uid) : 0;
+			$contactId = $uid ? Contact::getPublicContactId((int) $mail['contact-id'], $uid) : 0;
 			if ($contactId && !in_array($contactId, $participantIds)) {
 				$participantIds[] = $contactId;
 				$accounts[]       = $this->mstdnAccountFactory->createFromContactId($contactId, 0);
 			}
 		}
 
-		return new \Friendica\Object\Api\Mastodon\Conversation($id, $accounts, $unread, $last_status);
+		return new \Friendica\Object\Api\Mastodon\Conversation((string) $id, $accounts, $unread, $last_status);
 	}
 }

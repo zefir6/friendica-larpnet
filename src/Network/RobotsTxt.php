@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -37,12 +37,7 @@ class RobotsTxt
 	 */
 	private bool $isLoaded = false;
 
-	protected ICanSendHttpRequests $httpClient;
-
-	public function __construct(ICanSendHttpRequests $httpClient)
-	{
-		$this->httpClient = $httpClient;
-	}
+	public function __construct(protected ICanSendHttpRequests $httpClient) {}
 
 	/**
 	 * Loads the RobotsTxt parser with a server URL
@@ -63,7 +58,7 @@ class RobotsTxt
 			$curlResult = $this->httpClient->get(
 				$robotsUrl,
 				HttpClientAccept::TEXT,
-				[HttpClientOptions::REQUEST => HttpClientRequest::SERVERINFO]
+				[HttpClientOptions::REQUEST => HttpClientRequest::SERVERINFO],
 			);
 
 			if (!$curlResult->isSuccess()) {
@@ -76,7 +71,7 @@ class RobotsTxt
 
 			$this->isLoaded = $this->parseRobotsTxt($curlResult->getBodyString());
 			return $this->isLoaded;
-		} catch (\Exception $e) {
+		} catch (\Exception) {
 			return false;
 		}
 	}
@@ -105,7 +100,7 @@ class RobotsTxt
 
 		foreach ($lines as $line) {
 			$line = preg_replace('~\s*#.*$~', '', $line);
-			$line = trim($line);
+			$line = trim((string) $line);
 
 			if (empty($line)) {
 				continue;
@@ -137,10 +132,6 @@ class RobotsTxt
 				}
 				continue;
 			}
-
-			if (stripos($line, 'User-Agent:') === 0 && !$isRelevantSection) {
-				break;
-			}
 		}
 
 		return sizeof($this->disallowRules) > 0 || sizeof($this->allowRules) > 0;
@@ -159,13 +150,13 @@ class RobotsTxt
 		$length  = 0;
 
 		foreach ($this->allowRules as $rule) {
-			if (strlen($rule) > $length && $this->pathMatches($path, $rule)) {
-				$length = strlen($rule);
+			if (strlen((string) $rule) > $length && $this->pathMatches($path, $rule)) {
+				$length = strlen((string) $rule);
 			}
 		}
 
 		foreach ($this->disallowRules as $rule) {
-			if (strlen($rule) > $length && $this->pathMatches($path, $rule)) {
+			if (strlen((string) $rule) > $length && $this->pathMatches($path, $rule)) {
 				$allowed = false;
 			}
 		}
@@ -183,11 +174,11 @@ class RobotsTxt
 	 */
 	private function pathMatches(string $path, string $rule): bool
 	{
-		if (substr_compare($rule, '*', -strlen('*')) === 0) {
+		if (str_ends_with($rule, '*')) {
 			$rule = substr($rule, 0, -1);
-			return strncmp($path, $rule, strlen($rule)) === 0;
+			return str_starts_with($path, $rule);
 		}
 
-		return strncmp($path, $rule, strlen($rule)) === 0;
+		return str_starts_with($path, $rule);
 	}
 }

@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -25,7 +25,7 @@ class Delete extends BaseApi
 
 		$request = $this->getRequest([
 			'gid'  => 0,
-			'name' => ''
+			'name' => '',
 		], $request);
 
 		// params
@@ -36,7 +36,7 @@ class Delete extends BaseApi
 		}
 
 		// error message if specified gid is not in database
-		if (!DBA::exists('group', ['uid' => $uid, 'id' => $request['gid']])) {
+		if (!Circle::exists((int) $request['gid'], $uid)) {
 			throw new BadRequestException('gid not available');
 		}
 

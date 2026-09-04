@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -13,6 +13,7 @@ use Friendica\Model\Photo;
 use Friendica\Model\Post;
 use Friendica\Util\Network;
 use IntlChar;
+use Friendica\Content\Post\Entity\PostMedia;
 
 class Plaintext
 {
@@ -111,7 +112,7 @@ class Plaintext
 		if (($item['title'] != '') && ($post['text'] != '')) {
 			$post['text'] = trim($item['title'] . "\n\n" . $post['text']);
 		} elseif ($item['title'] != '') {
-			$post['text'] = trim($item['title']);
+			$post['text'] = trim((string) $item['title']);
 		}
 
 		$abstract = '';
@@ -175,13 +176,13 @@ class Plaintext
 
 				// Will the text be shortened in the link?
 				// Or is the link the last item in the post?
-				if (($limit > 0) && ($pos < $limit) && (($pos + self::URL_LENGTH > $limit) || ($pos + mb_strlen($link) == mb_strlen($msg)))) {
+				if (($limit > 0) && ($pos < $limit) && (($pos + self::URL_LENGTH > $limit) || ($pos + mb_strlen((string) $link) == mb_strlen($msg)))) {
 					$msg = trim(str_replace($link, '', $msg));
 				} elseif (($limit == 0) || ($pos < $limit)) {
 					// The limit has to be increased since it will be shortened - but not now
 					// Only do it with Twitter
-					if (($limit > 0) && (mb_strlen($link) > self::URL_LENGTH) && ($htmlmode == BBCode::TWITTER)) {
-						$limit = $limit - self::URL_LENGTH + mb_strlen($link);
+					if (($limit > 0) && (mb_strlen((string) $link) > self::URL_LENGTH) && ($htmlmode == BBCode::TWITTER)) {
+						$limit = $limit - self::URL_LENGTH + mb_strlen((string) $link);
 					}
 
 					$link = '';
@@ -196,18 +197,18 @@ class Plaintext
 		if ($limit > 0) {
 			// Reduce multiple spaces
 			// When posted to a network with limited space, we try to gain space where possible
-			while (strpos($msg, '  ') !== false) {
+			while (str_contains($msg, '  ')) {
 				$msg = str_replace('  ', ' ', $msg);
 			}
 
-			if (!in_array($link, ['', $item['plink']]) && ($post['type'] != 'photo') && (strpos($complete_msg, (string) $link) === false)) {
+			if (!in_array($link, ['', $item['plink']]) && ($post['type'] != 'photo') && (!str_contains($complete_msg, (string) $link))) {
 				$complete_msg .= "\n" . $link;
 			}
 
 			$post['parts'] = self::getParts(trim($complete_msg), $limit);
 
 			// Twitter is using its own limiter, so we always assume that shortened links will have this length
-			if (mb_strlen($link) > 0) {
+			if (mb_strlen((string) $link) > 0) {
 				$limit = $limit - self::URL_LENGTH;
 			}
 
@@ -217,7 +218,7 @@ class Plaintext
 				} elseif (!isset($post['url'])) {
 					$limit       = $limit - self::URL_LENGTH;
 					$post['url'] = $item['plink'];
-				} elseif (strpos($item['body'], '[share') !== false) {
+				} elseif (str_contains((string) $item['body'], '[share')) {
 					$post['url'] = $item['plink'];
 				} elseif (DI::pConfig()->get($item['uid'], 'system', 'no_intelligent_shortening')) {
 					$post['url'] = $item['plink'];
@@ -324,7 +325,7 @@ class Plaintext
 
 		// Remove mentions and hashtag links
 		$URLSearchString = '^\[\]';
-		$post['text']    = preg_replace("/([#!@])\[url\=([$URLSearchString]*)\](.*?)\[\/url\]/ism", '$1$3', $item['body']);
+		$post['text']    = preg_replace("/([#!@])\[url\=([$URLSearchString]*)\](.*?)\[\/url\]/ism", '$1$3', (string) $item['body']);
 
 		// Remove abstract
 		$post['text'] = BBCode::stripAbstract($post['text']);
@@ -333,9 +334,9 @@ class Plaintext
 		// Remove any links
 		$post['text'] = Post\Media::removeFromBody($post['text']);
 
-		$images = Post\Media::getByURIId($item['uri-id'], [Post\Media::IMAGE]);
+		$images = Post\Media::getByURIId($item['uri-id'], [PostMedia::TYPE_IMAGE]);
 		if (!empty($item['quote-uri-id']) && ($item['quote-uri-id'] != $item['uri-id'])) {
-			$images = array_merge($images, Post\Media::getByURIId($item['quote-uri-id'], [Post\Media::IMAGE]));
+			$images = array_merge($images, Post\Media::getByURIId($item['quote-uri-id'], [PostMedia::TYPE_IMAGE]));
 		}
 		foreach ($images as $image) {
 			if ($id = Photo::getIdForName($image['url'])) {
@@ -364,22 +365,22 @@ class Plaintext
 		}
 
 		// Look for audio or video links
-		$media = Post\Media::getByURIId($item['uri-id'], [Post\Media::AUDIO, Post\Media::VIDEO]);
+		$media = Post\Media::getByURIId($item['uri-id'], [PostMedia::TYPE_AUDIO, PostMedia::TYPE_VIDEO]);
 		if (!empty($item['quote-uri-id']) && ($item['quote-uri-id'] != $item['uri-id'])) {
-			$media = array_merge($media, Post\Media::getByURIId($item['quote-uri-id'], [Post\Media::AUDIO, Post\Media::VIDEO]));
+			$media = array_merge($media, Post\Media::getByURIId($item['quote-uri-id'], [PostMedia::TYPE_AUDIO, PostMedia::TYPE_VIDEO]));
 		}
 
 		foreach ($media as $medium) {
-			if (in_array($medium['type'], [Post\Media::AUDIO, Post\Media::VIDEO])) {
+			if (in_array($medium['type'], [PostMedia::TYPE_AUDIO, PostMedia::TYPE_VIDEO])) {
 				$post['type'] = 'link';
 				$post['url']  = $medium['url'];
 			}
 		}
 
 		// Look for an attached link
-		$page = Post\Media::getByURIId($item['uri-id'], [Post\Media::HTML]);
+		$page = Post\Media::getByURIId($item['uri-id'], [PostMedia::TYPE_HTML]);
 		if (!empty($item['quote-uri-id']) && empty($page)) {
-			$page = Post\Media::getByURIId($item['quote-uri-id'], [Post\Media::HTML]);
+			$page = Post\Media::getByURIId($item['quote-uri-id'], [PostMedia::TYPE_HTML]);
 		}
 		if (!empty($page)) {
 			$post['type']        = 'link';

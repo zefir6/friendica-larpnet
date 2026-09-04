@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -32,9 +32,9 @@ use Friendica\Util\Strings;
  */
 class Relay
 {
-	const SCOPE_NONE = '';
-	const SCOPE_ALL  = 'all';
-	const SCOPE_TAGS = 'tags';
+	public const SCOPE_NONE = '';
+	public const SCOPE_ALL  = 'all';
+	public const SCOPE_TAGS = 'tags';
 
 	/**
 	 * Check if a post is wanted
@@ -106,7 +106,7 @@ class Relay
 			}
 
 			foreach ($tags as $tag) {
-				$tag = mb_strtolower($tag);
+				$tag = mb_strtolower((string) $tag);
 				if (in_array($tag, $denyTags)) {
 					DI::logger()->info('Unwanted hashtag found - rejected', ['hashtag' => $tag, 'network' => $network, 'url' => $url, 'causer' => $causer]);
 					return false;
@@ -119,7 +119,7 @@ class Relay
 
 				// We check with "strpos" for performance issues. Only when this is true, the regular expression check is used
 				// RegExp is taken from here: https://medium.com/@shiba1014/regex-word-boundaries-with-unicode-207794f6e7ed
-				if ((strpos($content, $tag) !== false) && preg_match('/(?<=[\s,.:;"\']|^)' . preg_quote($tag, '/') . '(?=[\s,.:;"\']|$)/', $content)) {
+				if ((str_contains($content, $tag)) && preg_match('/(?<=[\s,.:;"\']|^)' . preg_quote($tag, '/') . '(?=[\s,.:;"\']|$)/', $content)) {
 					DI::logger()->info('Subscribed hashtag found in content - accepted', ['hashtag' => $tag, 'network' => $network, 'url' => $url, 'causer' => $causer]);
 					return true;
 				}
@@ -379,7 +379,7 @@ class Relay
 		return DBA::selectToArray(
 			'apcontact',
 			$fields,
-			["`type` IN (?, ?) AND `url` IN (SELECT `url` FROM `contact` WHERE `uid` = ? AND `rel` = ?)", 'Application', 'Service', 0, Contact::FRIEND]
+			["`type` IN (?, ?) AND `url` IN (SELECT `url` FROM `contact` WHERE `uid` = ? AND `rel` = ?)", 'Application', 'Service', 0, Contact::FRIEND],
 		);
 	}
 
@@ -425,5 +425,42 @@ class Relay
 			$success = ActivityPub\Transmitter::sendRelayFollow($server['url']);
 			DI::logger()->debug('Resubscribed', ['profile' => $server['url'], 'success' => $success]);
 		}
+	}
+
+
+	/**
+	 * Update tag relay subscriptions based on configured tags
+	 * Follows new tags and unfollows removed tags
+	 *
+	 * @return void
+	 */
+	public static function updateTagRelaySubscriptions()
+	{
+		$currentTags = DI::config()->get('system', 'relay_auto_subscribe_tags') ? Relay::getSubscribedTags() : [];
+		$oldTags     = json_decode(DI::keyValue()->get('relay_subscribed_tags') ?? '[]', true) ?? [];
+		if (!$currentTags && !$oldTags) {
+			return;
+		}
+
+		// Follow new tags
+		foreach ($currentTags as $tag) {
+			if (!in_array($tag, $oldTags)) {
+				$url = 'https://tags.pub/user/' . urlencode((string) $tag);
+				DI::logger()->info('Following relay tag', ['url' => $url]);
+				ActivityPub\Transmitter::sendRelayFollow($url);
+			}
+		}
+
+		// Unfollow removed tags
+		foreach ($oldTags as $tag) {
+			if (!in_array($tag, $currentTags)) {
+				$url = 'https://tags.pub/user/' . urlencode((string) $tag);
+				DI::logger()->info('Unfollowing relay tag', ['url' => $url]);
+				ActivityPub\Transmitter::sendRelayUndoFollow($url);
+			}
+		}
+
+		// Save current state
+		DI::keyValue()->set('relay_subscribed_tags', json_encode($currentTags));
 	}
 }

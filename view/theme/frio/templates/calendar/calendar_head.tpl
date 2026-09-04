@@ -1,6 +1,6 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
@@ -73,7 +73,7 @@
 	var calendar_api = '{{$calendar_api}}';
 	var event_api = '{{$event_api}}';
 
-	$(document).ready(function() {
+	window.onDocumentReady('body', function() {
 		$("#comment-edit-text-desc").bbco_autocomplete('bbcode');
 	});
 </script>
