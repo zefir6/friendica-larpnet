@@ -224,7 +224,7 @@ var Browser = {
 		$('.fbrowser').load(url, function (responseText, textStatus) {
 			$('.profile-rotator-wrapper').hide();
 			if (textStatus === 'success') {
-				$(".fbrowser_content").show();
+				$(".fbrowser-content").show();
 				Browser.postLoad();
 			}
 		});
