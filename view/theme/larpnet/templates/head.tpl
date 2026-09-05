@@ -115,6 +115,16 @@
 		const updateContent = {{$update_content}};
 		const localUser = {{if $local_user}}{{$local_user}}{{else}}false{{/if}};
 	</script>
+	<script type="text/javascript">
+		// view/js/main.js (registerModuleLifecycle) reads this global unconditionally -- without
+		// it defined, main.js throws a ReferenceError partway through its top-level execution,
+		// which aborts everything textually after that point in the file, including `var Dialog`.
+		// That silently broke every Dialog-dependent feature (the jot composer's file browser and
+		// more). Not backporting the rest of frio's SPA-mode (unpoly) block here -- $spa_mode is
+		// per-user pconfig, off by default, and this theme's nav.js has its own AJAX-driven
+		// navigation untested against unpoly.
+		var spaEnabled = {{$spa_mode}};
+	</script>
 	<script type="text/javascript" src="view/js/main.js?v={{$VERSION}}"></script>
 
 	<script type="text/javascript"
