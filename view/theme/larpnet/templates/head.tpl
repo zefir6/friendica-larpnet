@@ -120,12 +120,35 @@
 		// it defined, main.js throws a ReferenceError partway through its top-level execution,
 		// which aborts everything textually after that point in the file, including `var Dialog`.
 		// That silently broke every Dialog-dependent feature (the jot composer's file browser and
-		// more). Not backporting the rest of frio's SPA-mode (unpoly) block here -- $spa_mode is
-		// per-user pconfig, off by default, and this theme's nav.js has its own AJAX-driven
-		// navigation untested against unpoly.
+		// more).
 		var spaEnabled = {{$spa_mode}};
 	</script>
+	{{* main.js (preview_post et al.) calls showPosting()/showProcessing()/hideLoading(), defined
+		here -- also missing from this fork until now, which broke the composer's Preview tab. *}}
+	<script type="text/javascript" src="view/js/loading-indicator.js?v={{$VERSION}}"></script>
 	<script type="text/javascript" src="view/js/main.js?v={{$VERSION}}"></script>
+	{{* Deliberately not backporting frio's SPA-mode (unpoly) block ({{if $spa_mode}}...{{/if}}
+		loading unpoly.js/spa-unpoly-nav.js): $spa_mode is per-user pconfig, off by default, and
+		this theme's nav.js has its own AJAX-driven navigation untested against unpoly. The two
+		scripts above degrade gracefully when spaEnabled is falsy and $spaLoadingTexts is unset. *}}
+	<script>
+	// Loading indicator translations with delay messages
+	window.spaLoadingTexts = {
+		fetching: "{{$loading.fetching nofilter}}",
+		receiving: "{{$loading.receiving nofilter}}",
+		processing: "{{$loading.processing nofilter}}",
+		posting: "{{$loading.posting nofilter}}",
+		delay_messages: {{$loading.delay_messages_json nofilter}}
+	};
+
+	// SPA error translations
+	window.spaErrorTexts = {
+		timeout: "{{$spaErrors.timeout nofilter}}",
+		timeout_message: "{{$spaErrors.timeout_message nofilter}}",
+		delay_title: "{{$spaErrors.delay_title nofilter}}"
+	};
+	</script>
+	<link rel="stylesheet" href="view/loading-indicator.css?v={{$VERSION}}" type="text/css" media="all" />
 
 	<script type="text/javascript"
 		src="view/theme/larpnet/frameworks/bootstrap/js/bootstrap.min.js?v={{$VERSION}}"></script>
