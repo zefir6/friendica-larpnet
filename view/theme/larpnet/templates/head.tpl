@@ -176,7 +176,8 @@
 		src="view/theme/larpnet/frameworks/sticky-kit/jquery.sticky-kit.min.js?v={{$VERSION}}"></script>
 
 	{{* own js files *}}
-	<script type="text/javascript" src="view/theme/larpnet/js/theme.js?v={{$VERSION}}"></script>
+	<script type="text/javascript" src="view/theme/larpnet/js/theme.js?v={{$VERSION}}.1"></script>
+	<script type="text/javascript" src="view/theme/larpnet/js/nav-ajax.js?v=1"></script>
 	<script type="text/javascript" src="view/theme/larpnet/js/modal.js?v={{$VERSION}}"></script>
 	{{if ! $block_public}}
 		<script type="text/javascript" src="view/theme/larpnet/js/hovercard.js?v={{$VERSION}}"></script>
