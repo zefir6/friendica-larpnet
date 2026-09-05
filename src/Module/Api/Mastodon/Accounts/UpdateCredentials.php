@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -27,7 +27,7 @@ class UpdateCredentials extends BaseApi
 		$owner = User::getOwnerDataById($uid);
 
 		$request = $this->getRequest([
-			'bot'               => ($owner['contact-type'] == Contact::TYPE_NEWS),
+			'bot' => ($owner['contact-type'] == Contact::TYPE_NEWS),
 			// (bool) casts matter here: BaseModule::getRequestValue() picks its coercion
 			// branch off the *type* of the default, not the field's meaning. `net-publish`/
 			// `manually-approve` come back from the DB as ints, not native bools, so without
@@ -99,6 +99,6 @@ class UpdateCredentials extends BaseApi
 		}
 
 		$account = DI::mstdnAccount()->createFromContactId($ucid, $uid);
-		$this->jsonExit($account->toArray());
+		$this->earlyJsonExit($account->toArray());
 	}
 }

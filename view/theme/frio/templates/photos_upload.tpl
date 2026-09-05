@@ -1,6 +1,6 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
@@ -30,7 +30,7 @@
 		{{if $alt_uploader}}
 			<div id="photos-upload-perms" class="pull-right">
 				<button class="btn btn-default btn-sm" data-toggle="modal" data-target="#photo-upload-permission-acl" onclick="return false;">
-					<i id="jot-perms-icon" class="fa {{$lockstate}}"></i> {{$permissions}}
+					<i id="jot-perms-icon" class="ri {{$lockstate}}"></i> {{$permissions}}
 				</button>
 			</div>
 			<div class="clearfix"></div>
@@ -49,7 +49,7 @@
 			<div class="photos-upload-wrapper">
 				<div id="photos-upload-perms" class="btn-group pull-right">
 					<button class="btn btn-default" data-toggle="modal" data-target="#photo-upload-permission-acl" onclick="return false;">
-						<i id="jot-perms-icon" class="fa {{$lockstate}}"></i>
+						<i id="jot-perms-icon" class="ri {{$lockstate}}"></i>
 					</button>
 
 					{{$default_upload_submit nofilter}}

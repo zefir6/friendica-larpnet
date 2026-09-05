@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -20,11 +20,12 @@ class NetworkPublicTimelineTest extends ApiTestCase
 	 *
 	 * @return void
 	 */
-	public function testApiStatusesNetworkpublicTimeline()
+	public function testApiStatusesNetworkpublicTimeline(): void
 	{
 		// @todo: This call is needed for this test
 		Renderer::registerTemplateEngine(\Friendica\Render\FriendicaSmartyEngine::class);
 
+		// @phpstan-ignore method.deprecated
 		$response = (new NetworkPublicTimeline(DI::mstdnError(), DI::appHelper(), DI::l10n(), DI::baseUrl(), DI::args(), DI::logger(), DI::profiler(), DI::apiResponse(), []))
 			->run($this->httpExceptionMock, [
 				'max_id' => 10,
@@ -45,11 +46,12 @@ class NetworkPublicTimelineTest extends ApiTestCase
 	 *
 	 * @return void
 	 */
-	public function testApiStatusesNetworkpublicTimelineWithNegativePage()
+	public function testApiStatusesNetworkpublicTimelineWithNegativePage(): void
 	{
 		// @todo: This call is needed for this test
 		Renderer::registerTemplateEngine(\Friendica\Render\FriendicaSmartyEngine::class);
 
+		// @phpstan-ignore method.deprecated
 		$response = (new NetworkPublicTimeline(DI::mstdnError(), DI::appHelper(), DI::l10n(), DI::baseUrl(), DI::args(), DI::logger(), DI::profiler(), DI::apiResponse(), []))
 			->run($this->httpExceptionMock, [
 				'page' => -2,
@@ -66,29 +68,16 @@ class NetworkPublicTimelineTest extends ApiTestCase
 	}
 
 	/**
-	 * Test the api_statuses_networkpublic_timeline() function with an unallowed user.
-	 *
-	 * @return void
-	 */
-	public function testApiStatusesNetworkpublicTimelineWithUnallowedUser()
-	{
-		self::markTestIncomplete('Needs BasicAuth as dynamic method for overriding first');
-
-		// $this->expectException(\Friendica\Network\HTTPException\UnauthorizedException::class);
-		// BasicAuth::setCurrentUserID();
-		// api_statuses_networkpublic_timeline('json');
-	}
-
-	/**
 	 * Test the api_statuses_networkpublic_timeline() function with an RSS result.
 	 *
 	 * @return void
 	 */
-	public function testApiStatusesNetworkpublicTimelineWithRss()
+	public function testApiStatusesNetworkpublicTimelineWithRss(): void
 	{
 		// @todo: This call is needed for this test
 		Renderer::registerTemplateEngine(\Friendica\Render\FriendicaSmartyEngine::class);
 
+		// @phpstan-ignore method.deprecated
 		$response = (new NetworkPublicTimeline(DI::mstdnError(), DI::appHelper(), DI::l10n(), DI::baseUrl(), DI::args(), DI::logger(), DI::profiler(), DI::apiResponse(), [], [
 			'extension' => ICanCreateResponses::TYPE_RSS,
 		]))->run($this->httpExceptionMock, [

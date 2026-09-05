@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -38,8 +38,15 @@ class ApiResponse extends Response
 	/** @var string */
 	protected $jsonpCallback;
 
-	public function __construct(L10n $l10n, Arguments $args, LoggerInterface $logger, BaseURL $baseUrl, TwitterUser $twitterUser, array $server = [], string $jsonpCallback = '')
-	{
+	public function __construct(
+		L10n $l10n,
+		Arguments $args,
+		LoggerInterface $logger,
+		BaseURL $baseUrl,
+		TwitterUser $twitterUser,
+		array $server = [],
+		string $jsonpCallback = '',
+	) {
 		$this->l10n          = $l10n;
 		$this->args          = $args;
 		$this->logger        = $logger;
@@ -168,9 +175,9 @@ class ApiResponse extends Response
 			$item = ($item ? 'true' : 'false');
 		}
 
-		if (substr($key, 0, 10) == 'statusnet_') {
+		if (str_starts_with($key, 'statusnet_')) {
 			$key = 'statusnet:' . substr($key, 10);
-		} elseif (substr($key, 0, 10) == 'friendica_') {
+		} elseif (str_starts_with($key, 'friendica_')) {
 			$key = 'friendica:' . substr($key, 10);
 		}
 		return true;
@@ -187,7 +194,7 @@ class ApiResponse extends Response
 	 * @return void
 	 * @throws HTTPException\InternalServerErrorException
 	 */
-	public function error(int $code, string $description, string $message, string $format = null)
+	public function error(int $code, string $description, string $message, ?string $format = null)
 	{
 		$error = [
 			'error'   => $message ?: $description,
@@ -211,7 +218,7 @@ class ApiResponse extends Response
 	 * @return void
 	 * @throws HTTPException\InternalServerErrorException
 	 */
-	public function addFormattedContent(string $root_element, array $data, string $format = null, int $cid = 0)
+	public function addFormattedContent(string $root_element, array $data, ?string $format = null, int $cid = 0)
 	{
 		$format ??= 'json';
 

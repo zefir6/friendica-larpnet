@@ -32,7 +32,7 @@
 	border-color: $link_color;
 }
 #topbar-second ul.tabs li {
-	border_color: $link_color;
+	border-color: $link_color;
 }
 
 .dropdown-menu,

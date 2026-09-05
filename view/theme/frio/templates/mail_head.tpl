@@ -1,6 +1,6 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
@@ -12,12 +12,12 @@
 <div id="message-new" class="pull-right">
 	{{if $button.sel == "new"}}
 	<a href="{{$button.url}}" accesskey="m" class="btn btn-primary newmessage-selected page-action" data-toggle="tooltip">
-		<i class="fa fa-plus"></i>
+		<i class="ri ri-add-line"></i>
 		<span>{{$button.label}}</span>
 	</a>
 	{{else}}
 	<a href="{{$button.url}}" title="{{$button.label}}" class="faded-icon page-action" data-toggle="tooltip">
-		<i class="fa fa-close"></i>
+		<i class="ri ri-close-line"></i>
 	</a>
 	{{/if}}
 </div>

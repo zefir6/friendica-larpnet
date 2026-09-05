@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -51,7 +51,7 @@ class Introductions extends BaseNotifications
 	 */
 	public function getNotifications()
 	{
-		$id  = (int)$this->args->get(2, 0);
+		$id  = (int) $this->args->get(2, 0);
 		$all = $this->args->get(2) == 'all';
 
 		$notifications = [
@@ -170,7 +170,7 @@ class Introductions extends BaseNotifications
 						$discard = '';
 					}
 
-					$contact = Contact::getByURL($Introduction->getUrl(), ['alias']);
+					$contact = Contact::getByURL($Introduction->getUrl(), null, ['alias']);
 
 					$notificationContent[] = Renderer::replaceMacros($notificationTemplate, [
 						'$type'                  => $Introduction->getLabel(),

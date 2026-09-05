@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -28,27 +28,13 @@ class RetweetTest extends ApiTestCase
 	 *
 	 * @return void
 	 */
-	public function testApiStatusesRepeat()
+	public function testApiStatusesRepeat(): void
 	{
 		$this->expectException(BadRequestException::class);
 
+		// @phpstan-ignore method.deprecated
 		(new Retweet(DI::mstdnError(), DI::appHelper(), DI::l10n(), DI::baseUrl(), DI::args(), DI::logger(), DI::profiler(), DI::apiResponse(), []))
 			->run($this->httpExceptionMock);
-	}
-
-	/**
-	 * Test the api_statuses_repeat() function without an authenticated user.
-	 *
-	 * @return void
-	 */
-	public function testApiStatusesRepeatWithoutAuthenticatedUser()
-	{
-		self::markTestIncomplete('Needs BasicAuth as dynamic method for overriding first');
-
-		// $this->expectException(\Friendica\Network\HTTPException\UnauthorizedException::class);
-		// BasicAuth::setCurrentUserID();
-		// $_SESSION['authenticated'] = false;
-		// api_statuses_repeat('json');
 	}
 
 	/**
@@ -56,8 +42,9 @@ class RetweetTest extends ApiTestCase
 	 *
 	 * @return void
 	 */
-	public function testApiStatusesRepeatWithId()
+	public function testApiStatusesRepeatWithId(): void
 	{
+		// @phpstan-ignore method.deprecated
 		$response = (new Retweet(DI::mstdnError(), DI::appHelper(), DI::l10n(), DI::baseUrl(), DI::args(), DI::logger(), DI::profiler(), DI::apiResponse(), []))
 			->run($this->httpExceptionMock, [
 				'id' => 1,
@@ -73,11 +60,12 @@ class RetweetTest extends ApiTestCase
 	 *
 	 * @return void
 	 */
-	public function testApiStatusesRepeatWithSharedId()
+	public function testApiStatusesRepeatWithSharedId(): void
 	{
 		// @todo: This call is needed for this test
 		Renderer::registerTemplateEngine(\Friendica\Render\FriendicaSmartyEngine::class);
 
+		// @phpstan-ignore method.deprecated
 		$response = (new Retweet(DI::mstdnError(), DI::appHelper(), DI::l10n(), DI::baseUrl(), DI::args(), DI::logger(), DI::profiler(), DI::apiResponse(), []))
 			->run($this->httpExceptionMock, [
 				'id' => 5,

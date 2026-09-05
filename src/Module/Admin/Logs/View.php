@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -15,7 +15,7 @@ use Psr\Log\LogLevel;
 
 class View extends BaseAdmin
 {
-	const LIMIT = 500;
+	public const LIMIT = 500;
 
 	protected function content(array $request = []): string
 	{
@@ -63,7 +63,7 @@ class View extends BaseAdmin
 					->withLimit(self::LIMIT)
 					->withFilters($filters)
 					->withSearch($search);
-			} catch (\Exception $e) {
+			} catch (\Exception) {
 				$error = DI::l10n()->t('Couldn\'t open <strong>%1$s</strong> log file.<br/>Check to see if file %1$s is readable.', $f);
 			}
 		}

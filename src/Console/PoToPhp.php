@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -178,7 +178,7 @@ HELP;
 	private static function parse(string $string, &$node)
 	{
 		// Removes extra outward parentheses
-		if (strpos($string, '(') === 0 && strrpos($string, ')') === strlen($string) - 1) {
+		if (str_starts_with($string, '(') && strrpos($string, ')') === strlen($string) - 1) {
 			$string = (string) substr($string, 1, -1);
 		}
 
@@ -214,14 +214,14 @@ HELP;
 	private static function render($tree): string
 	{
 		if (is_array($tree)) {
-			$if   = trim($tree['if']);
-			$then = trim($tree['then']);
+			$if   = trim((string) $tree['if']);
+			$then = trim((string) $tree['then']);
 			$else = self::render($tree['else']);
 
 			return "if ({$if}) { return {$then}; } else {$else}";
 		}
 
-		$tree = trim($tree);
+		$tree = trim((string) $tree);
 
 		return " { return {$tree}; }";
 	}

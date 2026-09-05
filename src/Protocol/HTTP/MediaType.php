@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -12,9 +12,9 @@ namespace Friendica\Protocol\HTTP;
  *
  * @property-read string $type
  * @property-read string $subType
- * @property-read string $parameters
+ * @property-read string[] $parameters
  */
-final class MediaType
+final class MediaType implements \Stringable
 {
 	public const DQUOTE = '"';
 	public const DIGIT  = '0-9';
@@ -129,11 +129,11 @@ final class MediaType
 	{
 		$parameters = $this->parameters;
 
-		array_walk($parameters, function (&$value, $key) {
+		array_walk($parameters, function (&$value, $key): void {
 			$value = '; ' . $key . '=' . (self::isToken($value) ? $value : '"' . addcslashes($value, '"\\') . '"');
 		});
 
-		return $this->type . '/' . $this->subType . implode($parameters);
+		return $this->type . '/' . $this->subType . implode('', $parameters);
 	}
 
 	/**

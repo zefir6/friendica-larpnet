@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -41,38 +41,13 @@ class ConfigFileManager
 	 */
 	public const SAMPLE_END = '-sample';
 
-	/**
-	 * @var string
-	 */
-	private $baseDir;
-	private string $addonDir;
-	/**
-	 * @var string
-	 */
-	private $configDir;
-	/**
-	 * @var string
-	 */
-	private $staticDir;
-
-	/**
-	 * @var array
-	 */
-	private $server;
-
-	/**
-	 * @param string $baseDir   The base
-	 * @param string $configDir
-	 * @param string $staticDir
-	 */
-	public function __construct(string $baseDir, string $addonDir, string $configDir, string $staticDir, array $server = [])
-	{
-		$this->baseDir   = $baseDir;
-		$this->addonDir  = $addonDir;
-		$this->configDir = $configDir;
-		$this->staticDir = $staticDir;
-		$this->server    = $server;
-	}
+	public function __construct(
+		private readonly string $baseDir,
+		private readonly string $addonDir,
+		private readonly string $configDir,
+		private readonly string $staticDir,
+		private array $server = [],
+	) {}
 
 	/**
 	 * Load the configuration files into an configuration cache
@@ -237,7 +212,7 @@ class ConfigFileManager
 	 *
 	 * @return array The configuration array (empty if no config found)
 	 *
-	 * @deprecated since version 2018.09
+	 * @deprecated 2018.09 since version 2018.09
 	 */
 	private function loadLegacyConfig(string $name = ''): array
 	{
@@ -251,6 +226,7 @@ class ConfigFileManager
 
 		$a         = new \stdClass();
 		$a->config = [];
+		/** @var \stdClass $a Will be filled via include */
 		include $fullName;
 
 		$htConfigCategories = array_keys($a->config);
@@ -312,7 +288,7 @@ class ConfigFileManager
 	 *
 	 * @return array The configuration array
 	 * @throws ConfigFileException
-	 * @deprecated since version 2018.12
+	 * @deprecated 2018.12 since version 2018.12
 	 */
 	private function loadINIConfigFile(string $filepath): array
 	{

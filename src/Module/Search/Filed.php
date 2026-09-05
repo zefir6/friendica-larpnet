@@ -1,27 +1,49 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 namespace Friendica\Module\Search;
 
-use Friendica\Content\Conversation;
+use Friendica\App\Arguments;
+use Friendica\App\BaseURL;
+use Friendica\Content\Conversation\ConversationRenderer;
 use Friendica\Content\Nav;
 use Friendica\Content\Pager;
 use Friendica\Content\Text\HTML;
 use Friendica\Content\Widget;
+use Friendica\Core\L10n;
 use Friendica\Database\DBA;
 use Friendica\DI;
 use Friendica\Model\Item;
 use Friendica\Model\Post;
 use Friendica\Model\Post\Category;
 use Friendica\Module\BaseSearch;
+use Friendica\Module\Response;
 use Friendica\Module\Security\Login;
+use Friendica\Util\Profiler;
+use Psr\EventDispatcher\EventDispatcherInterface;
+use Psr\Log\LoggerInterface;
 
 class Filed extends BaseSearch
 {
+	public function __construct(
+		private readonly ConversationRenderer $conversationRenderer,
+		L10n $l10n,
+		BaseURL $baseUrl,
+		Arguments $args,
+		LoggerInterface $logger,
+		Profiler $profiler,
+		Response $response,
+		EventDispatcherInterface $eventDispatcher,
+		array $server,
+		array $parameters = [],
+	) {
+		parent::__construct($l10n, $baseUrl, $args, $logger, $profiler, $response, $server, $parameters, $eventDispatcher);
+	}
+
 	protected function content(array $request = []): string
 	{
 		if (!DI::userSession()->getLocalUserId()) {
@@ -85,7 +107,7 @@ class Filed extends BaseSearch
 
 		$items = Post::toArray(Post::selectForUser(DI::userSession()->getLocalUserId(), Item::DISPLAY_FIELDLIST, $item_condition, $item_params));
 
-		$o = DI::conversation()->render($items, Conversation::MODE_FILED, false, false, '', DI::userSession()->getLocalUserId());
+		$o = $this->conversationRenderer->renderFlat($items, ConversationRenderer::MODE_FILED, false, DI::userSession()->getLocalUserId());
 
 		if (DI::pConfig()->get(DI::userSession()->getLocalUserId(), 'system', 'infinite_scroll', true)) {
 			$o .= HTML::scrollLoader($request);

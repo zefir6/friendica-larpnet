@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -38,7 +38,7 @@ class Export extends BaseModeration
 			// Prefer addr (user@domain), then alias, then url as fallback
 			$identifier = $contact['url'];
 
-			if (!empty($contact['addr']) && strpos($contact['addr'], '@') !== false) {
+			if (!empty($contact['addr']) && str_contains((string) $contact['addr'], '@')) {
 				$identifier = $contact['addr'];
 			} elseif (!empty($contact['alias'])) {
 				$identifier = $contact['alias'];

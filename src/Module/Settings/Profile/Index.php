@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -38,28 +38,14 @@ use Psr\Log\LoggerInterface;
 
 class Index extends BaseSettings
 {
-	/** @var ProfileField\Repository\ProfileField */
-	private $profileFieldRepo;
-	/** @var ProfileField\Factory\ProfileField */
-	private $profileFieldFactory;
-	/** @var SystemMessages */
-	private $systemMessages;
-	/** @var PermissionSet\Repository\PermissionSet */
-	private $permissionSetRepo;
-	/** @var PermissionSet\Factory\PermissionSet */
-	private $permissionSetFactory;
-	/** @var ACLFormatter */
-	private $aclFormatter;
-	private EventDispatcherInterface $eventDispatcher;
-
 	public function __construct(
-		ACLFormatter $aclFormatter,
-		PermissionSet\Factory\PermissionSet $permissionSetFactory,
-		PermissionSet\Repository\PermissionSet $permissionSetRepo,
-		SystemMessages $systemMessages,
-		ProfileField\Factory\ProfileField $profileFieldFactory,
-		ProfileField\Repository\ProfileField $profileFieldRepo,
-		EventDispatcherInterface $eventDispatcher,
+		private readonly ACLFormatter $aclFormatter,
+		private readonly PermissionSet\Factory\PermissionSet $permissionSetFactory,
+		private readonly PermissionSet\Repository\PermissionSet $permissionSetRepo,
+		private readonly SystemMessages $systemMessages,
+		private readonly ProfileField\Factory\ProfileField $profileFieldFactory,
+		private readonly ProfileField\Repository\ProfileField $profileFieldRepo,
+		private readonly EventDispatcherInterface $eventDispatcher,
 		IHandleUserSessions $session,
 		Page $page,
 		L10n $l10n,
@@ -69,17 +55,9 @@ class Index extends BaseSettings
 		Profiler $profiler,
 		Response $response,
 		array $server,
-		array $parameters = []
+		array $parameters = [],
 	) {
 		parent::__construct($session, $page, $l10n, $baseUrl, $args, $logger, $profiler, $response, $server, $parameters);
-
-		$this->profileFieldRepo     = $profileFieldRepo;
-		$this->profileFieldFactory  = $profileFieldFactory;
-		$this->systemMessages       = $systemMessages;
-		$this->permissionSetRepo    = $permissionSetRepo;
-		$this->permissionSetFactory = $permissionSetFactory;
-		$this->aclFormatter         = $aclFormatter;
-		$this->eventDispatcher      = $eventDispatcher;
 	}
 
 	protected function post(array $request = [])
@@ -109,7 +87,7 @@ class Index extends BaseSettings
 				$ignore_year = false;
 			}
 
-			if (strpos($dob, '0000-') === 0 || strpos($dob, '0001-') === 0) {
+			if (str_starts_with($dob, '0000-') || str_starts_with($dob, '0001-')) {
 				$ignore_year = true;
 				$dob         = substr($dob, 5);
 			}
@@ -133,12 +111,12 @@ class Index extends BaseSettings
 		$region       = $this->cleanInputText($request['region']);
 		$postal_code  = $this->cleanInputText($request['postal_code']);
 		$country_name = $this->cleanInputText($request['country_name']);
-		$pub_keywords = self::cleanKeywords(trim($request['pub_keywords']));
-		$prv_keywords = self::cleanKeywords(trim($request['prv_keywords']));
-		$xmpp         = $this->cleanInput(trim($request['xmpp']));
-		$matrix       = $this->cleanInput(trim($request['matrix']));
-		$homepage     = $this->cleanInput(trim($request['homepage']));
-		if ((strpos($homepage, 'http') !== 0) && (strlen($homepage))) {
+		$pub_keywords = self::cleanKeywords(trim((string) $request['pub_keywords']));
+		$prv_keywords = self::cleanKeywords(trim((string) $request['prv_keywords']));
+		$xmpp         = $this->cleanInput(trim((string) $request['xmpp']));
+		$matrix       = $this->cleanInput(trim((string) $request['matrix']));
+		$homepage     = $this->cleanInput(trim((string) $request['homepage']));
+		if ((!str_starts_with($homepage, 'http')) && (strlen($homepage))) {
 			// neither http nor https in URL, add them
 			$homepage = 'http://' . $homepage;
 		}
@@ -264,6 +242,20 @@ class Index extends BaseSettings
 			$homepage_help_text = $this->t('To verify your homepage, add a rel="me" link to it, pointing to your profile URL (%s).', $owner['url']);
 		}
 
+		// Title text for the BBCode buttons
+		$bb_l10n = [
+			'edbold'   => $this->t('Bold'),
+			'editalic' => $this->t('Italic'),
+			'eduline'  => $this->t('Underline'),
+			'edquote'  => $this->t('Quote'),
+			'edemojis' => $this->t('Add emojis'),
+			'edcode'   => $this->t('Code'),
+			'edimg'    => $this->t('Image'),
+			'edemb'    => $this->t('Image'),
+			'edurl'    => $this->t('Link'),
+			'edattach' => $this->t('Link or Media'),
+		];
+
 		$tpl = Renderer::getMarkupTemplate('settings/profile/index.tpl');
 		$o .= Renderer::replaceMacros($tpl, [
 			'$l10n' => [
@@ -302,7 +294,7 @@ class Index extends BaseSettings
 
 			'$nickname'      => $owner['nickname'],
 			'$username'      => ['username', $this->t('Display name:'), $owner['name']],
-			'$about'         => ['about', $this->t('Description:'), $owner['about']],
+			'$about'         => ['about', $this->t('Description:'), $owner['about'], '', '', 'rows="8"', true, $bb_l10n],
 			'$dob'           => Temporal::getDateofBirthField($owner['dob'], $owner['timezone']),
 			'$address'       => ['address', $this->t('Street Address:'), $owner['address']],
 			'$locality'      => ['locality', $this->t('Locality/City:'), $owner['locality']],

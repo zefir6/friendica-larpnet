@@ -1,7 +1,7 @@
 <?php
 
-/* Copyright (C) 2010-2024, the Friendica project
- * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+/* Copyright (C) 2010-2026, the Friendica project
+ * SPDX-FileCopyrightText: 2010-2026 the Friendica project
  *
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
@@ -12,6 +12,7 @@ namespace Friendica\Module\Update;
 
 use Friendica\App\Arguments;
 use Friendica\App\BaseURL;
+use Friendica\Content\Conversation\StatusEditor;
 use Friendica\Core\L10n;
 use Friendica\Core\Session\Model\UserSession;
 use Friendica\Core\System;
@@ -32,11 +33,10 @@ use Psr\Log\LoggerInterface;
  */
 final class Contact extends ContactModule
 {
-	private UserSession $userSession;
-
 	/**
 	 * Contact update module constructor.
 	 *
+	 * @param StatusEditor $statusEditor
 	 * @param L10n $l10n
 	 * @param BaseURL $baseUrl
 	 * @param Arguments $args
@@ -47,10 +47,9 @@ final class Contact extends ContactModule
 	 * @param array $parameters
 	 * @param UserSession $userSession
 	 */
-	public function __construct(L10n $l10n, BaseURL $baseUrl, Arguments $args, LoggerInterface $logger, Profiler $profiler, Response $response, array $server, array $parameters = [], UserSession $userSession)
+	public function __construct(private readonly StatusEditor $statusEditor, L10n $l10n, BaseURL $baseUrl, Arguments $args, LoggerInterface $logger, Profiler $profiler, Response $response, array $server, array $parameters, private readonly UserSession $userSession)
 	{
-		parent::__construct($l10n, $baseUrl, $args, $logger, $profiler, $response, $server, $parameters);
-		$this->userSession = $userSession;
+		parent::__construct($statusEditor, $l10n, $baseUrl, $args, $logger, $profiler, $response, $server, $parameters);
 	}
 
 	/**
@@ -77,6 +76,6 @@ final class Contact extends ContactModule
 			throw new NotFoundException();
 		}
 
-		System::htmlUpdateExit(ModelContact::getThreadsFromId($pcid, $this->userSession->getLocalUserId(), true, $item['parent'] ?? 0, $request));
+		System::htmlUpdateExit(ModelContact::getThreadsFromId($pcid, $this->userSession->getLocalUserId(), 1, $item['parent'] ?? 0, $request));
 	}
 }

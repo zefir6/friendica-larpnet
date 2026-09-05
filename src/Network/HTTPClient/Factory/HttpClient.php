@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -13,9 +13,11 @@ use Friendica\Core\Config\Capability\IManageConfigValues;
 use Friendica\Core\System;
 use Friendica\Network\HTTPClient\Client;
 use Friendica\Network\HTTPClient\Capability\ICanSendHttpRequests;
+use Friendica\Util\Network;
 use Friendica\Util\Profiler;
 use Friendica\Util\Strings;
 use GuzzleHttp;
+use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\RequestOptions;
 use mattwright\URLResolver;
@@ -28,19 +30,13 @@ require_once __DIR__ . '/../../../../static/dbstructure.config.php';
 
 class HttpClient extends BaseFactory
 {
-	/** @var IManageConfigValues */
-	private $config;
-	/** @var Profiler */
-	private $profiler;
-	/** @var App\BaseURL */
-	private $baseUrl;
-
-	public function __construct(LoggerInterface $logger, IManageConfigValues $config, Profiler $profiler, App\BaseURL $baseUrl)
-	{
+	public function __construct(
+		LoggerInterface $logger,
+		private readonly IManageConfigValues $config,
+		private readonly Profiler $profiler,
+		private readonly App\BaseURL $baseUrl,
+	) {
 		parent::__construct($logger);
-		$this->config   = $config;
-		$this->profiler = $profiler;
-		$this->baseUrl  = $baseUrl;
 	}
 
 	/**
@@ -50,7 +46,7 @@ class HttpClient extends BaseFactory
 	 *
 	 * @return ICanSendHttpRequests
 	 */
-	public function createClient(HandlerStack $handlerStack = null): ICanSendHttpRequests
+	public function createClient(?HandlerStack $handlerStack = null): ICanSendHttpRequests
 	{
 		$proxy = $this->config->get('system', 'proxy');
 
@@ -67,9 +63,15 @@ class HttpClient extends BaseFactory
 		$onRedirect = function (
 			RequestInterface $request,
 			ResponseInterface $response,
-			UriInterface $uri
-		) use ($logger) {
+			UriInterface $uri,
+		) use ($logger): void {
 			$logger->info('Curl redirect.', ['url' => $request->getUri(), 'to' => $uri, 'method' => $request->getMethod()]);
+
+			// Apply the outbound restrictions to every redirect target.
+			if (Network::isUriBlocked($uri) || !Network::isValidHttpUrl((string) $uri) || Network::isPrivateTarget($uri)) {
+				$logger->notice('Redirect target is not allowed.', ['url' => $request->getUri(), 'to' => $uri]);
+				throw new TransferException('Redirect to a disallowed target: ' . $uri);
+			}
 		};
 
 		$guzzle = new GuzzleHttp\Client([
@@ -92,10 +94,11 @@ class HttpClient extends BaseFactory
 			RequestOptions::TIMEOUT          => $this->config->get('system', 'curl_timeout', 60),
 			// by default, we will allow self-signed certs,
 			// but it can be overridden
-			RequestOptions::VERIFY  => (bool)$this->config->get('system', 'verifyssl'),
+			RequestOptions::VERIFY  => (bool) $this->config->get('system', 'verifyssl'),
+			RequestOptions::VERSION => 2.0,
 			RequestOptions::PROXY   => $proxy,
 			RequestOptions::HEADERS => [],
-			'handler' => $handlerStack ?? HandlerStack::create(),
+			'handler'               => $handlerStack ?? HandlerStack::create(),
 		]);
 
 		$resolver = new URLResolver();

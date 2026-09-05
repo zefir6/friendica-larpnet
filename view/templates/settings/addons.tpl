@@ -1,6 +1,6 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
@@ -10,7 +10,9 @@
 
 <form action="settings/addons/{{$addon}}" method="post" autocomplete="off">
 	<input type="hidden" name="form_security_token" value="{{$form_security_token}}">
-	{{$addon_settings_form nofilter}}
+	<details class="settings-section">
+		{{$addon_settings_form nofilter}}
+	</details>
 </form>
 
 {{foreachelse}}

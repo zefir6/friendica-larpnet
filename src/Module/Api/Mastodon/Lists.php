@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -31,7 +31,7 @@ class Lists extends BaseApi
 	/** @var Repository\UserDefinedChannel */
 	protected $userDefinedChannel;
 
-	public function __construct(Repository\UserDefinedChannel $userDefinedChannel, ChannelFactory $channel, \Friendica\Factory\Api\Mastodon\Error $errorFactory, AppHelper $appHelper, L10n $l10n, BaseURL $baseUrl, Arguments $args, LoggerInterface $logger, Profiler $profiler, ApiResponse $response, array $server, array $parameters = [])
+	public function __construct(Repository\UserDefinedChannel $userDefinedChannel, ChannelFactory $channel, private readonly GroupManager $groupManager, \Friendica\Factory\Api\Mastodon\Error $errorFactory, AppHelper $appHelper, L10n $l10n, BaseURL $baseUrl, Arguments $args, LoggerInterface $logger, Profiler $profiler, ApiResponse $response, array $server, array $parameters = [])
 	{
 		parent::__construct($errorFactory, $appHelper, $l10n, $baseUrl, $args, $logger, $profiler, $response, $server, $parameters);
 
@@ -56,7 +56,7 @@ class Lists extends BaseApi
 			$this->logAndJsonError(500, $this->errorFactory->InternalError());
 		}
 
-		$this->jsonExit([]);
+		$this->earlyJsonExit([]);
 	}
 
 	protected function post(array $request = [])
@@ -79,11 +79,14 @@ class Lists extends BaseApi
 			$this->logAndJsonError(500, $this->errorFactory->InternalError());
 		}
 
-		$this->jsonExit(DI::mstdnList()->createFromCircleId($id));
+		$this->earlyJsonExit(DI::mstdnList()->createFromCircleId($id));
 	}
 
 	public function put(array $request = [])
 	{
+		$this->checkAllowedScope(self::SCOPE_WRITE);
+		$uid = self::getCurrentUserID();
+
 		$request = $this->getRequest([
 			'title'          => '', // The title of the list to be updated.
 			'replies_policy' => '', // One of: "followed", "list", or "none".
@@ -91,6 +94,10 @@ class Lists extends BaseApi
 
 		if (empty($request['title']) || empty($this->parameters['id'])) {
 			$this->logAndJsonError(422, $this->errorFactory->UnprocessableEntity());
+		}
+
+		if (!Circle::exists((int) $this->parameters['id'], $uid)) {
+			$this->logAndJsonError(404, $this->errorFactory->RecordNotFound());
 		}
 
 		Circle::update($this->parameters['id'], $request['title']);
@@ -125,7 +132,7 @@ class Lists extends BaseApi
 				}
 			}
 
-			foreach (GroupManager::getList($uid, true, true, true) as $group) {
+			foreach ($this->groupManager->getList($uid, true, true, true) as $group) {
 				$lists[] = DI::mstdnList()->createFromGroup($group);
 			}
 		} else {
@@ -137,6 +144,6 @@ class Lists extends BaseApi
 			$lists = DI::mstdnList()->createFromCircleId($id);
 		}
 
-		$this->jsonExit($lists);
+		$this->earlyJsonExit($lists);
 	}
 }

@@ -8,9 +8,9 @@ People are tagged by preceding their name with the @ character.
 
 You can tag **persons who are in your social circle** by adding the "@"-sign in front of the name.
 
-* @mike - indicates a known contact in your social circle whose nickname is "mike"
+* @mike - indicates a known contact in your social circle whose username is "mike"
 * @mike_macgirvin - indicates a known contact in your social circle whose  full name is "Mike Macgirvin". Note that spaces cannot be used inside tags.
-* @mike+151 - this form is used by the drop-down tag completion tool. It indicates the contact whose nickname is mike and whose contact identifier number is 151. The drop-down tool may be used to resolve people with duplicate nicknames.
+* @mike+151 - this form is used by the drop-down tag completion tool. It indicates the contact whose username is mike and whose contact identifier number is 151. The drop-down tool may be used to resolve people with duplicate usernames.
 
 You can tag a person on a different network or one that is **not in your social circle** by using the following notation:
 
@@ -31,6 +31,10 @@ You can use @-mentions for groups like for other accounts to tag the group.
 If you want to post something exclusively to a group (e.g. the support group) please use the !-mention instead of  the @-mention.
 So !helpers will be an exclusive posting to the support group if you are connected with the group.
 If you select a group from the ACL a !-mention will be added automatically to your posting.
+
+To address a contact privately, prefix the mention with an exclamation mark after the "@" character, e.g. @!mike or @!mike@macgirvin.com.
+A new post containing such a mention is automatically sent as a private post that is only visible to the privately mentioned contacts.
+Regular @-mentions in the same post will not receive the post.
 
 If you sort your contacts into circles, you cannot @-mention these circles.
 But you can select the circle in the access control when creating a new posting, to allow (or disallow) a certain circle of people to see the posting.

@@ -1,6 +1,6 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
@@ -40,9 +40,9 @@
 					<td class="name"><a href="{{$u.url}}" title="{{$u.nickname}}">{{$u.name}}</a></td>
 					<td class="email">{{$u.email}}</td>
 					<td class="register_date">{{$u.register_date}}</td>
-					<td class="login_date">{{$u.login_date}}</td>
+					<td class="last_activity">{{$u.last_activity}}</td>
 					<td class="lastitem_date">{{$u.lastitem_date}}</td>
-					<td class="login_date">{{$u.deleted}}</td>
+					<td class="deleted_date">{{$u.deleted}}</td>
 				</tr>
 			{{/foreach}}
 			</tbody>

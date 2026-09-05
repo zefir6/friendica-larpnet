@@ -1,6 +1,6 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
@@ -11,10 +11,10 @@
 	{{* The link to create a new event *}}
 	{{if $new_event.0}}
 	<div class="pull-right" id="new-event-link">
-		<button type="button" class="btn btn-primary page-action" onclick="addToModal('{{$new_event.0}}')" data-toggle="tooltip">
-			<i class="fa fa-plus"></i>
+		<a class="btn btn-primary page-action" href="{{$new_event.0}}">
+			<i class="ri ri-add-line"></i>
 			<span>{{$new_event.1}}</span>
-		</button>
+		</a>
 	</div>
 	{{/if}}
 
@@ -23,8 +23,8 @@
 
 		{{* The buttons to change the month/weeks/days *}}
 		<div id="fc-fc-header-left" class="btn-group">
-			<button class="btn btn-eventnav" onclick="changeView('prev', false);" title="{{$prev}}"><i class="fa fa-angle-up" aria-hidden="true"></i></button>
-			<button class="btn btn-eventnav btn-separator" onclick="changeView('next', false);" title="{{$next}}"><i class="fa fa-angle-down" aria-hidden="true"></i></button>
+			<button class="btn btn-eventnav" onclick="changeView('prev', false);" title="{{$prev}}"><i class="ri ri-arrow-up-s-line" aria-hidden="true"></i></button>
+			<button class="btn btn-eventnav btn-separator" onclick="changeView('next', false);" title="{{$next}}"><i class="ri ri-arrow-down-s-line" aria-hidden="true"></i></button>
 			<button class="btn btn-eventnav btn-separator" onclick="changeView('today', false);">{{$today}}</button>
 		</div>
 
@@ -36,7 +36,7 @@
 			<ul class="nav nav-pills">
 				<li class="dropdown pull-right">
 					<button class="btn btn-link dropdown-toggle" type="button" id="event-calendar-views" data-toggle="dropdown" aria-expanded="false">
-						<i class="fa fa-angle-down" aria-hidden="true"></i> {{$view}}
+						<i class="ri ri-arrow-down-s-line" aria-hidden="true"></i> {{$view}}
 					</button>
 					<ul class="dropdown-menu pull-right" role="menu" aria-labelledby="event-calendar-views">
 						<li>

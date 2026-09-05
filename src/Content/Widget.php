@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -180,7 +180,7 @@ class Widget
 	 * @return string
 	 * @throws \Exception
 	 */
-	private static function filter(string $type, string $title, string $desc, string $all, string $baseUrl, array $options, string $selected = null): string
+	private static function filter(string $type, string $title, string $desc, string $all, string $baseUrl, array $options, ?string $selected = null): string
 	{
 		$queryString = parse_url($baseUrl, PHP_URL_QUERY);
 		$queryArray  = [];
@@ -198,8 +198,8 @@ class Widget
 			$baseUrl = trim($baseUrl, '?') . '?';
 		}
 
-		array_walk($options, function (&$value) {
-			$value['ref'] = rawurlencode($value['ref']);
+		array_walk($options, function (&$value): void {
+			$value['ref'] = rawurlencode((string) $value['ref']);
 		});
 
 		return Renderer::replaceMacros(Renderer::getMarkupTemplate('widget/filter.tpl'), [
@@ -499,7 +499,7 @@ class Widget
 			$nextday   = date('Y-m-d', strtotime($dnow . ' + 1 day'));
 			$nextday   = substr($nextday, 4);
 			$dnow      = substr($dnow, 0, 8) . '01';
-			$dthen     = substr($dthen, 0, 8) . '01';
+			$dthen     = substr((string) $dthen, 0, 8) . '01';
 
 			/*
 			 * Starting with the current month, get the first and last days of every
@@ -614,7 +614,7 @@ class Widget
 			}
 		}
 
-		$widget_timelineorder = json_decode(DI::pConfig()->get($uid, 'system', 'widget_timeline_order'));
+		$widget_timelineorder = json_decode((string) DI::pConfig()->get($uid, 'system', 'widget_timeline_order'));
 		if (!empty($widget_timelineorder)) {
 			$tmp = [];
 			foreach ($widget_timelineorder as $order) {

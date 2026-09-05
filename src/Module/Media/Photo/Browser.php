@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -65,7 +65,7 @@ class Browser extends BaseModule
 			$path[$album] = $album;
 		}
 
-		$photosArray = array_map([$this, 'map_files'], $photos);
+		$photosArray = array_map($this->map_files(...), $photos);
 
 		$tpl    = Renderer::getMarkupTemplate('media/browser.tpl');
 		$output = Renderer::replaceMacros($tpl, [
@@ -86,7 +86,7 @@ class Browser extends BaseModule
 		]);
 
 		if (empty($request['mode'])) {
-			$this->httpExit($output);
+			$this->earlyHttpExit($output);
 		}
 
 		return $output;
@@ -104,9 +104,9 @@ class Browser extends BaseModule
 				"`resource-id` = ? AND `height` <= ? AND `width` <= ?",
 				$record['resource-id'],
 				Proxy::PIXEL_MEDIUM,
-				Proxy::PIXEL_MEDIUM
+				Proxy::PIXEL_MEDIUM,
 			],
-			['order' => ['scale']]
+			['order' => ['scale']],
 		);
 		$scale = $photo['scale'] ?? $record['loq'];
 

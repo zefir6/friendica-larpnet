@@ -133,7 +133,7 @@ If you want to share your public page via rss you can use one of the following l
 
 ### RSS feed of your posts
 
-	basic-url.com//feed/[nickname]/posts
+	basic-url.com//feed/[username]/posts
 
 Example: Friendica Support
 

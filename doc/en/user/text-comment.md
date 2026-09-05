@@ -14,7 +14,7 @@ Here you can find an overview of the different ways to comment and sort existing
 <img src="doc/assets/img/post_share.png" width="27" height="32" alt="post_share.png" align="left" style="padding-bottom: 10px;"> This symbol is used to share a post. A copy of this post will automatically appear in your status editor and add a link to the original post.
 <p style="clear:both;"></p>
 
-<img src="doc/assets/img/post_mark.png" width="27" height="32" alt="post_mark.png" align="left" style="padding-bottom: 10px;"> This symbol is used to mark a post. Marked posts will appear on your network page at the "starred" tab (from "star"). Click it twice to undo your choice.
+<img src="doc/assets/img/post_mark.png" width="27" height="32" alt="post_mark.png" align="left" style="padding-bottom: 10px;"> This symbol is used to mark a post. Marked posts will appear on your network page at the "bookmarked" tab (from "bookmark"). Click it twice to undo your choice.
 <p style="clear:both;"></p>
 
 <img src="doc/assets/img/post_tag.png" width="27" height="41" alt="post_tag.png" align="left" style="padding-bottom: 10px;"> This symbol is used to tag a post with a self-chosen keyword. When you click at the word, you'll get a list of all posts with this tag. Attention: you can't delete the tag once you've set one.

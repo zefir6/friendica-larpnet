@@ -1,14 +1,13 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 namespace Friendica\Console;
 
 use Asika\SimpleConsole\CommandArgsException;
-use Friendica\App\Mode;
 use Friendica\Core\Config\Capability\IManageConfigValues;
 use RuntimeException;
 
@@ -36,15 +35,6 @@ use RuntimeException;
 class Config extends \Asika\SimpleConsole\Console
 {
 	protected $helpOptions = ['h', 'help', '?'];
-
-	/**
-	 * @var Mode
-	 */
-	private $appMode;
-	/**
-	 * @var IManageConfigValues
-	 */
-	private $config;
 
 	protected function getHelp()
 	{
@@ -80,12 +70,11 @@ HELP;
 		return $help;
 	}
 
-	public function __construct(Mode $appMode, IManageConfigValues $config, array $argv = null)
-	{
+	public function __construct(
+		private readonly IManageConfigValues $config,
+		?array $argv = null,
+	) {
 		parent::__construct($argv);
-
-		$this->appMode = $appMode;
-		$this->config  = $config;
 	}
 
 	protected function doExecute(): int

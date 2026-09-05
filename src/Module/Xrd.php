@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -32,14 +32,14 @@ class Xrd extends BaseModule
 				throw new BadRequestException();
 			}
 
-			$uri  = urldecode(trim($_GET['uri']));
+			$uri  = urldecode(trim((string) $_GET['uri']));
 			$mode = self::getAcceptedContentType($_SERVER['HTTP_ACCEPT'] ?? '', Response::TYPE_XML);
 		} else {
 			if (empty($_GET['resource'])) {
 				throw new BadRequestException();
 			}
 
-			$uri  = urldecode(trim($_GET['resource']));
+			$uri  = urldecode(trim((string) $_GET['resource']));
 			$mode = self::getAcceptedContentType($_SERVER['HTTP_ACCEPT'] ?? '', Response::TYPE_JSON);
 		}
 
@@ -48,7 +48,7 @@ class Xrd extends BaseModule
 			$host = parse_url($uri, PHP_URL_HOST);
 		} elseif (preg_match('/^[[:alpha:]][[:alnum:]+-.]+:/', $uri)) {
 			$local = str_replace('acct:', '', $uri);
-			if (substr($local, 0, 2) == '//') {
+			if (str_starts_with($local, '//')) {
 				$local = substr($local, 2);
 			}
 
@@ -110,9 +110,7 @@ class Xrd extends BaseModule
 			$parts[] = current(explode(';', $part));
 		}
 
-		if ($parts === []) {
-			return $default;
-		} elseif (in_array('application/jrd+json', $parts) && !in_array('application/xrd+xml', $parts)) {
+		if (in_array('application/jrd+json', $parts) && !in_array('application/xrd+xml', $parts)) {
 			return Response::TYPE_JSON;
 		} elseif (!in_array('application/jrd+json', $parts) && in_array('application/xrd+xml', $parts)) {
 			return Response::TYPE_XML;
@@ -125,7 +123,7 @@ class Xrd extends BaseModule
 		}
 	}
 
-	private function printSystemJSON(array $owner)
+	private function printSystemJSON(array $owner): never
 	{
 		$baseURL = (string) $this->baseUrl;
 		$json    = [
@@ -176,10 +174,10 @@ class Xrd extends BaseModule
 			],
 		];
 		header('Access-Control-Allow-Origin: *');
-		$this->jsonExit($json, 'application/jrd+json; charset=utf-8');
+		$this->earlyJsonExit($json, 'application/jrd+json; charset=utf-8');
 	}
 
-	private function printJSON(string $alias, array $owner, array $avatar)
+	private function printJSON(string $alias, array $owner, array $avatar): never
 	{
 		$baseURL = (string) $this->baseUrl;
 
@@ -249,10 +247,10 @@ class Xrd extends BaseModule
 		];
 
 		header('Access-Control-Allow-Origin: *');
-		$this->jsonExit($json, 'application/jrd+json; charset=utf-8');
+		$this->earlyJsonExit($json, 'application/jrd+json; charset=utf-8');
 	}
 
-	private function printXML(string $alias, array $owner, array $avatar)
+	private function printXML(string $alias, array $owner, array $avatar): never
 	{
 		$baseURL = (string) $this->baseUrl;
 
@@ -347,6 +345,6 @@ class Xrd extends BaseModule
 		]);
 
 		header('Access-Control-Allow-Origin: *');
-		$this->httpExit($xmlString, Response::TYPE_XML, 'application/xrd+xml');
+		$this->earlyHttpExit($xmlString, Response::TYPE_XML, 'application/xrd+xml');
 	}
 }

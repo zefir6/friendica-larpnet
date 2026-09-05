@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -38,6 +38,8 @@ class Event
 
 		$uriid = $event['uri-id'] ?? $uriid;
 
+		$simple_html = $simple ? BBCode::EXTERNAL : BBCode::INTERNAL;
+
 		$event_start = DI::l10n()->formatDateTime($event['start'], IntlDateFormatter::FULL, IntlDateFormatter::LONG);
 
 		if (!empty($event['finish'])) {
@@ -50,21 +52,21 @@ class Event
 			$o = '';
 
 			if (!empty($event['summary'])) {
-				$o .= "<h3>" . strip_tags(BBCode::convertForUriId($uriid, $event['summary'], $simple)) . "</h3>";
+				$o .= "<h3>" . strip_tags(BBCode::convertForUriId($uriid, $event['summary'], $simple_html)) . "</h3>";
 			}
 
 			if (!empty($event['desc'])) {
-				$o .= "<div>" . BBCode::convertForUriId($uriid, $event['desc'], $simple) . "</div>";
+				$o .= "<div>" . BBCode::convertForUriId($uriid, $event['desc'], $simple_html) . "</div>";
 			}
 
 			$o .= "<h4>" . DI::l10n()->t('Starts:') . "</h4><p>" . $event_start . "</p>";
 
 			if (!$event['nofinish']) {
-				$o .= "<h4>" . DI::l10n()->t('Finishes:') . "</h4><p>" . $event_end . "</p>";
+				$o .= "<h4>" . DI::l10n()->t('Ends:') . "</h4><p>" . $event_end . "</p>";
 			}
 
 			if (!empty($event['location'])) {
-				$o .= "<h4>" . DI::l10n()->t('Location:') . "</h4><p>" . strip_tags(BBCode::convertForUriId($uriid, $event['location'], $simple)) . "</p>";
+				$o .= "<h4>" . DI::l10n()->t('Location:') . "</h4><p>" . strip_tags(BBCode::convertForUriId($uriid, $event['location'], $simple_html)) . "</p>";
 			}
 
 			return $o;
@@ -72,31 +74,31 @@ class Event
 
 		$o = '<div class="vevent">' . "\r\n";
 
-		$o .= '<div class="summary event-summary">' . BBCode::convertForUriId($uriid, $event['summary'], $simple) . '</div>' . "\r\n";
+		$o .= '<div class="summary event-summary">' . BBCode::convertForUriId($uriid, $event['summary'], $simple_html) . '</div>' . "\r\n";
 
-		$o .= '<div class="event-start"><span class="event-label">' . DI::l10n()->t('Starts:') . '</span>&nbsp;<span class="dtstart" title="'
+		$o .= '<div class="event-start"><span class="event-label">' . DI::l10n()->t('Starts:') . '</span><br/><span class="dtstart" title="'
 			. DateTimeFormat::local($event['start'], DateTimeFormat::ATOM)
 			. '" >' . $event_start
 			. '</span></div>' . "\r\n";
 
 		if (!$event['nofinish']) {
-			$o .= '<div class="event-end" ><span class="event-label">' . DI::l10n()->t('Finishes:') . '</span>&nbsp;<span class="dtend" title="'
+			$o .= '<div class="event-end" ><span class="event-label">' . DI::l10n()->t('Ends:') . '</span><br/><span class="dtend" title="'
 				. DateTimeFormat::local($event['finish'], DateTimeFormat::ATOM)
 				. '" >' . $event_end
 				. '</span></div>' . "\r\n";
 		}
 
 		if (!empty($event['desc'])) {
-			$o .= '<div class="description event-description">' . BBCode::convertForUriId($uriid, $event['desc'], $simple) . '</div>' . "\r\n";
+			$o .= '<div class="description event-description">' . BBCode::convertForUriId($uriid, $event['desc'], $simple_html) . '</div>' . "\r\n";
 		}
 
 		if (!empty($event['location'])) {
 			$o .= '<div class="event-location"><span class="event-label">' . DI::l10n()->t('Location:') . '</span>&nbsp;<span class="location">'
-				. strip_tags(BBCode::convertForUriId($uriid, $event['location'], $simple))
+				. strip_tags(BBCode::convertForUriId($uriid, $event['location'], $simple_html))
 				. '</span></div>' . "\r\n";
 
 			// Include a map of the location if the [map] BBCode is used.
-			if (strpos($event['location'], "[map") !== false) {
+			if (str_contains((string) $event['location'], "[map")) {
 				$map = Map::byLocation($event['location'], $simple);
 				if ($map !== $event['location']) {
 					$o .= $map;
@@ -183,7 +185,7 @@ class Event
 
 	public static function sortByDate(array $event_list): array
 	{
-		usort($event_list, [self::class, 'compareDatesCallback']);
+		usort($event_list, self::compareDatesCallback(...));
 		return $event_list;
 	}
 
@@ -193,7 +195,7 @@ class Event
 		$date_b = DateTimeFormat::local($event_b['start']);
 
 		if ($date_a === $date_b) {
-			return strcasecmp($event_a['desc'], $event_b['desc']);
+			return strcasecmp((string) $event_a['desc'], (string) $event_b['desc']);
 		}
 
 		return strcmp($date_a, $date_b);
@@ -231,7 +233,7 @@ class Event
 	public static function store(array $arr): int
 	{
 		$guid  = $arr['guid'] ?? '' ?: System::createUUID();
-		$uri   = $arr['uri']  ?? '' ?: Item::newURI($guid);
+		$uri   = $arr['uri']  ?? '' ?: DI::postUriGenerator()->newURI($guid);
 		$event = [
 			'id'        => intval($arr['id'] ?? 0),
 			'uid'       => intval($arr['uid'] ?? 0),
@@ -457,7 +459,7 @@ class Event
 			'noevent' => DI::l10n()->t('No events to display'),
 
 			'dtstart_label'  => DI::l10n()->t('Starts:'),
-			'dtend_label'    => DI::l10n()->t('Finishes:'),
+			'dtend_label'    => DI::l10n()->t('Ends:'),
 			'location_label' => DI::l10n()->t('Location:'),
 		];
 	}
@@ -562,7 +564,7 @@ class Event
 	 * @throws NotFoundException
 	 * @throws UnauthorizedException
 	 */
-	public static function getListByDate(int $owner_uid, string $start = null, string $finish = null, ?bool $ignore = false): array
+	public static function getListByDate(int $owner_uid, ?string $start = null, ?string $finish = null, ?bool $ignore = false): array
 	{
 		// Only allow events if there is a valid owner_id.
 		if ($owner_uid == 0) {
@@ -625,10 +627,10 @@ class Event
 	{
 		$fmt = DI::l10n()->t('l, F j');
 
-		$item = Post::selectFirst(['plink', 'author-name', 'author-network', 'author-id', 'author-avatar', 'author-link', 'author-alias', 'private', 'uri-id'], ['id' => $event['itemid']]);
+		$item = Post::selectFirst(['plink', 'network', 'guid', 'author-name', 'author-network', 'author-id', 'author-avatar', 'author-link', 'author-alias', 'private', 'uri-id'], ['id' => $event['itemid']]);
 		if (empty($item)) {
 			// Using default values when no item had been found
-			$item = ['plink' => '', 'author-name' => '', 'author-avatar' => '', 'author-link' => '', 'private' => Item::PUBLIC, 'uri-id' => ($event['uri-id'] ?? 0)];
+			$item = ['plink' => '', 'network' => '', 'guid' => '', 'author-name' => '', 'author-avatar' => '', 'author-link' => '', 'private' => Item::PUBLIC, 'uri-id' => ($event['uri-id'] ?? 0)];
 		}
 
 		$event = array_merge($event, $item);
@@ -649,9 +651,9 @@ class Event
 		$copy = null;
 		$drop = null;
 		if (DI::userSession()->getLocalUserId() && DI::userSession()->getLocalUserId() == $event['uid'] && $event['type'] == 'event') {
-			$edit = !$event['cid'] ? ['calendar/event/edit/' . $event['id'], DI::l10n()->t('Edit event'), '', ''] : null;
-			$copy = !$event['cid'] ? ['calendar/event/copy/' . $event['id'], DI::l10n()->t('Duplicate event'), '', ''] : null;
-			$drop = ['calendar/api/delete/' . $event['id'], DI::l10n()->t('Delete event'), '', ''];
+			$edit = !$event['cid'] ? ['calendar/event/edit/' . $event['id'], DI::l10n()->t('Edit'), '', ''] : null;
+			$copy = !$event['cid'] ? ['calendar/event/copy/' . $event['id'], DI::l10n()->t('Duplicate'), '', ''] : null;
+			$drop = ['calendar/api/delete/' . $event['id'], DI::l10n()->t('Delete'), '', ''];
 		}
 
 		$title = strip_tags(BBCode::convertForUriId($event['uri-id'], $event['summary']));
@@ -703,15 +705,13 @@ class Event
 				foreach ($events as $event) {
 					/// @todo The time / date entries don't include any information about the
 					/// timezone the event is scheduled in :-/
-					$tmp1        = strtotime($event['start']);
-					$tmp2        = strtotime($event['finish']);
-					$time_format = "%H:%M:%S";
-					$date_format = "%Y-%m-%d";
+					$tmp1 = strtotime((string) $event['start']);
+					$tmp2 = strtotime((string) $event['finish']);
 
-					$o .= '"' . $event['summary'] . '", "' . strftime($date_format, $tmp1)
-						. '", "' . strftime($time_format, $tmp1) . '", "' . $event['desc']
-						. '", "' . strftime($date_format, $tmp2)
-						. '", "' . strftime($time_format, $tmp2)
+					$o .= '"' . $event['summary'] . '", "' . date('Y-m-d', $tmp1)
+						. '", "' . date('H:i:s', $tmp1) . '", "' . $event['desc']
+						. '", "' . date('Y-m-d', $tmp2)
+						. '", "' . date('H:i:s', $tmp2)
 						. '", "' . $event['location'] . '"' . PHP_EOL;
 				}
 				break;
@@ -844,18 +844,11 @@ class Event
 		}
 
 		// Get the file extension for the format.
-		switch ($format) {
-			case "ical":
-				$file_ext = "ics";
-				break;
-
-			case "csv":
-				$file_ext = "csv";
-				break;
-
-			default:
-				$file_ext = "";
-		}
+		$file_ext = match ($format) {
+			"ical"  => "ics",
+			"csv"   => "csv",
+			default => "",
+		};
 
 		$return = [
 			'success'   => $process,
@@ -929,7 +922,7 @@ class Event
 			'$dtstart_title'  => $dtstart_title,
 			'$dtstart_dt'     => $dtstart_dt,
 			'$finish'         => $finish,
-			'$dtend_label'    => DI::l10n()->t('Finishes:'),
+			'$dtend_label'    => DI::l10n()->t('Ends:'),
 			'$dtend_title'    => $dtend_title,
 			'$dtend_dt'       => $dtend_dt,
 			'$month_short'    => $month_short,
@@ -977,7 +970,7 @@ class Event
 		$location = ['name' => $s];
 
 		// Map tag with location name - e.g. [map]Paris[/map].
-		if (strpos($s, '[/map]') !== false) {
+		if (str_contains($s, '[/map]')) {
 			$found = preg_match("/\[map\](.*?)\[\/map\]/ism", $s, $match);
 			if (intval($found) > 0 && array_key_exists(1, $match)) {
 				$location['address'] = $match[1];
@@ -985,7 +978,7 @@ class Event
 				$location['name'] = str_replace($match[0], "", $s);
 			}
 			// Map tag with coordinates - e.g. [map=48.864716,2.349014].
-		} elseif (strpos($s, '[map=') !== false) {
+		} elseif (str_contains($s, '[map=')) {
 			$found = preg_match("/\[map=(.*?)\]/ism", $s, $match);
 			if (intval($found) > 0 && array_key_exists(1, $match)) {
 				$location['coordinates'] = $match[1];

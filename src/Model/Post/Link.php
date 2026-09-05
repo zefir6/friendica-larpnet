@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -76,27 +76,14 @@ class Link
 		}
 
 		$url = DI::baseUrl() . '/photo/link/';
-		switch ($size) {
-			case Proxy::SIZE_MICRO:
-				$url .= Proxy::PIXEL_MICRO . '/';
-				break;
-
-			case Proxy::SIZE_THUMB:
-				$url .= Proxy::PIXEL_THUMB . '/';
-				break;
-
-			case Proxy::SIZE_SMALL:
-				$url .= Proxy::PIXEL_SMALL . '/';
-				break;
-
-			case Proxy::SIZE_MEDIUM:
-				$url .= Proxy::PIXEL_MEDIUM . '/';
-				break;
-
-			case Proxy::SIZE_LARGE:
-				$url .= Proxy::PIXEL_LARGE . '/';
-				break;
-		}
+		match ($size) {
+			Proxy::SIZE_MICRO  => $url .= Proxy::PIXEL_MICRO . '/',
+			Proxy::SIZE_THUMB  => $url .= Proxy::PIXEL_THUMB . '/',
+			Proxy::SIZE_SMALL  => $url .= Proxy::PIXEL_SMALL . '/',
+			Proxy::SIZE_MEDIUM => $url .= Proxy::PIXEL_MEDIUM . '/',
+			Proxy::SIZE_LARGE  => $url .= Proxy::PIXEL_LARGE . '/',
+			default            => $url . $id,
+		};
 		return $url . $id;
 	}
 

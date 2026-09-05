@@ -1,14 +1,12 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 namespace Friendica\Model;
 
-use DivineOmega\DOFileCachePSR6\CacheItemPool;
-use DivineOmega\PasswordExposed;
 use ErrorException;
 use Exception;
 use Friendica\App;
@@ -94,6 +92,25 @@ class User
 	 * @}
 	 */
 
+	/**
+	 * Account type value strings
+	 *
+	 * Used for drop-down select option values
+	 * so as to not expose the database values
+	 * @{
+	 */
+	public const PERSONAL = "personal";
+	public const SOAPBOX  = "soapbox";
+	public const LOVEALL  = "loveall";
+	public const ORGPAGE  = "page";
+	public const NEWSPAGE = "newspage";
+	public const PUBGROUP = "group";
+	public const RESGROUP = "group-restricted";
+	public const PRIGROUP = "group-private";
+	/**
+	 * @}
+	 */
+
 	private static $owner;
 
 	/**
@@ -104,23 +121,14 @@ class User
 	 */
 	public static function getAccountTypeByString(string $accounttype)
 	{
-		switch ($accounttype) {
-			case 'person':
-				return self::ACCOUNT_TYPE_PERSON;
-
-			case 'organisation':
-				return self::ACCOUNT_TYPE_ORGANISATION;
-
-			case 'news':
-				return self::ACCOUNT_TYPE_NEWS;
-
-			case 'community':
-				return self::ACCOUNT_TYPE_COMMUNITY;
-
-			case 'relay':
-				return self::ACCOUNT_TYPE_RELAY;
-		}
-		return null;
+		return match ($accounttype) {
+			'person'       => self::ACCOUNT_TYPE_PERSON,
+			'organisation' => self::ACCOUNT_TYPE_ORGANISATION,
+			'news'         => self::ACCOUNT_TYPE_NEWS,
+			'community'    => self::ACCOUNT_TYPE_COMMUNITY,
+			'relay'        => self::ACCOUNT_TYPE_RELAY,
+			default        => null,
+		};
 	}
 
 	/**
@@ -526,7 +534,7 @@ class User
 			// Check if the avatar field is filled and the photo directs to the correct path
 			$avatar = Photo::selectFirst(['resource-id'], ['uid' => $uid, 'profile' => true]);
 			if (DBA::isResult($avatar)) {
-				$repair = empty($owner['avatar']) || !strpos($owner['photo'], (string) $avatar['resource-id']);
+				$repair = empty($owner['avatar']) || !strpos((string) $owner['photo'], (string) $avatar['resource-id']);
 			}
 		}
 
@@ -541,7 +549,7 @@ class User
 	}
 
 	/**
-	 * Get owner data by nick name
+	 * Get owner data by nickname
 	 *
 	 * @return boolean|array
 	 * @throws Exception
@@ -675,7 +683,7 @@ class User
 		DBA::close($channels);
 
 		foreach (DI::userDefinedChannel()->select(["NOT `languages` IS NULL"]) as $channel) {
-			foreach ($channel->languages ?? [] as $language) {
+			foreach ($channel->languages as $language) {
 				$languages[$language] = $language;
 			}
 		}
@@ -733,7 +741,7 @@ class User
 			if (AppSpecificPassword::authenticateUser($user['uid'], $password)) {
 				return $user['uid'];
 			}
-		} elseif (strpos($user['password'], '$') === false) {
+		} elseif (!str_contains((string) $user['password'], '$')) {
 			//Legacy hash that has not been replaced by a new hash yet
 			if (self::hashPasswordLegacy($password) === $user['password']) {
 				self::updatePasswordHashed($user['uid'], self::hashPassword($password));
@@ -743,12 +751,12 @@ class User
 		} elseif (!empty($user['legacy_password'])) {
 			//Legacy hash that has been double-hashed and not replaced by a new hash yet
 			//Warning: `legacy_password` is not necessary in sync with the content of `password`
-			if (password_verify(self::hashPasswordLegacy($password), $user['password'])) {
+			if (password_verify(self::hashPasswordLegacy($password), (string) $user['password'])) {
 				self::updatePasswordHashed($user['uid'], self::hashPassword($password));
 
 				return $user['uid'];
 			}
-		} elseif (password_verify($password, $user['password'])) {
+		} elseif (password_verify($password, (string) $user['password'])) {
 			//New password hash
 			if (password_needs_rehash($user['password'], PASSWORD_DEFAULT)) {
 				self::updatePasswordHashed($user['uid'], self::hashPassword($password));
@@ -805,7 +813,7 @@ class User
 	 * User info can be any of the following:
 	 * - User DB object
 	 * - User Id
-	 * - User email or username or nickname
+	 * - User email, name or nickname
 	 * - User array with at least the uid and the hashed password
 	 *
 	 * @param mixed $user_info
@@ -914,25 +922,7 @@ class User
 	 */
 	public static function isPasswordExposed(string $password): bool
 	{
-		$cache = new CacheItemPool();
-		$cache->changeConfig([
-			'cacheDirectory' => System::getTempPath() . '/password-exposed-cache/',
-		]);
-
-		try {
-			$passwordExposedChecker = new PasswordExposed\PasswordExposedChecker(null, $cache);
-
-			return $passwordExposedChecker->passwordExposed($password) === PasswordExposed\Enums\PasswordStatus::EXPOSED;
-		} catch (Exception $e) {
-			DI::logger()->error('Password Exposed Exception: ' . $e->getMessage(), [
-				'code'  => $e->getCode(),
-				'file'  => $e->getFile(),
-				'line'  => $e->getLine(),
-				'trace' => $e->getTraceAsString(),
-			]);
-
-			return false;
-		}
+		return DI::passwordExposedChecker()->isExposed($password);
 	}
 
 	/**
@@ -974,7 +964,7 @@ class User
 	 * @param string|null $delimiter Whether the regular expression is meant to be wrapper in delimiter characters
 	 * @return string
 	 */
-	public static function getPasswordRegExp(string $delimiter = null): string
+	public static function getPasswordRegExp(?string $delimiter = null): string
 	{
 		$allowed_characters = ':!"#$%&\'()*+,-./;<=>?@[\]^_`{|}~';
 
@@ -982,6 +972,7 @@ class User
 			$allowed_characters = preg_quote($allowed_characters, $delimiter);
 		}
 
+		/** @phpstan-ignore identical.alwaysTrue(value of PASSWORD_DEFAULT will be change in a future PHP version) */
 		return '^[a-zA-Z0-9' . $allowed_characters . ']' . (PASSWORD_DEFAULT === PASSWORD_BCRYPT ? '{1,72}' : '+') . '$';
 	}
 
@@ -1005,6 +996,7 @@ class User
 			throw new Exception(DI::l10n()->t('The new password has been exposed in a public data dump, please choose another.'));
 		}
 
+		/** @phpstan-ignore identical.alwaysTrue(value of PASSWORD_DEFAULT will be change in a future PHP version) */
 		if (PASSWORD_DEFAULT === PASSWORD_BCRYPT && strlen($password) > 72) {
 			throw new Exception(DI::l10n()->t('The password length is limited to 72 characters.'));
 		}
@@ -1062,8 +1054,11 @@ class User
 	 */
 	public static function isModerator(int $uid): bool
 	{
-		// @todo Replace with a moderator check in the future
-		return self::isSiteAdmin($uid);
+		if (self::isSiteAdmin($uid)) {
+			return true;
+		}
+
+		return in_array($uid, self::getModeratorUids(), true);
 	}
 
 	/**
@@ -1081,7 +1076,7 @@ class User
 		$forbidden_nicknames = DI::config()->get('system', 'forbidden_nicknames', '');
 		if (!empty($forbidden_nicknames)) {
 			$forbidden = explode(',', $forbidden_nicknames);
-			$forbidden = array_map('trim', $forbidden);
+			$forbidden = array_map(trim(...), $forbidden);
 		} else {
 			$forbidden = [];
 		}
@@ -1145,7 +1140,7 @@ class User
 			$mimetype = $photo['type'];
 		}
 
-		return $url . $user['nickname'] . Images::getExtensionByMimeType($mimetype) . ($updated ? '?ts=' . strtotime($updated) : '');
+		return $url . $user['nickname'] . Images::getExtensionByMimeType($mimetype) . ($updated ? '?ts=' . strtotime((string) $updated) : '');
 	}
 
 	/**
@@ -1175,7 +1170,7 @@ class User
 			return '';
 		}
 
-		return $url . $user['nickname'] . Images::getExtensionByMimeType($mimetype) . ($updated ? '?ts=' . strtotime($updated) : '');
+		return $url . $user['nickname'] . Images::getExtensionByMimeType($mimetype) . ($updated ? '?ts=' . strtotime((string) $updated) : '');
 	}
 
 	/**
@@ -1205,17 +1200,17 @@ class User
 		$ignore_invites = (array_key_exists('ignore_invites', $data) && is_bool($data['ignore_invites'])) ? $data['ignore_invites'] : false;
 		$invite_id      = (array_key_exists('invite_id', $data) && is_string($data['invite_id'])) ? trim($data['invite_id']) : '';
 
-		$username   = !empty($data['username'])   ? trim($data['username'])   : '';
-		$nickname   = !empty($data['nickname'])   ? trim($data['nickname'])   : '';
-		$email      = !empty($data['email'])      ? trim($data['email'])      : '';
-		$openid_url = !empty($data['openid_url']) ? trim($data['openid_url']) : '';
-		$photo      = !empty($data['photo'])      ? trim($data['photo'])      : '';
-		$password   = !empty($data['password'])   ? trim($data['password'])   : '';
-		$password1  = !empty($data['password1'])  ? trim($data['password1'])  : '';
-		$confirm    = !empty($data['confirm'])    ? trim($data['confirm'])    : '';
+		$username   = !empty($data['username'])   ? trim((string) $data['username'])   : '';
+		$nickname   = !empty($data['nickname'])   ? trim((string) $data['nickname'])   : '';
+		$email      = !empty($data['email'])      ? trim((string) $data['email'])      : '';
+		$openid_url = !empty($data['openid_url']) ? trim((string) $data['openid_url']) : '';
+		$photo      = !empty($data['photo'])      ? trim((string) $data['photo'])      : '';
+		$password   = !empty($data['password'])   ? trim((string) $data['password'])   : '';
+		$password1  = !empty($data['password1'])  ? trim((string) $data['password1'])  : '';
+		$confirm    = !empty($data['confirm'])    ? trim((string) $data['confirm'])    : '';
 		$blocked    = !empty($data['blocked']);
 		$verified   = !empty($data['verified']);
-		$language   = !empty($data['language'])   ? trim($data['language'])   : 'en';
+		$language   = !empty($data['language'])   ? trim((string) $data['language'])   : 'en';
 
 		$netpublish = $publish = !empty($data['profile_publish_reg']);
 
@@ -1281,19 +1276,19 @@ class User
 			$username_max_length = $tmp;
 		}
 
-		if (mb_strlen($username) < $username_min_length) {
+		if (mb_strlen((string) $username) < $username_min_length) {
 			throw new Exception(DI::l10n()->tt('Username should be at least %s character.', 'Username should be at least %s characters.', $username_min_length));
 		}
 
-		if (mb_strlen($username) > $username_max_length) {
+		if (mb_strlen((string) $username) > $username_max_length) {
 			throw new Exception(DI::l10n()->tt('Username should be at most %s character.', 'Username should be at most %s characters.', $username_max_length));
 		}
 
 		// So now we are just looking for a space in the display name.
 		$loose_reg = DI::config()->get('system', 'no_regfullname');
 		if (!$loose_reg) {
-			$username = mb_convert_case($username, MB_CASE_TITLE, 'UTF-8');
-			if (strpos($username, ' ') === false) {
+			$username = mb_convert_case((string) $username, MB_CASE_TITLE, 'UTF-8');
+			if (!str_contains($username, ' ')) {
 				throw new Exception(DI::l10n()->t("That doesn't appear to be your full (First Last) name."));
 			}
 		}
@@ -1414,7 +1409,7 @@ class User
 		}
 
 		$fields = ['def_gid' => $def_gid];
-		if (DI::config()->get('system', 'newuser_private') && $def_gid) {
+		if (DI::config()->get('system', 'newuser_private')) {
 			$fields['allow_gid'] = '<' . $def_gid . '>';
 		}
 
@@ -1662,9 +1657,9 @@ class User
 		$body = Strings::deindent(DI::l10n()->t('
 		The login details are as follows:
 
-		Site Location:	%1$s
-		Login Name:		%2$s
-		Password:		%3$s
+		URL: %1$s
+		Username: %2$s
+		Password: %3$s
 
 		You may change your password from your account "Settings" page after logging
 		in.
@@ -1682,12 +1677,12 @@ class User
 		If you are new and do not know anybody here, they may help
 		you to make some new and interesting friends.
 
-		If you ever want to delete your account, you can do so at %1$s/settings/removeme
+		If you ever want to delete your account, you can do so at %5$s
 
 		Thank you and welcome to %4$s.'));
 
 		$preamble = sprintf($preamble, $user['username'], DI::config()->get('config', 'sitename'));
-		$body     = sprintf($body, DI::baseUrl(), $user['nickname'], $result['password'], DI::config()->get('config', 'sitename'));
+		$body     = sprintf($body, DI::baseUrl(), $user['nickname'], $result['password'], DI::config()->get('config', 'sitename'), DI::baseUrl() . '/settings/removeme', );
 
 		$email = DI::emailer()
 			->newSystemMail()
@@ -1713,13 +1708,13 @@ class User
 		$body = Strings::deindent(DI::l10n()->t(
 			'
 			Dear %1$s,
-				Thank you for registering at %2$s. Your account is pending for approval by the administrator.
+			Thank you for registering at %2$s. Your account is pending for approval by the administrator.
 
 			Your login details are as follows:
 
-			Site Location:	%3$s
-			Login Name:		%4$s
-			Password:		%5$s
+			URL: %3$s
+			Username: %4$s
+			Password: %5$s
 		',
 			$user['username'],
 			$sitename,
@@ -1765,9 +1760,9 @@ class User
 			'
 			The login details are as follows:
 
-			Site Location:	%3$s
-			Login Name:		%1$s
-			Password:		%5$s
+			URL: %3$s
+			Username: %1$s
+			Password: %5$s
 
 			You may change your password from your account "Settings" page after logging
 			in.
@@ -1775,17 +1770,17 @@ class User
 			Please take a few moments to review the other account settings on that page.
 
 			You may also wish to add some basic information to your default profile
-			' . "\x28" . 'on the "Profiles" page' . "\x29" . ' so that other people can easily find you.
+			(on the "Profiles" page) so that other people can easily find you.
 
-			We recommend adding a profile photo, adding some profile "keywords" ' . "\x28" . 'very useful
-			in making new friends' . "\x29" . ' - and perhaps what country you live in; if you do not wish
+			We recommend adding a profile photo, adding some profile "keywords" (very useful
+			in making new friends) - and perhaps what country you live in; if you do not wish
 			to be more specific than that.
 
 			We fully respect your right to privacy, and none of these items are necessary.
 			If you are new and do not know anybody here, they may help
 			you to make some new and interesting friends.
 
-			If you ever want to delete your account, you can do so at %3$s/settings/removeme
+			If you ever want to delete your account, you can do so at %6$s
 
 			Thank you and welcome to %2$s.',
 			$user['nickname'],
@@ -1793,6 +1788,7 @@ class User
 			$siteurl,
 			$user['username'],
 			$password,
+			DI::baseUrl() . '/settings/removeme',
 		));
 
 		$email = DI::emailer()
@@ -2014,17 +2010,17 @@ class User
 		while ($user = DBA::fetch($userStmt)) {
 			$statistics['total_users']++;
 
-			if ((strtotime($user['last-activity']) > $halfyear) || (strtotime($user['last-item']) > $halfyear)
+			if ((strtotime((string) $user['last-activity']) > $halfyear) || (strtotime((string) $user['last-item']) > $halfyear)
 			) {
 				$statistics['active_users_halfyear']++;
 			}
 
-			if ((strtotime($user['last-activity']) > $month) || (strtotime($user['last-item']) > $month)
+			if ((strtotime((string) $user['last-activity']) > $month) || (strtotime((string) $user['last-item']) > $month)
 			) {
 				$statistics['active_users_monthly']++;
 			}
 
-			if ((strtotime($user['last-activity']) > $week) || (strtotime($user['last-item']) > $week)
+			if ((strtotime((string) $user['last-activity']) > $week) || (strtotime((string) $user['last-item']) > $week)
 			) {
 				$statistics['active_users_weekly']++;
 			}
@@ -2095,6 +2091,61 @@ class User
 	{
 		$condition = [
 			'email'           => self::getAdminEmailList(),
+			'parent-uid'      => null,
+			'blocked'         => false,
+			'verified'        => true,
+			'account_removed' => false,
+			'account_expired' => false,
+		];
+
+		return DBA::selectToArray('user', $fields, $condition, ['order' => ['uid']]);
+	}
+
+	/**
+	 * Returns a list of moderator user IDs from the comma-separated list in the config
+	 *
+	 * @return array
+	 */
+	public static function getModeratorUids(): array
+	{
+		$moderatorUsers = DI::config()->get('system', 'moderator_users');
+		if (empty($moderatorUsers)) {
+			return [];
+		}
+
+		$uids = [];
+		foreach (explode(',', (string) $moderatorUsers) as $moderatorUid) {
+			$moderatorUid = (int) trim($moderatorUid);
+			if ($moderatorUid > 0) {
+				$uids[$moderatorUid] = $moderatorUid;
+			}
+		}
+
+		$uids = array_values($uids);
+		sort($uids);
+
+		return $uids;
+	}
+
+	/**
+	 * Returns the complete list of explicitly assigned moderator user accounts
+	 *
+	 * @param array $fields
+	 * @return array
+	 * @throws Exception
+	 */
+	public static function getModeratorList(array $fields = []): array
+	{
+		$moderatorUids = array_values(array_filter(self::getModeratorUids(), function (int $uid): bool {
+			return $uid !== 0;
+		}));
+		if (empty($moderatorUids)) {
+			return [];
+		}
+
+		$condition = [
+			'uid'             => $moderatorUids,
+			'account-type'    => self::ACCOUNT_TYPE_PERSON,
 			'parent-uid'      => null,
 			'blocked'         => false,
 			'verified'        => true,

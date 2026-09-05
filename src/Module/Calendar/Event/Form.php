@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -9,6 +9,7 @@ namespace Friendica\Module\Calendar\Event;
 
 use Friendica\App;
 use Friendica\BaseModule;
+use Friendica\Content\Nav;
 use Friendica\Content\Widget\CalendarExport;
 use Friendica\Core\ACL;
 use Friendica\Core\L10n;
@@ -66,6 +67,8 @@ class Form extends BaseModule
 			throw new BadRequestException($this->t('Invalid Request'));
 		}
 
+		Nav::setSelected('calendar');
+
 		if (!$this->session->getLocalUserId()) {
 			$this->sysMessages->addNotice($this->t('Permission denied.'));
 			return Login::form();
@@ -118,7 +121,7 @@ class Form extends BaseModule
 				   || $orig_event['deny_cid']
 				   || $orig_event['deny_gid']) {
 			$share_checked = ' checked="checked" ';
-			$submit        = $this->t("Edit event");
+			$submit        = $this->t("Save changes");
 		}
 
 		// In case of an error the browser is redirected back here, with these parameters filled in with the previous values
@@ -186,63 +189,81 @@ class Form extends BaseModule
 
 		$this->page['aside'] .= CalendarExport::getHTML($this->session->getLocalUserId());
 
-		$tpl   = Renderer::getMarkupTemplate('calendar/event_form.tpl');
-		$no_bb = $this->t("Can't use BBCode here");
+		$tpl           = Renderer::getMarkupTemplate('calendar/event_form.tpl');
+		$no_formatting = $this->t("Formatting is not supported for this field");
+
+		if (str_contains((string) $_SERVER['REQUEST_URI'], "/calendar/event/edit")) {
+			$title = $this->t('Edit event');
+		} else {
+			$title = $this->t('New event'); // Used when creating or duplicating an event
+		}
+
+		$ends_text = $this->t('Ends');
 
 		return Renderer::replaceMacros($tpl, [
-			'$post' => 'calendar/api/create',
-			'$eid'  => $eid,
-			'$cid'  => $cid,
-			'$uri'  => $uri,
+			'$post'      => 'calendar/api/create',
+			'$eid'       => $eid,
+			'$cid'       => $cid,
+			'$uri'       => $uri,
+			'$back_text' => $this->t('Back to the calendar'),
 
-			'$title'  => $this->t('Event details'),
+			'$title'  => $title,
 			'$desc'   => $this->t('Starting date and Title are required.'),
-			'$s_text' => $this->t('Event starts') . ' <span class="required" title="' . $this->t('Required') . '">*</span>',
+			'$s_text' => $this->t('Starts') . ' <span class="required" title="' . $this->t('Required') . '">*</span>',
 			'$s_dsel' => Temporal::getDateTimeField(
 				new \DateTime(),
-				\DateTime::createFromFormat('Y', intval($syear) + 5),
+				\DateTime::createFromFormat('Y', (string) (intval($syear) + 5)),
 				\DateTime::createFromFormat('Y-m-d H:i', "$syear-$smonth-$sday $shour:$sminute"),
-				$this->t('Event starts'),
+				$this->t('Starts'),
 				'start_text',
 				true,
 				true,
 				'',
 				'',
 				true,
+				false,
 			),
 
-			'$n_text'    => $this->t('End date/time is unknown or irrelevant'),
-			'$n_checked' => $n_checked,
-			'$f_text'    => $this->t('Event ends'),
-			'$f_dsel'    => Temporal::getDateTimeField(
+			'$section_time'       => $this->t('When does it happen?'),
+			'$section_additional' => $this->t('Further details'),
+			'$timezone_help'      => Temporal::timeZoneHelper(),
+			'$n_text'             => $this->t("Don't specify ending"),
+			'$n_checked'          => $n_checked,
+			'$f_text'             => $ends_text,
+			'$f_dsel'             => Temporal::getDateTimeField(
 				new \DateTime(),
-				\DateTime::createFromFormat('Y', intval($fyear) + 5),
+				\DateTime::createFromFormat('Y', (string) (intval($fyear) + 5)),
 				\DateTime::createFromFormat('Y-m-d H:i', "$fyear-$fmonth-$fday $fhour:$fminute"),
-				$this->t('Event ends'),
+				$ends_text,
 				'finish_text',
 				true,
 				true,
 				'start_text',
+				'',
+				false,
+				false,
 			),
 
-			'$no_bb'       => $no_bb,
-			'$t_text'      => $this->t('Title') . ' <span class="required" title="' . $this->t('Required') . '">*</span>',
-			'$t_orig'      => $t_orig,
-			'$d_text'      => $this->t('Description'),
-			'$d_orig'      => $d_orig,
-			'$l_text'      => $this->t('Location'),
-			'$l_orig'      => $l_orig,
-			'$summary'     => ['summary', $this->t('Title'), $t_orig, $no_bb, '*'],
-			'$sh_text'     => $this->t('Share this event'),
-			'$share'       => ['share', $this->t('Share this event'), $share_checked, '', $share_disabled],
-			'$sh_checked'  => $share_checked,
-			'$nofinish'    => ['nofinish', $this->t('End date/time is unknown or irrelevant'), $n_checked],
-			'$preview'     => $this->t('Preview'),
-			'$acl'         => $acl,
-			'$submit'      => $submit,
-			'$basic'       => $this->t('Basic'),
-			'$advanced'    => $this->t('Advanced'),
-			'$permissions' => $this->t('Permissions'),
+			'$no_formatting' => $no_formatting,
+			'$t_text'        => $this->t('Title') . ' <span class="required" title="' . $this->t('Required') . '">*</span>',
+			'$t_orig'        => $t_orig,
+			'$l_text'        => $this->t('Location'),
+			'$l_placeholder' => $this->t('Where does it happen?'),
+			'$l_orig'        => $l_orig,
+			'$d_text'        => $this->t('Description'),
+			'$d_placeholder' => $this->t('What are the details?'),
+			'$d_orig'        => $d_orig,
+			'$summary'       => ['summary', $this->t('Event title'), $t_orig, $no_formatting, '*'],
+			'$sh_text'       => $this->t('Share this event'),
+			'$share'         => ['share', $this->t('Share this event'), $share_checked, '', $share_disabled],
+			'$sh_checked'    => $share_checked,
+			'$nofinish'      => ['nofinish', $this->t("Don't specify ending"), $n_checked],
+			'$preview'       => $this->t('Preview'),
+			'$acl'           => $acl,
+			'$submit'        => $submit,
+			'$basic'         => $this->t('Basic'),
+			'$advanced'      => $this->t('Advanced'),
+			'$permissions'   => $this->t('Permissions'),
 		]);
 	}
 }

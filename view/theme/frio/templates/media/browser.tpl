@@ -1,6 +1,6 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
@@ -23,8 +23,8 @@
 
 			{{* Switch between image and file mode *}}
 			<div class="fbswitcher btn-group pull-right" aria-label="{{$aria_mode_switch}}">
-				<button type="button" class="btn btn-default" data-mode="photo"><i class="fa fa-picture-o" aria-hidden="true"></i> {{$photos_text}}</button>
-				<button type="button" class="btn btn-default" data-mode="attachment"><i class="fa fa-file-o" aria-hidden="true"></i> {{$files_text}}</button>
+				<button type="button" class="btn btn-default" data-mode="photo"><i class="ri ri-image-line" aria-hidden="true"></i> {{$photos_text}}</button>
+				<button type="button" class="btn btn-default" data-mode="attachment"><i class="ri ri-file-line" aria-hidden="true"></i> {{$files_text}}</button>
 			</div>
 		</ol>
 
@@ -53,7 +53,7 @@
 					{{foreach $files as $f}}
 					<div class="photo-album-image-wrapper">
 						<a href="#" class="photo-album-photo-link" data-link="{{$f.0}}" data-filename="{{$f.1}}" data-img="{{$f.2}}" data-alt="{{$f.3}}">
-							<img src="{{$f.2}}" alt="{{$f.1}}">
+							<img src="{{$f.2}}" alt="{{if $f.3}}{{$f.3}}{{else}}{{$f.1}}{{/if}}" {{if $f.3}}class="has-alt-description" title="{{$f.3}}"{{else}}class="empty-description" title="{{$f.1}}"{{/if}}/>
 							<p>{{$f.1}}</p>
 						</a>
 					</div>
@@ -66,6 +66,6 @@
 
 	{{* This part contains the content loader icon which is visible when new content is loaded *}}
 	<div class="profile-rotator-wrapper" aria-hidden="true" style="display: none;">
-		<i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"></i>
+		<i class="ri ri-loader-4-line ri-spin" aria-hidden="true"></i>
 	</div>
 </div>

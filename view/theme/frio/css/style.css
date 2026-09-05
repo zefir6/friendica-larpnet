@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+ * SPDX-FileCopyrightText: 2010-2026 the Friendica project
  *
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -8,6 +8,43 @@
     Created on : 17.02.2016, 23:55:45
     Author     : rabuzarus and contributors
 */
+
+:root {
+	--topbar-first-size: 55px;
+
+	/* Mostly just bootstraps own colours, available here to use them for things that there aren't helper classes for in Bootstrap 3, like border colour */
+	--default: #ededed; /* Not default */
+	--primary: $nav_bg; /* Not default */
+	--info: #5bc0de;
+	--success: #5cb85c;
+	--warning: #f0ad4e;
+	--danger: #d9534f;
+	/* Darker variants for when its text/thin borders on white background */
+	--success-darker: color-mix(in oklab, var(--success), black 20%);
+	--info-darker: color-mix(in oklab, var(--info), black 20%);
+	--warning-darker: color-mix(in oklab, var(--warning), black 20%);
+}
+
+/* Helper classes that should no longer be needed once Bootstrap is updated to at least 4 */
+.border {
+	border: 1px solid var(--border-color, #666);
+}
+
+.border-primary {
+	--border-color: var(--primary);
+}
+.border-info {
+	--border-color: var(--info-darker);
+}
+.border-success {
+	--border-color: var(--success-darker);
+}
+.border-warning {
+	--border-color: var(--warning);
+}
+.border-danger {
+	--border-color: var(--danger);
+}
 
 body {
 	padding-top: 110px;
@@ -40,6 +77,16 @@ body a[name]:not([href]) {
 	visibility: hidden;
 }
 
+/* Undo a global.css change */
+.nav-pills .btn, .fbrowser-content .btn {
+	background-color: transparent;
+}
+
+/* Undo a global.css change */
+#vcard-short-desc .media-heading {
+	line-height: 1.1;
+}
+
 body a:hover,
 .btn-link:hover,
 body a:focus,
@@ -55,6 +102,19 @@ body a.active,
 
 .wall-item-container a:hover {
 	text-decoration: underline;
+}
+
+/* A bootstrap helper class from more recent Bootstrap versions */
+.d-none {
+	display: none;
+}
+
+.wall-item-actions i, .widget-action i, .widget i {
+		font-size: 16px;
+}
+
+.wall-item-ago i, small i {
+	font-size: 13px;
 }
 
 hr {
@@ -129,8 +189,57 @@ details summary {
 	cursor: pointer;
 }
 
+ul#nav-user-menu {
+	font-size: 15.3px;
+	padding-block: 0;
+	margin-top: 0;
+
+	@media screen and (width < 990px) {
+		margin-right: 10px;
+	}
+
+	a {
+		padding-block: 10px;
+	}
+	li:first-child {
+		margin-top: 0;
+	}
+}
+
+#nav-profile-link {
+	background-color: inherit;
+	border: 1px solid $link_color;
+	margin: 10px;
+	width: calc(100% - 20px);
+	border-radius: 4px;
+}
+	#nav-profile-link:hover,
+	#nav-profile-link:focus {
+		background-color: $nav_icon_hover_color;
+	}
+#nav-delegation-link {
+	background-color: $nav_bg;
+	color: $nav_icon_color;
+	margin: 10px;
+	width: calc(100% - 20px);
+	border-radius: 4px;
+	border: 1px solid $link_color;
+}
+	#nav-delegation-link i {
+		margin-left: -4px;
+		margin-right: 4px;
+	}
+	#nav-delegation-link:hover,
+	#nav-delegation-link:focus {
+		background-color: $nav_icon_hover_color;
+	}
+	/* prevent XMPP chat add-on button appearing in modals and iframes */
+	body.minimal #toggle-controlbox {
+		display: none;
+	}
+
 /**
- * mobile aside
+ * mobile: Larger screens
  */
 @media screen and (max-width: 990px) {
 	body {
@@ -174,6 +283,63 @@ details summary {
 		padding-left: 0;
 		padding-right: 0;
 	}
+	/* Narrower search field if navbar labels are show */
+	body.show-nav-labels #search-box #nav-search-input-field {
+		width: 150px;
+	}
+	#topbar-first > .container-fluid, #topbar-second > .container-fluid {
+		padding-inline: 2px;
+	}
+#nav-user-menu {
+	width: clamp(200px, 50vw, 275px);
+	position: fixed;
+	right: -10px;
+	top: 50px;
+	bottom: 0px;
+	height: 100%;
+	max-height: 100%;
+	margin: 0;
+	border-radius: 0;
+	overflow-x: hidden;
+	overflow-y: auto;
+	background-color: $nav_bg;
+	-webkit-box-shadow: none;
+	box-shadow: none;
+	transform: translateX(100%);
+	transition: 0.4s ease-in-out;
+	display: block;
+	z-index: 1060;
+}
+#nav-user-linkmenu.open #nav-user-menu {
+	transform: translateX(0);
+	-webkit-box-shadow: 0 6px 12px rgba(0,0,0,.175);
+  	box-shadow: 0 6px 12px rgba(0,0,0,.175);
+}
+#nav-user-linkmenu::after {
+	content: '';
+	position: fixed;
+	right: 0;
+	top: 50px;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.5);
+	z-index: 1050;
+	visibility: hidden;
+	opacity: 0;
+	transition: 0.4s ease-in-out;
+}
+#nav-user-linkmenu.open::after {
+	opacity: 1;
+	visibility: visible;
+}
+
+	#topbar-second #tabmenu {
+		text-align: unset;
+	}
+	body.show-nav-labels .nav-label,
+	body.show-action-labels .action-label {
+		font-size: 12px;
+	}
 }
 /*
 * standard page elements
@@ -181,8 +347,6 @@ details summary {
 
 #back-to-top {
 	display: none;
-	cursor: pointer;
-	color: $nav_icon_color;
 	position: fixed;
 	z-index: 49;
 	right: 20px;
@@ -191,8 +355,6 @@ details summary {
 	font-size: 2.9em;
 	padding: 0 12px 0 12px;
 	border-radius: 10px;
-	background-color: $nav_bg;
-	line-height: 1.5;
 }
 
 @media (max-width: 768px) {
@@ -206,19 +368,16 @@ details summary {
 }
 
 #item-delete-selected {
-	cursor: pointer;
-	color: white;
 	position: fixed;
 	z-index: 49;
-	right: 20px;
-	top: 100px;
+	right: 15px;
+	top: calc(var(--topbar-first-size) + 50px);
 	opacity: 0.8;
-	font-size: 2.9em;
-	padding: 0 12px 0 12px;
-	border-radius: 10px;
-	background-color: $link_color;
-	line-height: 1.5;
 	display: none;
+}
+
+#item-delete-selected i {
+	font-size: inherit;
 }
 
 #toggle_mobile_link {
@@ -290,6 +449,7 @@ details summary {
 	background: $nav_bg;
 	color: $btn_primary_color;
 }
+
 .btn.btn-primary:hover,
 .btn.btn-primary:focus {
 	color: $btn_primary_color;
@@ -360,8 +520,8 @@ btn-eventnav:hover {
 }
 .toggle-handle {
 	background-color: #fff;
-	border-width: 0 1px;
 	border: 1px solid transparent;
+	border-width: 0 1px;
 	border-color: #ccc;
 }
 .form-control-sm,
@@ -408,10 +568,31 @@ btn-eventnav:hover {
 aside .badge {
 	opacity: 0.7;
 }
+#sidebar-circle-ul {
+	display: grid;
+}
 .group-widget-entry .badge,
 .sidebar-circle-li .badge {
 	margin-top: 6px;
 }
+.profile-header .badge {
+	opacity: 1;
+	display: block;
+	width: fit-content;
+	margin: 10px auto;
+}
+.profile-header .badge-admin,
+.badge-admin {
+	background-color: #eebc1d;
+}
+.profile-header .badge-mod,
+.badge-mod {
+	background-color: #32cd32;
+}
+	.vcard .badge-admin i,
+	.vcard .badge-mod i {
+		vertical-align: middle;
+	}
 
 /* disabled elements */
 .community-content-wrapper > h3,
@@ -423,28 +604,18 @@ header #site-location {
 	display: none;
 }
 header #banner {
-	position: fixed;
-	top: 0px;
-	z-index: 1040;
-	margin-top: 12.5px;
-	text-align: center;
-	text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-	font-size: 14px;
-	font-family: tahoma, "Lucida Sans", sans;
-	color: #fff;
-	font-weight: bold;
-	white-space: nowrap;
-	padding-left: 20px;
+	display: flex;
+	align-items: center;
+	width: min-content;
 }
 header #banner #logo-img,
 .navbar-brand #logo-img {
-	-webkit-mask-image: url("img/friendica-25.png");
-	background-color: $nav_icon_color;
-	height: 25px;
-	width: 25px;
+	font-size: 36px;
+	color: $nav_icon_color;
 }
 
 #navbrand-container {
+	align-items: center;
 	display: flex;
 }
 #navbrand-container #navbar-brand-text {
@@ -469,23 +640,7 @@ header #banner #logo-img,
 	transition: 0.4s ease-in-out;
 	z-index: 1060;
 }
-#offcanvasUsermenu {
-	width: 300px;
-	position: fixed;
-	right: 0px;
-	top: 50px;
-	height: 100%;
-	overflow-x: hidden;
-	overflow-y: auto;
-	background-color: #333;
-	transform: translateX(100%);
-	transition: 0.4s ease-in-out;
-	z-index: 1060;
-}
 .offcanvas-active .off-canvas {
-	transform: translateX(0);
-}
-.offcanvas-right-active #offcanvasUsermenu {
 	transform: translateX(0);
 }
 .navbar-fixed-top {
@@ -513,20 +668,7 @@ header #banner #logo-img,
 	opacity: 0;
 	transition: 0.4s ease-in-out;
 }
-.offcanvas-right-overlay {
-	position: fixed;
-	right: 0;
-	top: 50px;
-	width: 100%;
-	height: 100%;
-	background-color: rgba(0, 0, 0, 0.5);
-	z-index: 1050;
-	visibility: hidden;
-	opacity: 0;
-	transition: 0.4s ease-in-out;
-}
-.offcanvas-active .offcanvas-overlay,
-.offcanvas-right-active .offcanvas-right-overlay {
+.offcanvas-active .offcanvas-overlay {
 	opacity: 1;
 	visibility: visible;
 }
@@ -536,32 +678,14 @@ header #banner #logo-img,
 .topbar {
 	position: fixed;
 	display: block;
-	height: 50px;
 	width: 100%;
-	padding-left: 15px;
-	padding-right: 15px;
-}
-.topbar ul.nav {
-	float: left;
-}
-.topbar ul.nav > li {
-	float: left;
 }
 
-@media (min-width: 992px) {
-	.topbar ul.nav > li > a,
-	.topbar ul.nav > li > button {
-		padding-top: 15px;
-		padding-bottom: 15px;
-		line-height: 20px;
-	}
+.topbar ul.nav > li {
+	display: grid;
+	align-items: center;
 }
-@media (max-width: 991px) {
-	.topbar ul.nav > li > a,
-	.topbar ul.nav > li > button {
-		padding: 15px 10px;
-	}
-}
+
 .topbar .dropdown-footer {
 	margin: 10px;
 }
@@ -614,26 +738,34 @@ header #banner #logo-img,
 #topbar-first,
 nav.navbar {
 	background-color: $nav_bg;
-	top: 0;
-	z-index: 1030;
 	color: $nav_icon_color;
+	font-size: 16px;
+	top: 0;
+	z-index: 1050;
 }
-@media screen and (max-width: 767px) {
-	#topbar-first,
-	nav.navbar {
-		padding: 0 2px;
+
+	#topbar-first .topbar-nav i {
+		font-size: 27.5px;
 	}
-}
 
 button#main-menu {
 	align-items: center;
 	display: flex;
 	gap: 5px;
+	padding-block: 0;
+	padding-right: 0;
+	min-width: 40px;
+}
+	button#main-menu > div:last-of-type {
+		width: 100%; /* ensure touch-target is large enough to touch */
+	}
+#topbar-first-nav-container {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 }
 #topbar-first .navbar-toggle {
-	margin-top: 5px;
-	margin-bottom: 0;
-	margin-right: 0;
+	margin: 0;
 }
 #topbar-first .nav > li > a,
 #topbar-first .nav > li > button,
@@ -654,47 +786,27 @@ nav.navbar .nav > li > a:focus,
 nav.navbar .nav > li > button:hover,
 nav.navbar .nav > li > button:focus {
 	background-color: $nav_icon_hover_color;
+	border-radius: 10px;
 }
-/* Current section highlighting */
-#topbar-first .nav > li > a.selected i,
-#nav-notification.dropdown.open {
-  border-bottom: 3px solid $nav_icon_color;
-	padding-bottom: 7px;
+/* Current section highlighting needs to work with or without labels */
+#topbar-first .nav > li > a.selected {
+	text-decoration: none;
+	border-bottom: 2px solid $nav_icon_color;
+	border-radius: 0;
 }
-/* Offset the overflow caused by the current section highlighting padding above by a lowered height */
-#topbar-first .nav > li > a.selected:hover {
-	height: 50px;
-}
-#topbar-first .nav > .account {
-	height: 50px;
-	margin-left: 20px;
+/* no need for hover effect we are already here */
+#topbar-first .nav > li > a.selected:hover,
+#topbar-first .nav > li > a.selected:focus {
+	background-color: transparent;
 }
 #topbar-first .nav > .account img {
 	height: 32px;
 	width: 32px;
+	max-width: 35px;
 	border-radius: 3px;
-}
-#topbar-first .nav > .account .dropdown-toggle {
-	padding: 8px 5px 0px;
-	line-height: 1.1em;
-	text-align: left;
 }
 #topbar-first .nav > .account .dropdown-toggle span {
 	font-size: 12px;
-}
-#topbar-first .topbar-brand {
-	position: relative;
-	z-index: 2;
-}
-#topbar-first .topbar-actions {
-	position: relative;
-	z-index: 3;
-}
-#topbar-first .topbar-nav {
-	left: 0;
-	right: 0;
-	text-align: center;
-	z-index: 1;
 }
 /* Workaround for Safari bug where the notification icon jumps on the next line */
 #topbar-first .topbar-nav .nav > li + li {
@@ -704,20 +816,25 @@ nav.navbar .nav > li > button:focus {
 	margin-left: -1px;
 }
 /* End workaround */
-#topbar-first .topbar-nav .nav-segment {
-	position: relative;
-	text-align: left;
-}
-#topbar-first .topbar-nav .nav-segment > a {
+#topbar-first .topbar-nav .nav-segment > a,
+#topbar-first .topbar-actions .nav-segment > a {
 	display: inline-block;
 	text-decoration: none;
-	text-align: left;
+	text-align: center;
+	max-height: 50px;
+}
+#topbar-first .topbar-nav .nav-segment > a {
+  padding-left: 35px;
+  padding-right: 35px;
+}
+#topbar-first .nav-segment .nav-notification {
+	position: absolute;
+	top: 2px;
+	right: -6px;
+	background-color: #ff3535;
 }
 #topbar-first .topbar-nav .nav-segment .nav-notification {
-	position: absolute;
-	top: 4px;
-	right: -2px;
-	background-color: #ff3535;
+		right: 8px;
 }
 #topbar-first #intro-update {
 	cursor: pointer;
@@ -753,33 +870,43 @@ nav.navbar .nav > li > button:focus {
 	top: -19px;
 	z-index: 1035;
 }
-#topbar-first .topbar-nav .dropdown-menu {
-	width: 350px;
-	margin-left: -148px;
+.topbar, #topbar-first-nav-container {
+	height: var(--topbar-first-size);
 }
-#topbar-first .topbar-nav .dropdown-menu ul.media-list {
+.topbar-nav, .topbar-actions, #topbar-first ul.nav {
+		align-items: center;
+		display: flex;
+		height: 100%;
+	}
+#topbar-first > ul.nav li, #topbar-first > ul.nav li a, .topbar-actions > ul.nav > li {
+		height: inherit;
+	}
+#topbar-first .topbar-actions .dropdown-menu {
+	margin-left: -200px;
+}
+#topbar-first .topbar-actions .dropdown-menu ul.media-list {
 	max-height: 400px;
 	overflow: auto;
 }
-#topbar-first .topbar-nav .dropdown-menu li {
+#topbar-first .topbar-actions .dropdown-menu li {
 	position: relative;
 }
-#topbar-first .topbar-nav .dropdown-menu li i.approval {
+#topbar-first .topbar-actions .dropdown-menu li i.approval {
 	position: absolute;
 	left: 2px;
 	top: 36px;
 	font-size: 14px;
 }
-#topbar-first .topbar-nav .dropdown-menu li i.accepted {
+#topbar-first .topbar-actions .dropdown-menu li i.accepted {
 	color: #5cb85c;
 }
-#topbar-first .topbar-nav .dropdown-menu li i.declined {
+#topbar-first .topbar-actions .dropdown-menu li i.declined {
 	color: #d9534f;
 }
-#topbar-first .topbar-nav .dropdown-menu li .media {
+#topbar-first .topbar-actions .dropdown-menu li .media {
 	position: relative;
 }
-#topbar-first .topbar-nav .dropdown-menu li .media .img-space {
+#topbar-first .topbar-actions .dropdown-menu li .media .img-space {
 	position: absolute;
 	top: 14px;
 	left: 14px;
@@ -803,11 +930,14 @@ nav.navbar .nav > li > button:focus {
 .navbar-fixed-top ul.nav.navbar-nav.navbar-right {
 	display: flex;
 }
-
+#topbar-first #nav-notifications-menu-btn {
+	max-height: 50px;
+}
 /* Notification Menu */
-#topbar-first .topbar-nav #nav-notifications-menu {
-	max-height: 600px;
-	width: clamp(200px, 100vw, 350px);
+#topbar-first .topbar-actions #nav-notifications-menu {
+	max-height: 60vh;
+	margin-left: -300px;
+	width: 350px;
 }
 #topbar-first #nav-notifications-menu a {
 	color: $font_color_darker;
@@ -858,8 +988,9 @@ nav.navbar .nav > li > button:focus {
 	right: -2px;
 	background-color: #ff8989;
 }
+
 #offcanvasUsermenu {
-	top: 50px;
+	top: var(--topbar-first-size);
 	background-color: $background_color;
 	border-top: 0;
 	border-right: 0;
@@ -869,7 +1000,7 @@ nav.navbar .nav > li > button:focus {
 }
 #offcanvasUsermenu .nav-container {
 	/* required to compensate for moving the container below the topnav bar */
-	margin-bottom: 50px;
+	margin-bottom: var(--topbar-first-size);
 }
 #offcanvasUsermenu li.divider {
 	background-color: transparent;
@@ -939,22 +1070,30 @@ nav.navbar .nav > li > button:focus {
 	top: 2px;
 }
 
-#search-mobile .form-button-search .fa {
+#search-mobile .form-button-search .ri {
 	font-size: 1.6em;
 }
 
 #search-box #nav-search-input-field {
+	height: 38px;
 	width: 296px;
 }
 
 #nav-search-input-field::placeholder {
 	font-size: 13px;
 }
-
+/* navbar button labels */
+.nav-label {
+	display: none;
+}
+body.show-nav-labels .nav-label {
+	display: block;			/* could be block or inline-block, container is flex */
+	font-size: 12px;
+}
 /* second topbar */
 #topbar-second {
 	height: 40px;
-	top: 50px;
+	top: var(--topbar-first-size);
 	background-color: #fff;
 	z-index: 1029;
 	background-image: none;
@@ -963,14 +1102,14 @@ nav.navbar .nav > li > button:focus {
 	box-shadow: 0 1px 10px rgba(0, 0, 0, 0.1);
 	border-bottom: 1px solid #d4d4d4;
 }
-#topbar-second > .container {
+#topbar-second > .container-fluid {
 	height: 100%;
+	display: flex;
 }
-@media screen and (max-width: 767px) {
-	#topbar-second > .container,
-	#topbar-second #navbar-button {
-		padding: 0;
-	}
+
+#topbar-second #navbar-button {
+	padding: 0;
+	width: fit-content;		/* Bootstrap calculates width wrong so override */
 }
 #topbar-second .dropdown-menu {
 	padding-top: 0;
@@ -1065,7 +1204,6 @@ ul li .intro-wrapper button.intro-action-link {
 .account .dropdown-menu,
 .contact-photo-wrapper .dropdown-menu {
 	background-color: $nav_bg;
-	border: none;
 }
 .dropdown-menu .divider {
 	margin: 5px 0;
@@ -1097,19 +1235,11 @@ ul li .intro-wrapper button.intro-action-link {
 	width: 100%;
 	text-align: left;
 }
-.nav-pills .dropdown-menu li a i,
-.nav-pills .dropdown-menu li .btn-link i,
-.nav-tabs .dropdown-menu li a i,
-.nav-tabs .dropdown-menu li .btn-link i,
-.account .dropdown-menu li a i,
-.account .dropdown-menu li .btn-link i,
-.contact-photo-wrapper .dropdown-menu li a i,
-.contact-photo-wrapper .dropdown-menu li .btn-link i {
-	margin-right: 5px;
-	font-size: 14px;
-	display: inline-block;
-	width: 14px;
+
+.tooltip {
+		font-size: 15px;
 }
+
 .nav-pills .dropdown-menu li > a:hover,
 .nav-pills .dropdown-menu li > button:hover,
 .nav-tabs .dropdown-menu li > a:hover,
@@ -1120,11 +1250,28 @@ ul li .intro-wrapper button.intro-action-link {
 .account .dropdown-menu li.selected a,
 #fc-header .dropdown-menu li button:hover,
 #fc-header .dropdown-menu li button:focus,
+.contact-photo-wrapper .dropdown-menu li.selected a,
+#offcanvasUsermenu a:hover,
+#offcanvasUsermenu a:focus,
+#search-mobile-btn:hover,
+#search-mobile-btn:focus {
+	color: #fff;
+	background: $nav_icon_hover_color;
+}
+
+/* Also add a border-left on hover to these elements */
+.nav-pills .dropdown-menu li > a:hover,
+.nav-pills .dropdown-menu li > button:hover,
+.nav-tabs .dropdown-menu li > a:hover,
+.account .dropdown-menu li > a:hover,
+.contact-photo-wrapper .dropdown-menu li > a:hover,
+.nav-pills .dropdown-menu li.selected a,
+.nav-tabs .dropdown-menu li.selected a,
+.account .dropdown-menu li.selected a,
 .contact-photo-wrapper .dropdown-menu li.selected a {
 	border-left: 3px solid $link_color;
-	color: #fff;
-	background: $menu_background_hover_color;
 }
+
 #photo-edit-link-wrap {
 	color: $font_color_darker;
 	margin-bottom: 15px;
@@ -1151,7 +1298,7 @@ aside .widget,
 	border-radius: 4px;
 	position: relative;
 	margin-bottom: 20px;
-	padding: 10px;
+	padding: 10px 15px;
 	overflow: auto;
 }
 aside .widget h3,
@@ -1195,32 +1342,23 @@ aside .widget li a {
 	padding-top: 6px;
 	padding-bottom: 6px;
 }
-aside .widget li a,
+aside .widget li a {
+	color: $font_color_darker;
+}
+
 aside .widget li a:hover {
 	color: $font_color_darker;
 }
 
-/* group-list widget */
-aside > #datebrowse-sidebar li.posted-date-selector-months {
-	margin-bottom: 10px;
-	padding: 0;
-	width: 100%;
-}
-aside > #datebrowse-sidebar li.posted-date-selector-months:hover {
-	border-left: none !important;
-	background-color: transparent !important;
-}
-aside > #datebrowse-sidebar .posted-date-selector-months > ul {
-	margin: 0;
-}
-aside > #datebrowse-sidebar .posted-date-selector-months > ul > li {
-	padding-left: 30px;
-}
-aside > #datebrowse-sidebar .posted-date-selector-months > ul > li:hover {
-	padding-left: 27px;
+aside .fakelink h3:hover {
+	color: $link_color;
 }
 
-.group-list-img {
+aside .widget li.selected a {
+	color: $font_color;
+}
+
+.sidebar-widget-list img {
 	-webkit-filter: grayscale(100%);
 	filter: grayscale(100%);
 	opacity: 0.5;
@@ -1231,10 +1369,22 @@ aside > #datebrowse-sidebar .posted-date-selector-months > ul > li:hover {
 	-ms-transition: all 0.2s ease-in-out;
 	transition: all 0.2s ease-in-out;
 }
-#group-list-sidebar-ul li:hover a > .group-list-img {
+
+.widget .sidebar-widget-list li:hover a > img {
 	-webkit-filter: unset;
 	filter: unset;
 	opacity: unset;
+}
+
+/* Widget caret expand/collapse symbols */
+.widget .fakelink[aria-expanded="false"] h3::before {
+	font-family: remixicon;
+	content: "\EA6E";
+}
+
+.widget .fakelink[aria-expanded="true"] h3::before {
+	font-family: remixicon;
+	content: "\EA4E";
 }
 
 /* help page widget */
@@ -1274,7 +1424,6 @@ aside .vcard .tool .action {
 	width: 45px;
 	height: 45px;
 	background: rgba(0, 0, 0, 0.5);
-	text-align: center;
 	border-radius: 3px;
 	opacity: 0;
 	-webkit-transition: all 0.25s ease-in-out;
@@ -1292,37 +1441,30 @@ aside .vcard #profile-photo-wrapper:hover .tool .action {
 aside .vcard #profile-photo-wrapper.crop-preview {
 	padding: 0;
 }
+aside .vcard .panel-body {
+	text-align: center;
+}
 aside .vcard .profile-header {
 	padding: 5px 0px 20px 0px;
 }
 aside .vcard .fn {
 	font-weight: bold;
 	padding: 5px 0px 5px 0px;
-	text-align: center;
 }
 aside .vcard .p-addr {
 	font-style: italic;
 	padding-bottom: 7px;
-	text-align: center;
 	word-wrap: break-word;
 }
 aside .vcard .title {
 	margin-top: 10px;
-}
-aside .vcard .detail {
-	display: table;
-	padding: 2px 0;
+	text-align: left;
 }
 aside .xmpp, aside .matrix {
 	display: table;
 }
 aside .member-since {
 	padding-top: 5px;
-}
-aside .vcard .icon {
-	display: table-cell;
-	padding-right: 10px;
-	width: 30px;
 }
 #profile-extra-links {
 	display: flex;
@@ -1331,7 +1473,7 @@ aside .vcard .icon {
 	overflow: auto;
 	margin-bottom: 10px;
 }
-#profile-extra-links a, #profile-extra-links button {
+aside .vcard a.btn, aside .vcard button {
 	display: block;
 	margin-left: auto;
 	margin-right: auto;
@@ -1405,13 +1547,7 @@ aside #follow-sidebar .form-group-search .form-button-search {
 	padding: 2px 8px;
 }
 
-div#sidebar-circle-header h3,
-div#sidebar-group-header h3 {
-	float: left;
-}
-
-div#sidebar-circle-list,
-div#sidebar-group-list {
+div.sidebar-widget-list {
 	clear: both;
 }
 
@@ -1430,7 +1566,7 @@ div#sidebar-group-list {
 	transition: all 0.1s ease-in-out;
 }
 .faded-icon:hover {
-	color: $font_color_darker;
+	color: $link_color;
 	opacity: 1;
 }
 .icon-padding {
@@ -1459,6 +1595,10 @@ aside #circle-sidebar li .circle-edit-tool {
 }
 aside #circle-sidebar li .circle-edit-tool:first-child {
 	padding-right: 0px;
+}
+
+.x-network {
+	font-size: 15px;
 }
 
 /* contact block widget */
@@ -1633,14 +1773,29 @@ textarea.comment-edit-text:focus + .comment-edit-form .preview {
 	overflow-y: auto;
 	overflow-y: overlay;
 }
-/* ACL */
-.fa.lock:before {
-	font-family: ForkAwesome;
-	content: "\f023";
+#profile-jot-plugin-wrapper,
+.jotplugins {
+	position: relative;
+	display: flex;
+	width: 100%;
+	justify-content: flex-start;
+	z-index: 10;
 }
-.fa.unlock:before {
-	font-family: ForkAwesome;
-	content: "\f09c";
+#profile-jot-plugin-wrapper > div > .btn {
+	padding: 10px 15px;
+}
+.jotplugins > div > .btn {
+	padding: 8px 16px;
+	margin-right: 4px;
+}
+/* ACL */
+.ri.lock:before {
+	font-family: remixicon;
+	content: "\eece";
+}
+.ri.unlock:before {
+	font-family: remixicon;
+	content: "\eed2";
 }
 
 #acl-wrapper label.panel-heading {
@@ -1730,23 +1885,9 @@ textarea.comment-edit-text:focus + .comment-edit-form .preview {
 }
 
 /* ALT badge for images with descriptions */
+.photo-album-image-wrapper:has(img.has-alt-description)::after,
 .photo-top-image-wrapper:has(img.has-alt-description)::after {
-	background: rgba(0, 0, 0, 0.69);
-	border-radius: 4px;
-	color: #eee;
-	content: "ALT";
-	font-size: 12px;
-	font-weight: bold;
-	padding: 4px 5px;
-	position: absolute;
-	bottom: 8px;
-	right: 8px;
-	z-index: 1;
-	pointer-events: none;
-}
-/* ...omit alt tags on images in these cases: profile description */
-.profile-header a:has(img.has-alt-description)::after {
-	display: none;
+	font-size: 8px;
 }
 
 .photo-top-image-wrapper .jg-caption,
@@ -1784,7 +1925,7 @@ textarea.comment-edit-text:focus + .comment-edit-form .preview {
 .fbrowser .profile-rotator-wrapper {
 	min-height: 200px;
 }
-.fbrowser .fa-spin {
+.fbrowser .ri-spin {
 	position: absolute;
 	left: 45%;
 	top: 40%;
@@ -1870,7 +2011,7 @@ aside .panel-body {
 
 .wall-item-container .media {
 	margin-top: 0;
-	padding: 10px;
+	padding: 16px;
 	background-color: rgba(0, 0, 0, 0.03);
 }
 
@@ -2108,37 +2249,169 @@ code > .hl-main {
 	margin: 0;
 	padding: 10px 0;
 }
-.wall-item-tags,
+
+.wall-item-bottom .label,
+.wall-item-bottom .label a {
+	color: black;
+}
+
+/* Tags, mentions, categories and folders */
+
+.tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+	padding-block: 8px;
+}
+
+.tag {
+	font-size: 12.5px;
+	font-weight: normal;
+	padding: 0; /* The padding should be on the link instead, so it's clickable */
+}
+
+.hovercard .tag {
+	color: $font_color;
+}
+
+/* Some tags are currently anchors while others are spans containing anchors - ideally they were all just anchors */
+
+/* Use somewhat darker colours for some of these to work better against white */
+.tags .border-primary a {
+	color: var(--primary);
+}
+.tags .border-success a {
+	color: var(--success-darker);
+}
+.tags .border-info a {
+	color: var(--info-darker);
+}
+.tags .border-warning a {
+	color: var(--warning-darker);
+}
+.tags .border-danger a {
+	color: var(--danger);
+}
+
+.tag.category, .tag.folder, .filerm {
+	display: flex;
+}
+
+.tag bdi a, .tag:has(.filerm) a:first-child, a.tag {
+	display: inline-block;
+	padding: 6px 10px;
+}
+
+.tag.label .filerm {
+	align-items: center;
+	font-size: 15.5px;
+	padding-block: 0;
+	padding-inline: 6.5px;
+}
+
 .itemedited {
 	margin: 10px 0;
 	font-size: 13px;
 }
-.wall-item-tags:empty {
-	margin: 0;
-}
 
-.wall-item-tags a {
-	color: $font_color_darker;
+/* Tags and mentions hover effect */
+.tag {
+    filter: grayscale(0.2);
+    opacity: 0.8;
 }
-
-.wall-item-tags a:hover {
-	text-decoration: none;
+.wall-item-container:hover .tag, .tags .tag {
+    filter: grayscale(0);
+    opacity: 1;
 }
-.wall-item-bottom .label,
-.wall-item-bottom .label a {
-	color: #fff;
+.tag a:hover, a.tag:hover {
+  text-decoration: none;
+  -webkit-transition: all 0.25s ease-in-out;
+  -moz-transition: all 0.25s ease-in-out;
+  -o-transition: all 0.25s ease-in-out;
+  -ms-transition: all 0.25s ease-in-out;
+  transition: all 0.25s ease-in-out;
 }
-.wall-item-tags .category,
-.wall-item-tags .folder {
-	margin-right: 3px;
+.tags .border-primary a:hover, .tags .border-primary .tag:hover {
+	color: white;
+	background: var(--primary);
+}
+.tags .border-default a:hover, .tags .border-default:hover {
+	background: $font_color;
+	color: white;
+}
+.tag.border-success a:hover, .tags .border-success:hover {
+	background: var(--success);
+	color: white;
+}
+.tag.border-info a:hover, .tags .border-info:hover {
+	background: var(--info);
+}
+.tag.border-warning a:hover, .tags .border-warning:hover {
+	background: var(--warning);
+	color: white;
+}
+.tag.border-danger a:hover, .tag .border-danger:hover {
+	background: var(--danger);
+	color: white;
 }
 
 /* item social action buttons */
+.action-label {
+	display: none;
+}
+body.show-action-labels .action-label {
+	display: block;		/* MUST be block to prevent grid overflow errors */
+}
 .wall-item-actions {
 	display: flex;
 	margin: 0;
 	justify-content: space-between;
 }
+.wall-item-actions-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr 1fr 1fr 1fr min-content;	/* collapse column if checkbox is hidden */
+	grid-auto-rows: 1fr min-height;							/* collapse row if not an event */
+	 grid-template-areas:
+		"comments shares likes dislikes more delete"
+		"attend . decline . maybe .";
+	/* grid bug fix */
+	width: 100%;
+	min-width: 0;
+	justify-content: center;
+	align-content: start;
+}
+	.wall-item-actions-row > * {
+		/* grid bug fixes for items */
+		min-width: 0;
+		overflow-wrap: break-word;
+	}
+	.wall-item-actions-row .button-comments {
+		grid-area: comments;
+	}
+	.wall-item-actions-row .share-links {
+		grid-area: shares;
+	}
+	.wall-item-actions-row [id^="like-"] {
+		grid-area: likes;
+	}
+	.wall-item-actions-row [id^="dislike-"] {
+		grid-area: dislikes;
+	}
+	.wall-item-actions-row [id^="attendyes"] {
+		grid-area: attend;
+	}
+	.wall-item-actions-row [id^="attendno"] {
+		grid-area: decline;
+	}
+	.wall-item-actions-row [id^="attendmaybe"] {
+		grid-area: maybe;
+	}
+	.wall-item-actions-row .more-links {
+		grid-area: more;
+	}
+	.wall-item-actions-row .checkbox {
+		grid-area: delete;
+	}
 .wall-item-actions .btn,
 .wall-item-actions a,
 .wall-item-actions button {
@@ -2151,10 +2424,12 @@ code > .hl-main {
 button[disabled] {
   	color: $font_color_lighter;
 }
-.wall-item-actions .active {
-	font-weight: bold;
-	color: $link_color;
+.wall-item-actions .active,
+.wall-item-actions button:focus,
+.wall-item-actions button:hover {
 	box-shadow: none;
+	color: $link_color;
+	font-weight: bold;
 }
 .wall-item-actions-left {
 	display: table-cell;
@@ -2162,21 +2437,20 @@ button[disabled] {
 }
 .wall-item-actions-right {
 	display: flex;
+	align-items: center;
 }
 .wall-item-actions-items {
 	flex-grow: 1;
 }
-.wall-item-actions-row {
-	display: flex;
-}
 .wall-item-actions-row .btn {
 	width: 100%;
 }
-.wall-item-actions-row > * {
-	flex: 1 1 0;
-}
 .wall-item-actions .checkbox {
 	margin: 0 0 0 15px;
+	line-height: 40px;		/* align with icons */
+}
+.wall-item-actions .checkbox label::after {
+	line-height: 16px;
 }
 @media screen and (max-width: 767px) {
 	.wall-item-actions .btn,
@@ -2195,11 +2469,12 @@ button[disabled] {
 		right: 0;
 	}
 }
-.wall-item-actions button:hover {
-	text-decoration: underline;
-}
 .wall-item-actions .separator {
 	margin: 0 0.3em;
+}
+.wall-emoji-responses {
+	display: flex;
+	flex-basis: auto;
 }
 .wall-item-responses {
 	margin-top: .3em;
@@ -2211,31 +2486,8 @@ button[disabled] {
 	display: flex;
 	flex-basis: auto;
 }
-/* wall item hover effects */
 
 @media (min-width: 768px) {
-	/* Tags and mentions */
-	.wall-item-container .wall-item-bottom .wall-item-tags span.label {
-		filter: grayscale(0.5);
-		opacity: 0.8;
-
-		-webkit-transition: all 0.25s ease-in-out;
-		-moz-transition: all 0.25s ease-in-out;
-		-o-transition: all 0.25s ease-in-out;
-		-ms-transition: all 0.25s ease-in-out;
-		transition: all 0.25s ease-in-out;
-	}
-
-	.wall-item-container:hover .wall-item-bottom .wall-item-tags span.label {
-		filter: grayscale(0);
-		opacity: 1;
-
-		-webkit-transition: all 0.25s ease-in-out;
-		-moz-transition: all 0.25s ease-in-out;
-		-o-transition: all 0.25s ease-in-out;
-		-ms-transition: all 0.25s ease-in-out;
-		transition: all 0.25s ease-in-out;
-	}
 	/* Like/Comment/etc buttons */
 	.wall-item-container .wall-item-links,
 	.wall-item-container .wall-item-actions button > a {
@@ -2286,8 +2538,8 @@ button[disabled] {
 }
 
 .network-svg {
-	width: 18px;
-	height: 18px;
+	width: 20px;
+	height: 20px;
 	border-radius: 4px;
 	padding: 2px;
 }
@@ -2392,7 +2644,7 @@ img.acpopup-img {
 	cursor: pointer;
 }
 #remote-friends-in-common {
-	background-color: rgba(247, 247, 247, $contentbg_transp)
+	background-color: rgba(247, 247, 247, $contentbg_transp);
 	border-radius: 4px;
 	color: #444;
 	display: grid;
@@ -2415,6 +2667,9 @@ moved it to the nav through js */
 .tabbar-wrapper__link {
 	padding-right: 10px;
 	padding-left: 10px;
+}
+#tabmenu {
+	text-align: center;
 }
 #tabmenu,
 .tabbar-wrapper,
@@ -2455,7 +2710,8 @@ ul.tabs li.active {
 .tabbar.visible-xs .tabs-extended {
 	padding-top: 0;
 }
-#dropdownMenuTools-xs {
+#dropdownMenuTools-xs,
+#dropdownMenuTools {
 	padding: 9px 15px;
 }
 ul.tabbar ul.tabs-extended:hover li.dropdown {
@@ -2482,7 +2738,6 @@ ul.dropdown-menu li:hover {
 .dropdown-menu li button,
 .tabs .dropdown-menu li a {
 	padding: 6px 20px;
-	font-size: 14px;
 }
 .dropdown-menu li a,
 .dropdown-menu li .btn-link {
@@ -2553,6 +2808,11 @@ p.wall-item-announce,
 }
 
 .help-block {
+	color: #636363;
+}
+
+/* Higher text contrast for help-blocks in settings because they're more prevalent and important there */
+.settings-content-wrapper .help-block, .admin-content-wrapper .help-block {
 	color: $font_color_darker;
 }
 
@@ -2562,28 +2822,44 @@ input[type="range"].form-control {
 }
 
 /* Search form */
+#search-box {
+	padding-right: 0;
+
+	@media(width < 792px) {
+		& #nav-search-input-field {
+			width: 288px!important;
+		}
+		padding-left: 7px;
+	}
+}
+body.show-nav-labels #search-box {
+	padding-right: 0;
+
+	@media(width < 792px) {
+		& #nav-search-input-field {
+			width: 100px !important;
+		}
+		padding-left: 0px;
+	}
+}
+
 .form-control.form-search {
 	border-radius: 30px;
 }
 .form-group-search {
 	position: relative;
-	width: 100%;
-}
-
-#search-box .fa-search {
-	font-size: 1.4em;
 }
 
 /* Both desktop and mobile - multiple search fields */
 .form-group-search .form-button-search {
 	border-radius: 30px;
-	padding: 3px 10px;
+	padding: 5px 10px;
 	position: absolute;
 	right: 4px;
 	top: 2px;
 }
 #search-box .form-button-search {
-	top: 1px;
+	top: 2px;
 }
 
 #search-box .navbar-form {
@@ -2682,6 +2958,10 @@ body.mod-login .navbar #nav-login {
 	display: none;
 }
 
+body.mod-home .navbar .navbar-toggle {
+	display: none!important;
+}
+
 .mod-lostpass #content {
 	margin-top: 0!important;
 	width: 650px;
@@ -2704,7 +2984,7 @@ body.mod-login .navbar #nav-login {
 	float: left;
 }
 
-/* contacts page */
+/* Contacts page */
 ul.viewcontact_wrapper {
 	margin-left: -15px;
 	margin-right: -15px;
@@ -2748,6 +3028,10 @@ ul.viewcontact_wrapper > li {
 }
 .contact-wrapper .contact-photo-menu {
 	top: auto;
+}
+
+.contact-entry-details {
+  color: $font_color;
 }
 
 .contact-entry-desc {
@@ -2819,10 +3103,10 @@ ul li:hover .contact-wrapper .contact-action-link:hover {
 	font-size: 18px;
 }
 
-.contact-circle-actions .fa-times-circle {
+.contact-circle-actions .ri-close-circle-line {
 	color: #d00000;
 }
-.contact-circle-actions .fa-plus-circle {
+.contact-circle-actions .ri-add-circle-line {
 	color: #008000;
 }
 
@@ -2830,9 +3114,28 @@ ul li:hover .contact-wrapper .contact-action-link:hover {
 	margin-top: 14px;
 	display: none;
 }
+#circle-edit-submit-wrapper {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+}
 #circle-edit-header {
 	display: block;
 }
+
+@media (max-width: 767px) {
+	#circle-edit-form .pull-left,
+	#circle-edit-submit-wrapper {
+		float: none !important;
+	}
+
+	#circle-edit-submit-wrapper {
+		justify-content: flex-start;
+		margin-top: 10px;
+	}
+}
+
 #circle-update-wrapper .contact-photo-overlay {
 	display: none;
 }
@@ -3007,6 +3310,10 @@ ul li:hover .contact-wrapper .contact-action-link:hover {
 	color: $link_hover_color;
 	text-decoration: none;
 }
+#event-header {
+	display: flex;
+	justify-content: space-between;
+}
 .event-wrapper .event-owner {
 	margin-bottom: 15px;
 	word-break: break-all;
@@ -3028,9 +3335,6 @@ ul li:hover .contact-wrapper .contact-action-link:hover {
 .event-wrapper .event-buttons {
 	margin-top: 15px;
 }
-#event-form-wrapper {
-	padding-top: 5px;
-}
 #event-edit-form-wrapper {
 	padding-top: 15px;
 }
@@ -3038,7 +3342,7 @@ ul li:hover .contact-wrapper .contact-action-link:hover {
 	color: $font_color_darker;
 }
 #event-edit-form-wrapper #event-edit-time {
-	padding: 10px 0;
+	padding: 0;
 }
 .event-buttons .plink-event-link {
 	margin-left: 20px;
@@ -3053,7 +3357,7 @@ ul li:hover .contact-wrapper .contact-action-link:hover {
 	font-size: inherit;
 	color: inherit;
 }
-.modal-body .vevent .event-summary {
+.vevent .event-summary {
 	display: none;
 }
 #event-preview .vevent .event-summary {
@@ -3137,6 +3441,21 @@ ul li:hover .contact-wrapper .contact-action-link:hover {
 .event-card .description {
 	margin-top: 10px;
 	box-shadow: 0 1.5px 0 0 rgba(0, 0, 0, 0.1) inset;
+}
+#event-edit-time > section  {
+	align-items: flex-start;
+	display: flex;
+	gap: 10px;
+}
+.calendar-content-wrapper h3 {
+	font-size: 20px;
+}
+.share-checkbox > div {
+	display: inline;
+	padding-right: 15px;
+}
+#summary_tip {
+	font-size: 85%; /* Equivalent to the <small> tag */
 }
 /* Photos Pages */
 #photo-photo {
@@ -3237,16 +3556,47 @@ ul li:hover .contact-wrapper .contact-action-link:hover {
 	width: 100%;
     text-align: left;
 }
-details.profile-jot-net[open] summary:before,
-.panel .section-subtitle-wrapper .accordion-toggle:before {
-	font-family: ForkAwesome;
-	content: "\f0d7";
+@keyframes sweep {
+	0% {opacity: 0; margin-left: -10px}
+	100% {opacity: 1; margin-left: 0px}
+}
+
+details.panel {
+	margin-bottom: 5px;
+}
+summary.accordion-toggle {
+	font-size: 18px;
+	color: var(--link-color);
+	font-weight: normal;
+	padding: 10px 5px;
+	margin-top: -10px;
+	list-style: none;
+}
+summary.accordion-toggle > h2,
+summary.accordion-toggle > h3 {
+	display: inline;
+	font-size: inherit;
+	font-weight: inherit;
+	margin: 0;
+}
+details[open].panel::details-content {
+	animation: sweep .5s ease-in-out;
+	padding-bottom: 10px;
+}
+
+details.profile-jot-net[open] summary::before,
+details[open].panel summary.accordion-toggle::before,
+.panel .section-subtitle-wrapper .accordion-toggle::before {
+	font-family: remixicon, sans-serif;
+	content: "\ea4e";
 	padding-right: 5px;
 }
-details.profile-jot-net summary:before,
-.panel .section-subtitle-wrapper .accordion-toggle.collapsed:before {
-	font-family: ForkAwesome;
-	content: "\f0da";
+details.profile-jot-net summary::before,
+details.panel summary.accordion-toggle::before,
+.panel .section-subtitle-wrapper .accordion-toggle.collapsed::before {
+	font-family: remixicon, sans-serif;
+	content: "\ea6e";
+	padding-right: 5px;
 }
 details.profile-jot-net summary:before {
 	padding-right: 5px;
@@ -3284,9 +3634,9 @@ details.profile-jot-net[open] summary:before {
 }
 
 #frio-accents input[type="radio"]:checked + label::before {
-	content: '\f00c';
+	content: '\eb7b';
 	color: white;
-	font-family: ForkAwesome;
+	font-family: remixicon;
 	font-weight: normal;
 	font-size: 18px;
 }
@@ -3358,17 +3708,6 @@ details.profile-jot-net[open] summary:before {
 
 .fakelink > h3:before {
 	padding-right: 10px;
-}
-span.widget > .fakelink > h3:before {
-	font-family: ForkAwesome;
-	content: "\f0da"; /* Right Plain Pointer */
-	margin-left: 4px;
-}
-div.widget > .fakelink > h3:before,
-#sidebar-circle-header > .fakelink > h3:before,
-#sidebar-group-header > .fakelink > h3:before {
-	font-family: ForkAwesome;
-	content: "\f0d7"; /* Bottom Plain Pointer */
 }
 
 .widget button.fakelink {
@@ -3578,8 +3917,8 @@ li.addon {
 	transition: border 0.15s ease-in-out, color 0.15s ease-in-out;
 }
 #adminpage li .icon.on:after {
-	font-family: "ForkAwesome";
-	content: "\f00c";
+	font-family: "remixicon";
+	content: "\eb7b";
 	display: inline-block;
 	position: absolute;
 	width: 16px;
@@ -3635,6 +3974,18 @@ li.addon {
 #admin-users #users tr.blocked {
 	background-color: #f8efc0;
 }
+	#admin-users #users span.acct-type span,
+	#admin-users-blocked #users span.acct-type span {
+		display: none;
+	}
+	#admin-users #users tr.opened span.acct-type,
+	#admin-users-blocked #users tr.opened span.acct-type {
+		display: block;
+	}
+		#admin-users #users tr.opened span.acct-type span,
+		#admin-users-blocked #users tr.opened span.acct-type span {
+			display: inline;
+		}
 .adminpage .table-hover > tbody > tr:hover + tr.details {
 	background-color: #f5f5f5;
 }
@@ -3684,8 +4035,7 @@ li.addon {
 #profile-publish-wrapper {
 	margin-top: 20px;
 }
-#register-openid-end,
-#register-nickname-end {
+#register-openid-end {
 	margin-top: 40px;
 }
 
@@ -3852,6 +4202,9 @@ section .profile-match-wrapper {
 }
 .mod-home #content {
 	padding: 0;
+}
+.mod-home #nav-about {
+	background: transparent;
 }
 div.login-form, .login-content-wrapper {
 	margin: 20px 0;
@@ -4291,6 +4644,12 @@ div.login-form, .login-content-wrapper,
 		left: 24px;
 	}
 
+	#topbar-first .topbar-nav .nav-segment > a {
+		padding-left: 5px;
+		padding-right: 5px;
+		min-width: 50px;
+	}
+
 	/*
 		Prevent automatic zoom on input focus on iOS
 		see https://stackoverflow.com/a/16255670
@@ -4317,21 +4676,58 @@ div.login-form, .login-content-wrapper,
 		border: none;
 	}
 
-}/* Even smaller mobile displays */
-@media (width < 358px) {
-	/* Less topnav padding */
-	.navbar-left {
-		float: none!important;
-		display: flex;
-		justify-content: space-between;
+  #nav-notifications-menu {
+		margin-inline: auto!important;
+		position: fixed;
+		inset: 0;
+		top: var(--topbar-first-size);
+		min-width: 80vw!important;
+		max-width: 95vw;
 	}
-	.topbar-nav .nav-segment a.nav-menu {
-		padding-left: 0;
-		padding-right: 7px;
+  /* no room for one nav icon with labels shown */
+  body.show-nav-labels .navbar-left:has(a[href="community"]) #nav-calendar-link {
+  	display: none;
+  }
+  body.show-nav-labels #topbar-first a.nav-menu,
+  body.show-nav-labels #topbar-first button {
+  	padding: 5px;
+  }
+}
+
+	/* Even smaller mobile displays */
+@media (width < 382px) {
+	.topbar-nav .nav-segment a.nav-menu, .topbar-actions .nav-segment a.nav-menu, .topbar-actions .nav-segment button, .topbar-actions .navbar-toggle {
+		padding-left: 6px!important;
+		padding-right: 6px!important;
 	}
-	.topbar-nav .offcanvas-right-toggle,
-	.topbar-nav #mobile-left-menu {
-		padding-right: 3px;
-		padding-left: 3px;
+	#topbar-first .offcanvas-right-toggle,
+	#topbar-first #mobile-left-menu {
+		padding-inline-end: 3px;
+		padding-inline-start: 3px;
+	}
+
+	/* Compose adjustments, mostly to improve the bbcode button experience at lower resolutions */
+
+	/* Reduce side padding */
+	.compose-content-wrapper .generic-page-wrapper {
+		padding-inline: 6px;
+	}
+
+	.compose-content-wrapper .generic-page-wrapper .btn-group {
+			display: inline!important;
+			float: unset;
+	}
+
+	.compose-content-wrapper #profile-jot-wrapper .btn-toolbar {
+		margin-right: -5px;
+	}
+
+	.compose-content-wrapper #profile-jot-wrapper .btn-toolbar div {
+		float: unset!important;
+		margin-left: 0;
+	}
+	body.show-nav-labels .nav-label,
+	body.show-action-labels .action-label {
+	  	font-size: 8px; /* alternatively display:none; this is really small! */
 	}
 }

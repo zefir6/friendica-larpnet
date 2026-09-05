@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -46,27 +46,40 @@ class Edit extends BaseModule
 	/** @var AppHelper */
 	protected $appHelper;
 
-	private EventDispatcherInterface $eventDispatcher;
-
 	/** @var bool */
 	protected $isModal = false;
 
-	public function __construct(L10n $l10n, BaseURL $baseUrl, Arguments $args, LoggerInterface $logger, Profiler $profiler, Response $response, IHandleUserSessions $session, SystemMessages $sysMessages, Page $page, Mode $mode, AppHelper $appHelper, EventDispatcherInterface $eventDispatcher, array $server, array $parameters = [])
-	{
+	public function __construct(
+		L10n $l10n,
+		BaseURL $baseUrl,
+		Arguments $args,
+		LoggerInterface $logger,
+		Profiler $profiler,
+		Response $response,
+		IHandleUserSessions $session,
+		SystemMessages $sysMessages,
+		Page $page,
+		Mode $mode,
+		AppHelper $appHelper,
+		private readonly EventDispatcherInterface $eventDispatcher,
+		array $server,
+		array $parameters = [],
+	) {
 		parent::__construct($l10n, $baseUrl, $args, $logger, $profiler, $response, $server, $parameters);
 
-		$this->session         = $session;
-		$this->sysMessages     = $sysMessages;
-		$this->page            = $page;
-		$this->mode            = $mode;
-		$this->appHelper       = $appHelper;
-		$this->eventDispatcher = $eventDispatcher;
+		$this->session     = $session;
+		$this->sysMessages = $sysMessages;
+		$this->page        = $page;
+		$this->mode        = $mode;
+		$this->appHelper   = $appHelper;
 	}
 
 
 	protected function content(array $request = []): string
 	{
-		$this->isModal = $request['mode'] ?? '' === 'none';
+		$requestMode = array_key_exists('mode', $request) ? $request['mode'] : '';
+
+		$this->isModal = $requestMode === 'none';
 
 		if (!$this->session->getLocalUserId()) {
 			$this->errorExit($this->t('Permission denied.'), HTTPException\UnauthorizedException::class);
@@ -107,7 +120,7 @@ class Edit extends BaseModule
 			'$is_mobile'     => $this->mode->isMobile(),
 		]);
 
-		if (strlen($item['allow_cid']) || strlen($item['allow_gid']) || strlen($item['deny_cid']) || strlen($item['deny_gid'])) {
+		if (strlen((string) $item['allow_cid']) || strlen((string) $item['allow_gid']) || strlen((string) $item['deny_cid']) || strlen((string) $item['deny_gid'])) {
 			$lockstate = 'lock';
 		} else {
 			$lockstate = 'unlock';
@@ -156,7 +169,7 @@ class Edit extends BaseModule
 			'$summary'             => $item['content-warning'],
 			'$placeholdersummary'  => (Feature::isEnabled($this->session->getLocalUserId(), Feature::SUMMARY) ? $this->t('Set summary, abstract or spoiler text') : ''),
 			'$category'            => Post\Category::getCSVByURIId($item['uri-id'], $this->session->getLocalUserId(), Post\Category::CATEGORY),
-			'$placeholdercategory' => (Feature::isEnabled($this->session->getLocalUserId(), Feature::CATEGORIES) ? $this->t("Categories \x28comma-separated list\x29") : ''),
+			'$placeholdercategory' => (Feature::isEnabled($this->session->getLocalUserId(), Feature::CATEGORIES) ? $this->t("Categories (comma-separated list)") : ''),
 			'$emtitle'             => $this->t('Example: bob@example.com, mary@example.com'),
 			'$lockstate'           => $lockstate,
 			'$acl'                 => '',

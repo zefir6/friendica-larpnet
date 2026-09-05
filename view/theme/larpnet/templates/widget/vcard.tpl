@@ -45,13 +45,13 @@
 			<div id="dfrn-request-link-button">
 				{{if $follow_link}}
 					<a id="dfrn-request-link" class="btn btn-labeled btn-primary" href="{{$follow_link}}"">
-						<span><i class="fa fa-user-plus"></i></span>
+						<span><i class="ri ri-user-add-line"></i></span>
 						<span>{{$follow}}</span>
 					</a>
 				{{/if}}
 				{{if $unfollow_link}}
 					<a id="dfrn-request-link" class="btn btn-labeled btn-primary" href="{{$unfollow_link}}">
-						<span><i class="fa fa-user-times"></i></span>
+						<span><i class="ri ri-user-unfollow-line"></i></span>
 						<span>{{$unfollow}}</span>
 					</a>
 				{{/if}}
@@ -59,7 +59,7 @@
 			{{if $wallmessage_link}}
 				<div id="wallmessage-link-button">
 					<button type="button" id="wallmessage-link" class="btn btn-labeled btn-primary" onclick="openWallMessage('{{$wallmessage_link}}')">
-						<span><i class="fa fa-envelope"></i></span>
+						<span><i class="ri ri-mail-line"></i></span>
 						<span>{{$wallmessage}}</span>
 					</button>
 				</div>
@@ -67,7 +67,7 @@
 			{{if $mention_link}}
 				<div id="jotOpen" class="pull-right">
 					<button type="button" id="mention-link" class="action-button btn btn-labeled btn-primary{{if !$always_open_compose}} modal-open{{/if}}" onclick="openWallMessage('{{$mention_link}}')" aria-label="{{$mention}}" oncontextmenu="openWallMessage('compose/0')">
-						<i class="fa fa-lg fa-pencil"></i>
+						<i class="ri ri-lg ri-pencil-line"></i>
 						<span>{{$mention}}</span>
 					</button>
 				</div>
@@ -76,7 +76,7 @@
 			{{if $showgroup_link}}
 				<div id="show-group-button">
 					<a type="button" id="show-group" class="btn btn-labeled btn-primary" href="{{$showgroup_link}}" title="{{$showgroup}}" aria-label="{{$showgroup}}">
-						<span class=""><i class="fa fa-group"></i></span>
+						<span class=""><i class="ri ri-discuss-line"></i></span>
 						<span class="">{{$showgroup}}</span>
 					</a>
 				</div>
@@ -87,21 +87,21 @@
 
 		{{if $contact.location}}
 		<div class="location detail">
-			<span class="location-label icon"><i class="fa fa-map-marker"></i></span>
+			<span class="location-label icon"><i class="ri ri-map-pin-line"></i></span>
 			<span class="adr p-location">{{$contact.location}}</span>
 		</div>
 		{{/if}}
 
 		{{if $contact.xmpp}}
 		<div class="xmpp detail">
-			<span class="xmpp-label icon"><i class="fa fa-xmpp"></i></span>
+			<span class="xmpp-label icon"><i class="ri ri-chat-3-line"></i></span>
 			<span class="xmpp-data"><a href="xmpp:{{$contact.xmpp}}" rel="me" target="_blank" rel="noopener noreferrer">{{include file="sub/punct_wrap.tpl" text=$contact.xmpp}}</a></span>
 		</div>
 		{{/if}}
 
 		{{if $contact.matrix}}
 		<div class="matrix detail">
-			<span class="matrix-label icon"><i class="fa fa-matrix-org"></i></span>
+			<span class="matrix-label icon"><i class="ri ri-grid-line"></i></span>
 			<span class="matrix-data"><a href="matrix:{{$contact.matrix}}" rel="me" target="_blank" rel="noopener noreferrer">{{include file="sub/punct_wrap.tpl" text=$contact.matrix}}</a></span>
 		</div>
 		{{/if}}
@@ -111,7 +111,7 @@
 			{{if $network_svg}}
 				<span class="network-label icon"><img class="network-svg" src="{{$network_svg}}" loading="lazy" aria-hidden="true"/></span>
 			{{else}}
-				<span class="network-label icon"><i class="fa fa-{{$network_avatar}}"></i></span>
+				<span class="network-label icon"><i class="ri ri-{{$network_avatar}}"></i></span>
 			{{/if}}
 			<span class="x-network">{{$network_link nofilter}}</span>
 		</div>

@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -75,11 +75,11 @@ class FriendSuggest extends BaseModule
 		$suggest = $this->friendSuggestRepo->save($this->friendSuggestFac->createNew(
 			DI::userSession()->getLocalUserId(),
 			$cid,
-			$contact['name'] ?? '',
-			$contact['url'] ?? '',
+			$contact['name']    ?? '',
+			$contact['url']     ?? '',
 			$contact['request'] ?? '',
-			$contact['avatar'] ?? '',
-			$note
+			$contact['avatar']  ?? '',
+			$note,
 		));
 
 		Worker::add(Worker::PRIORITY_HIGH, 'Notifier', Delivery::SUGGESTION, $suggest->id);
@@ -135,7 +135,7 @@ class FriendSuggest extends BaseModule
 				'',
 				$formattedContacts,
 			],
-			'$submit'          => $this->t('Submit'),
+			'$submit' => $this->t('Submit'),
 		]);
 	}
 }

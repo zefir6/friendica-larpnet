@@ -1,14 +1,14 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 namespace Friendica\Util;
 
-use Friendica\Core\Hook;
 use Friendica\DI;
+use Friendica\Event\ArrayFilterEvent;
 use phpseclib3\Crypt\PublicKeyLoader;
 
 /**
@@ -39,12 +39,13 @@ class Crypto
 	 * @param string $alg  algorithm
 	 * @return boolean
 	 */
-	public static function rsaVerify($data, $sig, $key, $alg = 'sha256')
+	public static function rsaVerify($data, $sig, $key, $alg = 'sha256'): bool
 	{
 		if (empty($key)) {
 			DI::logger()->warning('Empty key parameter');
+			return false;
 		}
-		return openssl_verify($data, $sig, $key, (($alg == 'sha1') ? OPENSSL_ALGO_SHA1 : $alg));
+		return openssl_verify($data, $sig, $key, (($alg == 'sha1') ? OPENSSL_ALGO_SHA1 : $alg)) === 1;
 	}
 
 	/**
@@ -183,7 +184,7 @@ class Crypto
 			return $result;
 		} else {
 			$x = ['data' => $data, 'pubkey' => $pubkey, 'alg' => $alg, 'result' => $data];
-			Hook::callAll('other_encapsulate', $x);
+			$x = DI::eventDispatcher()->dispatch(new ArrayFilterEvent(ArrayFilterEvent::OTHER_ENCAPSULATE, $x))->getArray();
 
 			return $x['result'];
 		}
@@ -269,7 +270,7 @@ class Crypto
 			return self::$fn(Strings::base64UrlDecode($data['data']), $k, $i);
 		} else {
 			$x = ['data' => $data, 'prvkey' => $prvkey, 'alg' => $alg, 'result' => $data];
-			Hook::callAll('other_unencapsulate', $x);
+			$x = DI::eventDispatcher()->dispatch(new ArrayFilterEvent(ArrayFilterEvent::OTHER_UNENCAPSULATE, $x))->getArray();
 
 			return $x['result'];
 		}
@@ -297,7 +298,7 @@ class Crypto
 	/**
 	 * Creates cryptographic secure random digits
 	 *
-	 * @param string $digits The count of digits
+	 * @param int $digits The count of digits
 	 * @return string The random Digits
 	 *
 	 * @throws \Exception In case 'random_int' isn't usable

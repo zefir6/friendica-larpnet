@@ -3,13 +3,13 @@
 Friendica also lets you create accounts that can function as discussion groups, celebrity accounts, announcement channels, news reflectors, or organization pages, depending on how you want to interact with others.
 Management of these accounts can be delegated to other accounts, or a parent account can be designated to easily toggle multiple identities.
 
-Every account in Friendica has a nickname and these must all be unique.
+Every account in Friendica has a username and these must all be unique.
 This applies to all accounts, whether they are individual profiles or group profiles.
 
 ## Managing Accounts
 
 To create a new linked account that can be used as a group, log in to your normal account and go to Settings > Manage Accounts.
-Here you can register additional accounts with new nicknames that will be linked to your primary account.
+Here you can register additional accounts with new usernames that will be linked to your primary account.
 
 You may appoint a delegate to manage your new account.
 The "Delegates" section of Manage Accounts page will provide you with a list of contacts on this instance under "Potential Delegates".

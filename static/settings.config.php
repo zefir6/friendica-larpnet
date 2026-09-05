@@ -1,7 +1,7 @@
 <?php
 
-/* Copyright (C) 2010-2024, the Friendica project
- * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+/* Copyright (C) 2010-2026, the Friendica project
+ * SPDX-FileCopyrightText: 2010-2026 the Friendica project
  *
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
@@ -126,7 +126,7 @@ return [
 		'explicit_content' => false,
 
 		// forbidden_nicknames (Comma-separated list)
-		// Prevents users from registering the specified nicknames on this node.
+		// Prevents users from registering the specified usernames on this node.
 		// Default value comprises classic role names from RFC 2142.
 		'forbidden_nicknames' => 'info, marketing, sales, support, abuse, noc, security, postmaster, hostmaster, usenet, news, webmaster, www, uucp, ftp, root, sysop',
 
@@ -167,7 +167,8 @@ return [
 
 		// logfile (String)
 		// The logfile for storing logs.
-		// Can be a full path or a relative path to the Friendica home directory
+		// Can be a full path, a relative path to the Friendica home directory,
+		// or a stream wrapper URL like 'php://stdout' to log to the process' output.
 		'logfile' => 'log/friendica.log',
 
 		// loglevel (String)
@@ -189,6 +190,14 @@ return [
 		// max_server_posts_community_page (Integer)
 		// The maximum number of posts on the global community page from a single server.
 		'max_server_posts_community_page' => 0,
+
+		// max_comments (Integer)
+		// Maximum numbers of comments per post
+		'max_comments' => 100,
+
+		// max_display_comments (Integer)
+		// Maximum numbers of comments per post on the display page
+		'max_display_comments' => 1000,
 
 		// maximagesize (Integer)
 		// Maximum size in bytes of an uploaded photo.
@@ -217,6 +226,15 @@ return [
 		// process_view (Boolean)
 		// Process the "View" activity that is used by Peertube.
 		'process_view' => false,
+
+		// proxy (String)
+		// Address of the proxy server that is used for outgoing HTTP requests.
+		// Leave empty to send the requests directly.
+		'proxy' => '',
+
+		// proxyuser (String)
+		// Optional "user:password" that is prepended to the proxy address.
+		'proxyuser' => '',
 
 		// register_notification (Boolean)
 		// Send a notification mail to the admin for each new registration.
@@ -278,6 +296,11 @@ return [
 		// The fully-qualified URL of this Friendica node.
 		// Used by the worker in a non-HTTP execution environment.
 		'url' => '',
+
+		// verifyssl (Boolean)
+		// Verify the certificate of a server before sending requests to it.
+		// Disabled by default, so that servers with a self-signed certificate stay reachable.
+		'verifyssl' => false,
 
 		// poco_discovery (Boolean)
 		// If enabled, the system will check for the existance of other contacts and servers

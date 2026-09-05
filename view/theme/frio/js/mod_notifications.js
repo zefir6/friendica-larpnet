@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -11,7 +11,7 @@
 // Catch the intro ID from the URL
 var introID = location.pathname.split("/").pop();
 
-$(document).ready(function () {
+window.onDocumentReady('body', function () {
 	// Since only the DIV's inside the notification-list are marked
 	// with the class "unseen", we need some js to transfer this class
 	// to the parent li list-elements.
@@ -20,7 +20,7 @@ $(document).ready(function () {
 	}
 });
 
-$(window).load(function () {
+window.onWindowLoad('.notif-network-wrapper', function () {
 	// Scroll to the intro by its intro ID.
 	if (isIntroID()) {
 		scrollToItem("intro-" + introID);

@@ -20,10 +20,10 @@
 		</div>
 
 		<div class="event-buttons pull-right">
-			{{if $event.edit}}<button type="button" class="btn" onclick="eventEdit('{{$event.edit.0}}')" title="{{$event.edit.1}}"><i class="fa fa-pencil" aria-hidden="true"></i></button>{{/if}}
-			{{if $event.copy}}<button type="button" class="btn" onclick="eventEdit('{{$event.copy.0}}')" title="{{$event.copy.1}}"><i class="fa fa-files-o" aria-hidden="true"></i></button>{{/if}}
-			{{if $event.drop}}<a href="{{$event.drop.0}}" onclick="return confirmDelete();" title="{{$event.drop.1}}" class="drop-event-link btn"><i class="fa fa-trash-o" aria-hidden="true"></i></a>{{/if}}
-			{{if $event.plink.orig}}<a href="{{$event.plink.orig}}" title="{{$event.plink.orig_title}}" class="plink-event-link btn" aria-label="{{$event.plink.1}}"><i class="fa fa-external-link" aria-hidden="true"></i></a>{{/if}}
+			{{if $event.edit}}<button type="button" class="btn" onclick="eventEdit('{{$event.edit.0}}')" title="{{$event.edit.1}}"><i class="ri ri-pencil-line" aria-hidden="true"></i></button>{{/if}}
+			{{if $event.copy}}<button type="button" class="btn" onclick="eventEdit('{{$event.copy.0}}')" title="{{$event.copy.1}}"><i class="ri ri-file-copy-line" aria-hidden="true"></i></button>{{/if}}
+			{{if $event.drop}}<a href="{{$event.drop.0}}" onclick="return confirmDelete();" title="{{$event.drop.1}}" class="drop-event-link btn"><i class="ri ri-delete-bin-line" aria-hidden="true"></i></a>{{/if}}
+			{{if $event.plink.orig}}<a href="{{$event.plink.orig}}" title="{{$event.plink.orig_title}}" class="plink-event-link btn" aria-label="{{$event.plink.1}}"><i class="ri ri-external-link-line" aria-hidden="true"></i></a>{{/if}}
 		</div>
 		<div class="clear"></div>
 	</div>

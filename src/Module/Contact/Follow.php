@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -84,7 +84,7 @@ class Follow extends BaseModule
 		$url = $this->getUrl($request);
 
 		// Issue 6874: Allow remote following from Peertube
-		if (strpos($url, 'acct:') === 0) {
+		if (str_starts_with($url, 'acct:')) {
 			$url = str_replace('acct:', '', $url);
 		}
 
@@ -228,7 +228,7 @@ class Follow extends BaseModule
 					$this->baseUrl->redirect('display/' . $item['guid']);
 				}
 			}
-		} catch (\InvalidArgumentException $e) {
+		} catch (\InvalidArgumentException) {
 			return;
 		}
 	}
@@ -236,7 +236,7 @@ class Follow extends BaseModule
 	private function getUrl(array $request): string
 	{
 		if (!empty($request['binurl']) && Strings::isHex($request['binurl'])) {
-			$url = hex2bin($request['binurl']);
+			$url = hex2bin((string) $request['binurl']);
 		} else {
 			$url = $request['url'] ?? '';
 		}

@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -36,40 +36,18 @@ final class ATProtocol
 	public const STATUS_PDS_FAIL   = 12;
 	public const STATUS_TOKEN_FAIL = 13;
 
-	/** @var LoggerInterface */
-	private $logger;
-
-	/** @var Database */
-	private $db;
-
-	/** @var \Friendica\Core\Config\Capability\IManageConfigValues */
-	private $config;
-
-	/** @var IManagePersonalConfigValues */
-	private $pConfig;
-
-	/** @var ICanSendHttpRequests */
-	private $httpClient;
-
 	private ?int $uid = null;
 
 	/**
 	 * Initialize the AT Protocol service.
 	 *
 	 * @param LoggerInterface $logger
-	 * @param Database $database
+	 * @param Database $db
 	 * @param IManageConfigValues $config
 	 * @param IManagePersonalConfigValues $pConfig
 	 * @param ICanSendHttpRequests $httpClient
 	 */
-	public function __construct(LoggerInterface $logger, Database $database, IManageConfigValues $config, IManagePersonalConfigValues $pConfig, ICanSendHttpRequests $httpClient)
-	{
-		$this->logger     = $logger;
-		$this->db         = $database;
-		$this->config     = $config;
-		$this->pConfig    = $pConfig;
-		$this->httpClient = $httpClient;
-	}
+	public function __construct(private readonly LoggerInterface $logger, private readonly Database $db, private readonly IManageConfigValues $config, private readonly IManagePersonalConfigValues $pConfig, private readonly ICanSendHttpRequests $httpClient) {}
 
 	/**
 	 * Get the AppView API URL
@@ -417,7 +395,7 @@ final class ATProtocol
 	private function getDidByWellknown(string $handle): string
 	{
 		$curlResult = $this->httpClient->get('http://' . $handle . '/.well-known/atproto-did');
-		if ($curlResult->isSuccess() && substr($curlResult->getBodyString(), 0, 4) == 'did:') {
+		if ($curlResult->isSuccess() && str_starts_with($curlResult->getBodyString(), 'did:')) {
 			$did = $curlResult->getBodyString();
 			if (!$this->isValidDid($did, $handle)) {
 				$this->logger->notice('Invalid DID', ['handle' => $handle, 'did' => $did]);
@@ -442,8 +420,8 @@ final class ATProtocol
 			return '';
 		}
 		foreach ($records as $record) {
-			if (!empty($record['txt']) && substr($record['txt'], 0, 4) == 'did=') {
-				$did = substr($record['txt'], 4);
+			if (!empty($record['txt']) && str_starts_with((string) $record['txt'], 'did=')) {
+				$did = substr((string) $record['txt'], 4);
 				if (!$this->isValidDid($did, $handle)) {
 					$this->logger->notice('Invalid DID', ['handle' => $handle, 'did' => $did]);
 					return '';
@@ -469,11 +447,44 @@ final class ATProtocol
 
 		foreach ($data->service as $service) {
 			if (($service->id == '#atproto_pds') && ($service->type == 'AtprotoPersonalDataServer') && !empty($service->serviceEndpoint)) {
+				if (!$this->isValidPdsEndpoint($service->serviceEndpoint)) {
+					$this->logger->notice('Invalid PDS endpoint', ['did' => $did, 'endpoint' => $service->serviceEndpoint]);
+					return null;
+				}
 				return $service->serviceEndpoint;
 			}
 		}
 
 		return null;
+	}
+
+	/**
+	 * Checks whether a PDS endpoint taken from a DID document is safe to send requests to.
+	 *
+	 * The endpoint is stored per user and gets the bearer token attached on every API call.
+	 * It therefore has to be a plain https origin.
+	 * A query or fragment would swallow the '/xrpc/...' path that is appended to it.
+	 *
+	 * @param mixed $endpoint The serviceEndpoint value of the DID document
+	 * @return bool
+	 */
+	private function isValidPdsEndpoint($endpoint): bool
+	{
+		if (!is_string($endpoint)) {
+			return false;
+		}
+
+		$parts = parse_url($endpoint);
+		if (!is_array($parts)) {
+			return false;
+		}
+
+		return (($parts['scheme'] ?? '') === 'https')
+			&& !empty($parts['host'])
+			&& empty($parts['user'])
+			&& empty($parts['pass'])
+			&& empty($parts['query'])
+			&& empty($parts['fragment']);
 	}
 
 	/**
@@ -514,16 +525,11 @@ final class ATProtocol
 	 */
 	public function getUserForProtocol(int $protocol): ?int
 	{
-		switch ($protocol) {
-			case Conversation::PARCEL_JETSTREAM:
-				return 0;
-
-			case Conversation::PARCEL_CONNECTOR:
-				return $this->getUser();
-
-			default:
-				return null;
-		}
+		return match ($protocol) {
+			Conversation::PARCEL_JETSTREAM => 0,
+			Conversation::PARCEL_CONNECTOR => $this->getUser(),
+			default                        => null,
+		};
 	}
 
 	/**

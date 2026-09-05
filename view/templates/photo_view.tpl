@@ -1,6 +1,6 @@
 {{*
-  * Copyright (C) 2010-2024, the Friendica project
-  * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+  * Copyright (C) 2010-2026, the Friendica project
+  * SPDX-FileCopyrightText: 2010-2026 the Friendica project
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
@@ -29,9 +29,9 @@
 </div>
 
 {{if $prevlink}}<div id="photo-prev-link"><a href="{{$prevlink.0}}">{{$prevlink.1 nofilter}}</a></div>{{/if}}
-<div id="photo-photo"><a href="{{$photo.href}}" title="{{$photo.title}}"><img src="{{$photo.src}}" /></a></div>
+<div id="photo-photo"><a href="{{$photo.href}}" title="{{$photo.title}}" up-follow="false"><img src="{{$photo.src}}" /></a></div>
 {{if $nextlink}}<div id="photo-next-link"><a href="{{$nextlink.0}}">{{$nextlink.1 nofilter}}</a></div>{{/if}}
 <div id="photo-photo-end"></div>
-<div id="photo-caption">{{$desc nofilter}}</div>
+<div id="photo-caption">{{$desc}}</div>
 {{if $edit}}{{$edit nofilter}}{{/if}}
 

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2010-2024 the Friendica project
+ * SPDX-FileCopyrightText: 2010-2026 the Friendica project
  *
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
@@ -81,7 +81,9 @@ span.connector {
 .type-video {
   float: left;
 }
-
+.wall-item-content {
+	position: relative;
+}
 .wall-item-container .wall-item-content .type-link img,
 .type-link img, .type-video img, img.attachment-preview {
   max-width: 160px;
@@ -215,10 +217,6 @@ blockquote.shared_content {
 
 .event-label {
   font-weight: bold;
-}
-
-.settings-heading a:after{
-  content: ' »';
 }
 
 #profile-photo-wrapper {
@@ -447,15 +445,10 @@ td.federation-data {
   max-height: 80px;
 }
 
-/* group list widget */
-.group-list-img {
+.sidebar-widget-list img {
   height: 20px;
   width: 20px;
   vertical-align: middle;
-}
-
-#group-widget-collapse {
-  opacity: 0.3;
 }
 
 /* help widget */
@@ -473,8 +466,11 @@ aside .help-aside-wrapper h1 {
   background-color: #f9a3a3;
   color: #ffffff;
 }
+.widget-show-more {
+  opacity: 0.3;
+}
 
-#group-widget-collapse:hover {
+.widget-show-more:hover {
   opacity: 1.0;
 }
 
@@ -531,6 +527,18 @@ aside .help-aside-wrapper h1 {
     margin: 0 0 20px 30px;
 }
 
+summary.settings-heading > h2,
+summary.settings-subheading > h3 {
+  display: inline;
+  font-size: inherit;
+  font-weight: inherit;
+  margin: 0;
+}
+
+.settings-widget {
+	line-height: 2.2;
+}
+
 /* admin pending user notes */
 td.pendingnote {
   padding-left: 20px;
@@ -557,51 +565,73 @@ td.pendingnote > p > span {
 img.invalid-src:after { vertical-align: top;}
 
 /* Tag cloud */
-.tag1, .tag1:hover {
+.tagblock .tag-cloud {
+  word-wrap: break-word;
+}
+.tagblock .tag-cloud .tag {
+	display: flex;
+	align-items: center;
+}
+
+.tagblock .tag-cloud .tag:focus {
+	color: black;
+}
+
+.tagblock .tag-cloud .tag1 {
   font-size: 0.9em ;
   color: DarkGray;
+	border-color: DarkGray;
 }
-.tag2, .tag2:hover {
+.tagblock .tag-cloud .tag2 {
   font-size: 1.0em;
   color: LawnGreen;
+	border-color: LawnGreen;
 }
-.tag3, .tag3:hover {
+.tagblock .tag-cloud .tag3 {
   font-size: 1.1em;
   color: DarkOrange;
+	border-color: DarkOrange;
 }
-.tag4, .tag4:hover {
+.tagblock .tag-cloud .tag4 {
   font-size: 1.2em;
   color: Red;
+	border-color: Red;
 }
-.tag5, .tag5:hover {
+.tagblock .tag-cloud .tag5 {
   font-size: 1.3em;
   color: Gold;
+	border-color: Gold;
 }
-.tag6, .tag6:hover {
+.tagblock .tag-cloud .tag6 {
   font-size: 1.4em;
   color: Teal;
+	border-color: Teal;
 }
-.tag7, .tag7:hover {
+.tagblock .tag-cloud .tag7 {
   font-size: 1.5em;
   color: DarkMagenta;
+	border-color: DarkMagenta;
 }
-.tag8, .tag8:hover {
+.tagblock .tag-cloud .tag8 {
   font-size: 1.6em;
   color: DarkGoldenRod;
+	border-color: DarkGoldenRod;
 }
-.tag9, .tag9:hover {
+.tagblock .tag-cloud .tag9 {
   font-size: 1.7em;
   color: DarkBlue;
+	border-color: DarkBlue;
 }
-.tag10 .tag10:hover {
+.tagblock .tag-cloud .tag10 {
   font-size: 1.8em;
   color: DeepPink;
+	border-color: DeepPink;
+}
+.tagblock .tag-cloud .tag:hover {
+	color: white;
 }
 .tags > a:hover {
   text-decoration: underline;
-}
-.tag-cloud {
-  word-wrap: break-word;
 }
 
 #register-explicit-content {
@@ -673,6 +703,9 @@ span.required {
 audio {
   width: 100%;
 }
+figure {
+	position: relative;
+}
 
 img {
   max-width: 100%;
@@ -687,19 +720,26 @@ img {
 	margin-top: 1em;
 	column-gap: 5px;
 }
-
-.imagegrid-column {
-	-ms-flex: 50%; /* IE10 */
-	flex: 50%;
-	display: -ms-flexbox; /* IE10 */
-	display: flex;
-	flex-direction: column;
-	row-gap: 5px;
+ .imagegrid-row figure {
+ 	flex-grow: 1;
+ 	margin: 0;
+	background-color: #000;
+ }
+.imagegrid-row figure a {
+	position: relative;
+	display: block;
+	height: 100%;
+	width:  100%;
 }
-
-.imagegrid-column img {
-	-ms-flex: 50%; /* IE10 */
-	flex: 50%;
+.imagegrid-row figure img {
+	position: relative;
+	height: 100%;
+	width:  100%;
+	object-fit: contain;	/* set to cover to fill figure container - cover crops images! */
+	object-position: top;
+}
+.imagegrid .imagegrid-row:first-of-type {
+	margin-top: 0px;
 }
 /**
  * Image grid settings END
@@ -736,6 +776,46 @@ figure.img-allocated-height img{
 }
 /**
  * Horizontal masonry settings AND
+ **/
+
+/**
+	* Faux Grid settings
+	* If any text comes after multiple images it breaks masonry or grid so fake it
+	* shrink and float any image container followed by a like-kind image container
+**/
+.wall-item-content .img-allocated-max-width:has(+ .img-allocated-max-width) {
+	width: 50%;
+	float: left;
+	float: inline-start;
+	margin: 0;
+	padding: 0 5px 5px 5px;
+	display: block;
+	box-sizing: border-box;
+}
+	.wall-item-content .img-allocated-max-width:has(+ .img-allocated-max-width):nth-of-type(even) {
+		float: right;
+		float: inline-end;
+	}
+/* in any group of 3 image container if the LAST one is not followed by a like-kind container clear float
+   note: we cannot use :last-of-type because this may not be the last container of its type in the post!
+*/
+.wall-item-content .img-allocated-max-width + .img-allocated-max-width + .img-allocated-max-width:not(:has(+ .img-allocated-max-width)) {
+	clear: both;
+}
+/* if there are only two images in a row just display them normally */
+.wall-item-content .img-allocated-max-width:first-of-type:has(+ .img-allocated-max-width:last-of-type) {
+	float: none;
+	width: auto;
+}
+/* faux grid uses floats which do NOT auto reverse if language is RTL so we need to manually do that */
+.wall-item-content[lang="ar"] .img-allocated-max-width:has(+ .img-allocated-max-width) {
+	float: right;
+}
+.wall-item-content[lang="ar"] .img-allocated-max-width:has(+ .img-allocated-max-width):nth-of-type(even) {
+	float: left;
+}
+/**
+ * Faux Grid settings AND
  **/
 
 #contactblock .icon {
@@ -820,10 +900,62 @@ summary.wall-item-summary {
 }
 
 /* Add alt tag indicators to the relevant images */
-a:has(img.has-alt-description)::after {
-	background: rgba(0, 0, 0, 0.69);
+	/* Jot Preview does not use src/content/image templates so force similar layout: */
+[id^="comment-edit-preview-"] figure:has(img),
+[id^="comment-edit-preview-"] a:has(img),
+#jot-preview-content figure:has(img),
+#jot-preview-content a:has(img){
+	position: relative;
+	display: table;
+}
+[id^="comment-edit-preview-"] a:has(img.has-alt-description)::after,
+#jot-preview-content a:has(img.has-alt-description)::after,
+.alt-text-button {
+  background: rgba(0, 0, 0, 0.69);
+  border-radius: 4px;
+  color: #eee;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 15px;
+  padding: 4px 5px;
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  border: none;
+}
+.alt-text-block {
+  position: absolute;
+  bottom: 100%;
+  right: 0px;
+  width: 250px;
+  font-size: 15px;
+  font-weight: normal;
+  background-color: rgba(0,0,0,.65);
+  border-radius: 4px;
+  padding: 10px;
+  text-align: left;
+  max-height: 30em;
+  overflow-y: auto;
+  display: none;
+}
+	/* try to make alt text box fit narrow screens */
+	@media screen and (max-width: 440px){
+		.alt-text-block {
+			width: 150px;
+		}
+	}
+.alt-text-button:focus .alt-text-block,
+.alt-text-button:active .alt-text-block,
+.alt-text-button:focus-within .alt-text-block {
+  display: block;
+}
+
+/* ALT badge indicator for images with descriptions */
+.photo-album-image-wrapper:has(img.has-alt-description)::after,
+.photo-top-image-wrapper:has(img.has-alt-description)::after {
+	background: rgba(255, 255, 255, 0.65);
 	border-radius: 4px;
-	color: #eee;
+	color: #666;
 	content: "ALT";
 	font-size: 12px;
 	font-weight: bold;
@@ -831,7 +963,30 @@ a:has(img.has-alt-description)::after {
 	position: absolute;
 	bottom: 8px;
 	right: 8px;
+	z-index: 1;
+	pointer-events: none;
 }
+/* ...omit alt tags on images in these cases: profile description */
+.attachment .photo-album-image-wrapper::after,
+.profile-header a:has(img.has-alt-description)::after {
+	display: none;
+}
+/* preview can take a moment to process images so show it is doing something */
+@keyframes processing {
+	to {
+		background-color: #ccc;
+	}
+}
+.img-processing {
+	animation: processing;
+	animation-duration: .5s;
+	animation-iteration-count: infinite;
+	animation-direction: alternate-reverse;
+	animation-timing-function: ease;
+}
+/**
+  * End Alt-Tag Section
+**/
 
 #change-profile-picture {
 	background-color: rgba(0, 0, 0, 0.5);

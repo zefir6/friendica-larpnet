@@ -1,7 +1,7 @@
 <?php
 
-// Copyright (C) 2010-2024, the Friendica project
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// Copyright (C) 2010-2026, the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -53,7 +53,7 @@ class Browser extends BaseModule
 
 		$files = Attach::selectToArray(['id', 'filename', 'filetype'], ['uid' => $this->session->getLocalUserId()]);
 
-		$fileArray = array_map([$this, 'map_files'], $files);
+		$fileArray = array_map($this->map_files(...), $files);
 
 		$tpl    = Renderer::getMarkupTemplate('media/browser.tpl');
 		$output = Renderer::replaceMacros($tpl, [
@@ -74,7 +74,7 @@ class Browser extends BaseModule
 		]);
 
 		if (empty($request['mode'])) {
-			$this->httpExit($output);
+			$this->earlyHttpExit($output);
 		}
 
 		return $output;
@@ -82,13 +82,14 @@ class Browser extends BaseModule
 
 	protected function map_files(array $record): array
 	{
-		[$m1, $m2] = explode('/', $record['filetype']);
+		[$m1, $m2] = explode('/', (string) $record['filetype']);
 		$filetype  = file_exists(sprintf('images/icons/%s.png', $m1)) ? $m1 : 'text';
 
 		return [
 			sprintf('%s/attach/%s', $this->baseUrl, $record['id']),
 			$record['filename'],
 			sprintf('%s/images/icons/%s.png', $this->baseUrl, $filetype),
+			$filetype,
 		];
 	}
 }

@@ -31,7 +31,7 @@ Wir benötigen diese, um Dir Account-Informationen, das Initialpasswort und die 
 Du erhältst zudem von Zeit zu Zeit Benachrichtigungen über eingegangene Nachrichten oder Punkte, die Deine Aufmerksamkeit benötigen.
 Diese Nachrichten sind in den Einstellungen jederzeit an- oder abschaltbar.
 
-### Spitzname/Nickname
+### Spitzname/Username
 
 Der Spitzname wird benötigt, um eine Webadresse (Profiladresse) für viele Deiner persönlichen Seiten zu erstellen.
 Auch wird dieser wie eine Email-Adresse genutzt, wenn eine Verbindung zu anderen Personen hergestellt werden soll.

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2010-2024 the Friendica project
+// SPDX-FileCopyrightText: 2010-2026 the Friendica project
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -45,6 +45,10 @@
 	 */
 	function initFormReset() {
 		const $form = $("form.comment-edit-form");
+
+		// Prevent duplicate bindings when init() runs multiple times in SPA mode.
+		$form.off(".compose-draft");
+		$form.off(".compose");
 
 		// Check if sessionStorage is available and if a post was submitted
 		// This flag is set in the submit handler below
@@ -208,6 +212,7 @@
 		}
 
 		// Character counter - use input event to catch all changes (paste, cut, etc.)
+		$textarea.off("input.compose");
 		$textarea.on("input.compose", function () {
 			updateCharacterCounter($(this).val().length);
 		});
@@ -241,11 +246,13 @@
 
 		// Bind to both input and change events for robustness
 		$(locationInput)
+			.off("input.compose change.compose")
 			.on("input.compose change.compose", function () {
 				updateLocationButtonDisplay(locationButton, locationInput);
 			});
 
 		// Location button click handler
+		$(locationButton).off("click.compose");
 		$(locationButton).on("click.compose", function () {
 			handleLocationButtonClick();
 		});
@@ -364,10 +371,7 @@
 		}
 	}
 
-	// Initialize on DOM ready
-	$(function () {
-		init();
-	});
+	window.onDocumentReady("body", init);
 
 	// Expose public API
 	window.updateLocationButtonDisplay = updateLocationButtonDisplay;
