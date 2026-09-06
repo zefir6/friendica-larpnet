@@ -9,6 +9,7 @@ namespace Friendica\Core;
 
 use Exception;
 use Friendica\App\Page;
+use Friendica\Core\Cache\Enum\Duration;
 use Friendica\Database\DBA;
 use Friendica\DI;
 use Friendica\Event\ArrayFilterEvent;
@@ -131,6 +132,18 @@ class ACL
 	 */
 	public static function getContactListByUserId(int $user_id, array $condition = [])
 	{
+		// Only the default (unfiltered) contact list is safe to cache by uid alone.
+		// Callers passing a custom $condition (e.g. Settings/Profile/Index.php) bypass the cache.
+		$cacheable = empty($condition);
+		$cachekey  = 'ACL::getContactListByUserId-' . $user_id;
+
+		if ($cacheable) {
+			$cached = DI::cache()->get($cachekey);
+			if (!is_null($cached)) {
+				return $cached;
+			}
+		}
+
 		$fields       = ['id', 'name', 'addr', 'micro'];
 		$params       = ['order' => ['name']];
 		$acl_contacts = Contact::selectToArray(
@@ -166,6 +179,10 @@ class ACL
 			$value['type'] = 'contact';
 		});
 
+		if ($cacheable) {
+			DI::cache()->set($cachekey, $acl_contacts, Duration::FIVE_MINUTES);
+		}
+
 		return $acl_contacts;
 	}
 
@@ -177,6 +194,12 @@ class ACL
 	 */
 	public static function getCircleListByUserId(int $user_id)
 	{
+		$cachekey = 'ACL::getCircleListByUserId-' . $user_id;
+		$cached   = DI::cache()->get($cachekey);
+		if (!is_null($cached)) {
+			return $cached;
+		}
+
 		$acl_circles = [
 			[
 				'id'    => Circle::FOLLOWERS,
@@ -202,6 +225,8 @@ class ACL
 				'type'  => 'circle',
 			];
 		}
+
+		DI::cache()->set($cachekey, $acl_circles, Duration::FIVE_MINUTES);
 
 		return $acl_circles;
 	}

@@ -53,6 +53,7 @@ const friendicaGlobals = {
 	initInfiniteScroll: "readonly", // view/js/main.js
 	insertBBCodeInTextarea: "readonly",
 	jotShow: "readonly",
+	LarpnetNav: "readonly", // view/theme/larpnet/js/theme.js
 	NavUpdate: "readonly",
 	openMenu: "readonly",
 	originalTitle: "writable",

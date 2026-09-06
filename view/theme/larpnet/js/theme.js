@@ -6,6 +6,55 @@
 
 var jotcache = ""; //The jot cache. We use it as cache to restore old/original jot content
 
+// Moves the #content-provided tabbar/jot-open button into the (otherwise empty)
+// #topbar-second placeholders. Idempotent so it can be re-run after an AJAX content
+// swap (see nav-ajax.js), not just once on document ready.
+var LarpnetNav = {
+	syncTopbarSecond: function () {
+		// These two containers ship empty from the server on every full page load
+		// (see nav.tpl) and get populated by moving elements out of #content below.
+		// On a re-run after an AJAX content swap (nav-ajax.js), only #content was
+		// replaced -- these still hold whatever a previous run moved into them, so
+		// clear them first or we'd accumulate duplicate tabbars/jot buttons instead
+		// of replacing them.
+		$("#topbar-second > .container > #tabmenu").empty();
+		$("#topbar-second > .container > #navbar-button").empty();
+
+		// add the class "active" to tabmenuli if li > a does have the class active
+		if ($("#tabmenu ul li a").hasClass("active")) {
+			$("#tabmenu ul li a.active").parent("li").addClass("active");
+		}
+
+		// move the tabbar to the second nav bar
+		$("section .tabbar-wrapper").first().appendTo("#topbar-second > .container > #tabmenu");
+
+		// make responsive tabmenu with flexmenu.js
+		// the menupoints which doesn't fit in the second nav bar will moved to a
+		// dropdown menu. Look at common_tabs.tpl
+		$("ul.tabs.flex-nav").flexMenu({
+			cutoff: 2,
+			popupClass: "dropdown-menu pull-right",
+			popupAbsolute: false,
+			target: ".flex-target",
+		});
+
+		// add Jot button to the second navbar
+		let $jotButton = $("#jotOpen");
+		if ($jotButton.length) {
+			$jotButton.appendTo("#topbar-second > .container > #navbar-button");
+			if ($("#jot-popup").is(":hidden")) {
+				$jotButton.hide();
+			}
+			if ($jotButton.hasClass('modal-open')) {
+				$jotButton.off("click.larpnet-nav").on("click.larpnet-nav", function (e) {
+					e.preventDefault();
+					jotShow();
+				});
+			}
+		}
+	},
+};
+
 $(document).ready(function () {
 	// Destroy unused perfect scrollbar in aside element
 	$("aside").perfectScrollbar("destroy");
@@ -50,43 +99,12 @@ $(document).ready(function () {
 		$("#group-list-sidebar-ul li a.group-selected").parent("li").addClass("selected");
 	}
 
-	// add the class "active" to tabmenuli if li > a does have the class active
-	if ($("#tabmenu ul li a").hasClass("active")) {
-		$("#tabmenu ul li a.active").parent("li").addClass("active");
-	}
-
 	// give select fields Bootstrap classes
 	// @todo: this needs to be changed in friendica core
 	$(".field.select, .field.custom").addClass("form-group");
 	$(".field.select > select, .field.custom > select").addClass("form-control");
 
-	// move the tabbar to the second nav bar
-	$("section .tabbar-wrapper").first().appendTo("#topbar-second > .container > #tabmenu");
-
-	// make responsive tabmenu with flexmenu.js
-	// the menupoints which doesn't fit in the second nav bar will moved to a
-	// dropdown menu. Look at common_tabs.tpl
-	$("ul.tabs.flex-nav").flexMenu({
-		cutoff: 2,
-		popupClass: "dropdown-menu pull-right",
-		popupAbsolute: false,
-		target: ".flex-target",
-	});
-
-	// add Jot button to the second navbar
-	let $jotButton = $("#jotOpen");
-	if ($jotButton.length) {
-		$jotButton.appendTo("#topbar-second > .container > #navbar-button");
-		if ($("#jot-popup").is(":hidden")) {
-			$jotButton.hide();
-		}
-		if ($jotButton.hasClass('modal-open')) {
-			$jotButton.on("click", function (e) {
-				e.preventDefault();
-				jotShow();
-			});
-		}
-	}
+	LarpnetNav.syncTopbarSecond();
 
 	let $body = $("body");
 
