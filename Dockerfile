@@ -76,3 +76,4 @@ COPY src/Object/Api/Mastodon/Status.php                      /usr/src/friendica/
 COPY static/routes.config.php                                /usr/src/friendica/static/routes.config.php
 COPY view/lang/pl/strings.php                                /usr/src/friendica/view/lang/pl/strings.php
 COPY src/Security/Authentication.php                         /usr/src/friendica/src/Security/Authentication.php
+COPY src/Module/Conversation/Timeline.php                    /usr/src/friendica/src/Module/Conversation/Timeline.php
