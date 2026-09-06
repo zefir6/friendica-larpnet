@@ -583,7 +583,7 @@ class Timeline extends BaseModule
 		$this->order = 'received';
 
 		if ($this->selectedTab == Community::LOCAL) {
-			$condition = ["`wall` AND `origin` AND `private` = ?", Item::PUBLIC];
+			$condition = ["`wall` AND `origin` AND NOT `deleted` AND `private` = ?", Item::PUBLIC];
 		} elseif ($this->selectedTab == 'global') {
 			$condition = ["`uid` = ? AND `private` = ?", 0, Item::PUBLIC];
 		} else {
