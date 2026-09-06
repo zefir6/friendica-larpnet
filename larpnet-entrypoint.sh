@@ -36,7 +36,8 @@ if [ -f /var/www/html/index.php ]; then
     src/Object/Api/Mastodon/Status.php \
     static/routes.config.php \
     view/lang/pl/strings.php \
-    src/Security/Authentication.php
+    src/Security/Authentication.php \
+    src/Module/Conversation/Timeline.php
   do
     cp "/usr/src/friendica/$f" "/var/www/html/$f"
   done
