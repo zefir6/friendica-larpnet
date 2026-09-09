@@ -122,6 +122,38 @@ final class PublicTimelineTest extends ApiTestCase
 		}
 	}
 
+	public function testApiStatusesPublicTimelineWithLocalIncludesServerOnly(): void
+	{
+		DI::dba()->insert('post-origin', [
+			'id'            => 6,
+			'uri-id'        => 6,
+			'uid'           => 42,
+			'parent-uri-id' => 6,
+			'thr-parent-id' => 6,
+			'created'       => '2020-01-01 12:00:00',
+			'received'      => '2020-01-01 12:00:00',
+			'gravity'       => Item::GRAVITY_PARENT,
+			'vid'           => 8,
+			'private'       => Item::SERVER_ONLY,
+			'wall'          => 1,
+		]);
+
+		$module = $this->createModule();
+
+		$request = (new ServerRequest('GET', 'https://friendica.local/api/v1/timelines/public'))
+			->withQueryParams(['local' => 'true']);
+
+		try {
+			$module->handleRequest($request);
+			self::fail('Expected EarlyExitException');
+		} catch (EarlyExitException $e) { // @phpstan-ignore catch.neverThrown
+			$statuses = $this->toJson($e->getResponse());
+
+			self::assertCount(1, $statuses);
+			self::assertEquals('6', $statuses[0]->id);
+		}
+	}
+
 	public function testApiStatusesPublicTimelineWithUnallowedUser(): void
 	{
 		DI::config()->set('system', 'block_public', true);
