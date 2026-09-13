@@ -3140,7 +3140,7 @@ class Item
 		$s = self::addLinkAttachment($item['uri-id'], $itemSplitAttachments, $body, $s, false, $shared_links, $uid, $item);
 		$s = self::addNonVisualAttachments($itemSplitAttachments['additional'], $item, $s);
 		$s = self::addHiddenAttachments($itemSplitAttachments['hidden'], $item, $s);
-		$s = self::addQuestions($item, $s);
+		$s = self::addQuestions($item, $s, $uid);
 
 		// Map.
 		if (str_contains($s, '<div class="map">') && !empty($item['coord'])) {
@@ -3625,7 +3625,7 @@ class Item
 		return $media . $content;
 	}
 
-	private static function addQuestions(array $item, string $content): string
+	private static function addQuestions(array $item, string $content, int $uid = 0): string
 	{
 		DI::profiler()->startRecording('rendering');
 		if (!empty($item['question-id'])) {
@@ -3635,6 +3635,15 @@ class Item
 				'voters'   => $item['question-voters'],
 				'endtime'  => $item['question-end-time'],
 			];
+
+			// larpnet: local (non-federated) poll voting -- only offer the vote
+			// form to a logged-in local user who hasn't voted yet on a poll that
+			// hasn't closed. Everyone else (anonymous visitors, already-voted or
+			// remote users) sees the read-only result list as before.
+			$expired              = !empty($question['endtime']) && DateTimeFormat::utcNow() > DateTimeFormat::utc($question['endtime']);
+			$voted                = $uid ? Post\QuestionOptionVote::hasVoted($item['uri-id'], $uid) : false;
+			$question['can_vote'] = (bool) $uid && !$voted && !$expired;
+			$question['item_id']  = $item['id'] ?? 0;
 
 			$options = Post\QuestionOption::getByURIId($item['uri-id']);
 			foreach ($options as $key => $option) {
@@ -3657,9 +3666,11 @@ class Item
 			}
 
 			$content .= Renderer::replaceMacros(Renderer::getMarkupTemplate('content/question.tpl'), [
-				'$question' => $question,
-				'$options'  => $options,
-				'$summary'  => $summary,
+				'$question'    => $question,
+				'$options'     => $options,
+				'$summary'     => $summary,
+				'$vote_label'  => DI::l10n()->t('Vote'),
+				'$return_path' => DI::args()->getQueryString(),
 			]);
 		}
 		DI::profiler()->stopRecording();

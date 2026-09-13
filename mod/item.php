@@ -135,11 +135,28 @@ function item_edit(int $uid, array $request, bool $preview, string $return_path)
 
 function item_insert(int $uid, array $request, bool $preview, string $return_path): void
 {
+	// larpnet: local (non-federated) poll creation. Validated up front so an
+	// invalid poll never leaves behind a poll-less orphan post.
+	$poll_options    = array_values(array_filter((array) ($request['poll_options'] ?? []), fn ($option) => trim((string) $option) !== ''));
+	$poll_multiple   = !empty($request['poll_multiple']);
+	$poll_expires_in = (int) ($request['poll_expires_in'] ?? 0);
+
+	if (!empty($poll_options) && !$preview) {
+		$poll_error = Post\Question::validatePoll($poll_options, $poll_multiple, $poll_expires_in);
+		if (!empty($poll_error)) {
+			if ($return_path) {
+				DI::sysmsg()->addNotice($poll_error);
+				DI::baseUrl()->redirect($return_path);
+			}
+			throw new HTTPException\BadRequestException($poll_error);
+		}
+	}
+
 	$post = ['uid' => $uid];
 	$post = DI::contentItem()->initializePost($post);
 
 	$post['edit']      = null;
-	$post['post-type'] = $request['post_type']      ?? '';
+	$post['post-type'] = !empty($poll_options) ? Item::PT_POLL : ($request['post_type'] ?? '');
 	$post['wall']      = $request['wall']           ?? true;
 	$post['pubmail']   = $request['pubmail_enable'] ?? false;
 	$post['created']   = $request['created_at']     ?? DateTimeFormat::utcNow();
@@ -210,6 +227,11 @@ function item_insert(int $uid, array $request, bool $preview, string $return_pat
 		}
 
 		throw new HTTPException\InternalServerErrorException(DI::l10n()->t('Item couldn\'t be fetched.'));
+	}
+
+	// larpnet: persist the poll now that we have a uri-id to attach it to.
+	if (!empty($poll_options)) {
+		Post\Question::createFromOptions($post['uri-id'], $poll_options, $poll_multiple, $poll_expires_in);
 	}
 
 	$recipients = explode(',', $request['emailcc'] ?? '');

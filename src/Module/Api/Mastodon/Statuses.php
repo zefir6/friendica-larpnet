@@ -221,6 +221,26 @@ class Statuses extends BaseApi
 			'friendica'      => [],	   // Friendica extensions to the standard Mastodon API spec
 		], $request);
 
+		// larpnet: local (non-federated) poll creation.
+		$poll_options    = $request['poll']['options'] ?? [];
+		$poll_multiple   = filter_var($request['poll']['multiple'] ?? false, FILTER_VALIDATE_BOOLEAN);
+		$poll_expires_in = (int) ($request['poll']['expires_in'] ?? 0);
+
+		if (!empty($poll_options)) {
+			if (!empty($request['media_ids'])) {
+				$this->logAndJsonError(422, $this->errorFactory->UnprocessableEntity($this->t('A poll cannot be combined with media attachments.')));
+			}
+
+			if (!empty($request['scheduled_at'])) {
+				$this->logAndJsonError(422, $this->errorFactory->UnprocessableEntity($this->t('Scheduling a poll is not supported.')));
+			}
+
+			$poll_error = Post\Question::validatePoll($poll_options, $poll_multiple, $poll_expires_in);
+			if (!empty($poll_error)) {
+				$this->logAndJsonError(422, $this->errorFactory->UnprocessableEntity($poll_error));
+			}
+		}
+
 		$owner = User::getOwnerDataById($uid);
 
 		$item               = [];
@@ -359,6 +379,11 @@ class Statuses extends BaseApi
 			$item = $this->storeMediaIds($request['media_ids'], $item);
 		}
 
+		if (!empty($poll_options)) {
+			$item['object-type'] = Activity\ObjectType::QUESTION;
+			$item['post-type']   = Item::PT_POLL;
+		}
+
 		$scheduled_at = '';
 		if (!empty($request['scheduled_at'])) {
 			$scheduled_at = DateTimeFormat::utc($request['scheduled_at']);
@@ -388,6 +413,10 @@ class Statuses extends BaseApi
 		if (!empty($id)) {
 			$item = Post::selectFirst(['uri-id'], ['id' => $id]);
 			if (!empty($item['uri-id'])) {
+				if (!empty($poll_options)) {
+					Post\Question::createFromOptions($item['uri-id'], $poll_options, $poll_multiple, $poll_expires_in);
+				}
+
 				$this->earlyJsonExit(DI::mstdnStatus()->createFromUriId($item['uri-id'], $uid));
 			}
 		}
