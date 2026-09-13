@@ -64,7 +64,7 @@ class PublicTimeline extends BaseApi
 		$uid = self::getCurrentUserID();
 
 		$condition = [
-			'gravity' => [Item::GRAVITY_PARENT, Item::GRAVITY_COMMENT], 'private' => Item::PUBLIC,
+			'gravity' => [Item::GRAVITY_PARENT, Item::GRAVITY_COMMENT],
 			'network' => Protocol::FEDERATED, 'author-blocked' => false, 'author-hidden' => false,
 		];
 
@@ -72,9 +72,13 @@ class PublicTimeline extends BaseApi
 		$params    = $this->buildOrderAndLimitParams($request);
 
 		if ($request['local']) {
-			$condition = DBA::mergeConditions($condition, ['origin' => true]);
+			// larpnet: SERVER_ONLY ("Larpnet only") posts are visible to everyone on this
+			// server (see Item::SERVER_ONLY), so the local/community timeline includes them
+			// alongside PUBLIC ones -- unlike the federated public timeline below, which must
+			// never expose SERVER_ONLY posts off-instance.
+			$condition = DBA::mergeConditions($condition, ['private' => [Item::PUBLIC, Item::SERVER_ONLY], 'origin' => true]);
 		} else {
-			$condition = DBA::mergeConditions($condition, ['uid' => 0]);
+			$condition = DBA::mergeConditions($condition, ['private' => Item::PUBLIC, 'uid' => 0]);
 		}
 
 		if ($request['remote']) {

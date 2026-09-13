@@ -1337,6 +1337,8 @@ class Photo
 		$r = self::store($image, $uid, 0, $resource_id, $filename, $album, 4, self::USER_AVATAR);
 		if (!$r) {
 			DI::logger()->warning('profile image upload with scale 4 (300) failed', ['uid' => $uid, 'resource_id' => $resource_id, 'filename' => $filename, 'album' => $album]);
+		} else {
+			self::update(['profile' => true], ['resource-id' => $resource_id, 'uid' => $uid, 'scale' => 4]);
 		}
 
 		if ($width > 80 || $height > 80) {
@@ -1346,6 +1348,8 @@ class Photo
 		$r = self::store($image, $uid, 0, $resource_id, $filename, $album, 5, self::USER_AVATAR);
 		if (!$r) {
 			DI::logger()->warning('profile image upload with scale 5 (80) failed', ['uid' => $uid, 'resource_id' => $resource_id, 'filename' => $filename, 'album' => $album]);
+		} else {
+			self::update(['profile' => true], ['resource-id' => $resource_id, 'uid' => $uid, 'scale' => 5]);
 		}
 
 		if ($width > 48 || $height > 48) {
@@ -1355,10 +1359,21 @@ class Photo
 		$r = self::store($image, $uid, 0, $resource_id, $filename, $album, 6, self::USER_AVATAR);
 		if (!$r) {
 			DI::logger()->warning('profile image upload with scale 6 (48) failed', ['uid' => $uid, 'resource_id' => $resource_id, 'filename' => $filename, 'album' => $album]);
+		} else {
+			self::update(['profile' => true], ['resource-id' => $resource_id, 'uid' => $uid, 'scale' => 6]);
 		}
 
 		DI::logger()->info('new profile image upload ended');
 
+		// `store()` always writes new rows with `profile = false` (confirmed: it has no
+		// parameter for this flag at all) -- without the three `profile => true` updates just
+		// above, this uid would end up with *no* row at all where `profile = true`, since the
+		// line below unconditionally clears it from every other resource-id. That's exactly what
+		// made this API path a no-op: `Contact::updateSelfFromUserID()`/`User::getAvatarUrl()`
+		// both look up the current avatar via `profile = true`, found nothing, and silently kept
+		// serving whatever was there before. The web UI's own crop flow
+		// (`Module\Settings\Profile\Photo\Crop`) already does the update-after-store the same
+		// way, which is how it was never affected by this.
 		$condition = ["`profile` AND `resource-id` != ? AND `uid` = ?", $resource_id, $uid];
 		self::update(['profile' => false, 'photo-type' => self::DEFAULT], $condition);
 
