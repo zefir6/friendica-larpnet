@@ -53,7 +53,11 @@ if [ -f /var/www/html/index.php ]; then
     view/templates/item/compose.tpl \
     view/templates/content/question.tpl
   do
-    cp "/usr/src/friendica/$f" "/var/www/html/$f"
+    if [ -f "/usr/src/friendica/$f" ]; then
+      install -D "/usr/src/friendica/$f" "/var/www/html/$f"
+    else
+      echo "larpnet-entrypoint: skipping missing patched file $f" >&2
+    fi
   done
 
   for addon in larpnet_banner larpnet_calendar larpnet_wifi larpnet_fcm; do
