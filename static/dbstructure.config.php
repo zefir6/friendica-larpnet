@@ -1628,6 +1628,19 @@ return [
 			"PRIMARY" => ["uri-id", "id"],
 		],
 	],
+	"post-question-option-vote" => [
+		"comment" => "larpnet: local per-user record of a cast poll vote. Local votes only -- remote-origin poll tallies are still mirrored into post-question-option.replies via the existing ActivityPub inbound path, which does not use this table",
+		"fields"  => [
+			"uri-id"  => ["type" => "int unsigned", "not null" => "1", "primary" => "1", "foreign" => ["item-uri" => "id"], "comment" => "Id of the item-uri table entry for the poll's root post"],
+			"uid"     => ["type" => "mediumint unsigned", "not null" => "1", "primary" => "1", "foreign" => ["user" => "uid"], "comment" => "The voting local user"],
+			"option"  => ["type" => "int unsigned", "not null" => "1", "primary" => "1", "comment" => "post-question-option.id chosen"],
+			"created" => ["type" => "datetime", "not null" => "1", "default" => DBA::NULL_DATETIME, "comment" => "When the vote was cast"],
+		],
+		"indexes" => [
+			"PRIMARY"    => ["uri-id", "uid", "option"],
+			"uri-id_uid" => ["uri-id", "uid"],
+		],
+	],
 	"post-searchindex" => [
 		"comment" => "Content for all posts",
 		"fields"  => [

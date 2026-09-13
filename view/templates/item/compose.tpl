@@ -133,6 +133,20 @@
         			{{include file="field_checkbox.tpl" field=$sensitive}}
                     {{if $scheduled_at}}{{$scheduled_at nofilter}}{{/if}}
                     {{if $created_at}}{{$created_at nofilter}}{{/if}}
+
+                    <div id="jot-poll-wrap">
+                        <h3>{{$l10n.poll_title}}</h3>
+                        {{foreach $poll_option_placeholders as $placeholder}}
+                            <input type="text" name="poll_options[]" class="form-control" maxlength="100" placeholder="{{$placeholder}}" />
+                        {{/foreach}}
+                        {{include file="field_checkbox.tpl" field=$poll_multiple_field}}
+                        <label for="jot-poll-expires">{{$l10n.poll_expires}}</label>
+                        <select name="poll_expires_in" id="jot-poll-expires" class="form-control">
+                            {{foreach $poll_expiry_options as $poll_expiry_option}}
+                                <option value="{{$poll_expiry_option.value}}">{{$poll_expiry_option.label}}</option>
+                            {{/foreach}}
+                        </select>
+                    </div>
                 {{else}}
                     <input type="hidden" name="circle_allow" value="{{$circle_allow}}"/>
                     <input type="hidden" name="contact_allow" value="{{$contact_allow}}"/>

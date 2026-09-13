@@ -78,3 +78,17 @@ COPY static/routes.config.php                                /usr/src/friendica/
 COPY view/lang/pl/strings.php                                /usr/src/friendica/view/lang/pl/strings.php
 COPY src/Security/Authentication.php                         /usr/src/friendica/src/Security/Authentication.php
 COPY src/Module/Conversation/Timeline.php                    /usr/src/friendica/src/Module/Conversation/Timeline.php
+
+# Polls (local voting/creation only, not federated)
+COPY static/dbstructure.config.php                           /usr/src/friendica/static/dbstructure.config.php
+COPY mod/item.php                                            /usr/src/friendica/mod/item.php
+COPY src/Model/Post/Question.php                             /usr/src/friendica/src/Model/Post/Question.php
+COPY src/Model/Post/QuestionOptionVote.php                   /usr/src/friendica/src/Model/Post/QuestionOptionVote.php
+COPY src/Factory/Api/Mastodon/Poll.php                       /usr/src/friendica/src/Factory/Api/Mastodon/Poll.php
+COPY src/Module/Api/Mastodon/Polls/Votes.php                 /usr/src/friendica/src/Module/Api/Mastodon/Polls/Votes.php
+COPY src/Object/Api/Mastodon/InstanceV2/Polls.php            /usr/src/friendica/src/Object/Api/Mastodon/InstanceV2/Polls.php
+COPY src/Module/Api/Mastodon/InstanceV2.php                  /usr/src/friendica/src/Module/Api/Mastodon/InstanceV2.php
+COPY src/Module/Api/Mastodon/Instance.php                    /usr/src/friendica/src/Module/Api/Mastodon/Instance.php
+COPY src/Module/Item/Vote.php                                /usr/src/friendica/src/Module/Item/Vote.php
+COPY view/templates/item/compose.tpl                         /usr/src/friendica/view/templates/item/compose.tpl
+COPY view/templates/content/question.tpl                     /usr/src/friendica/view/templates/content/question.tpl

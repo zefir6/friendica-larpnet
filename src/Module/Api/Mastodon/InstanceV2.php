@@ -18,6 +18,7 @@ use Friendica\Core\L10n;
 use Friendica\Core\System;
 use Friendica\Database\Database;
 use Friendica\DI;
+use Friendica\Model\Post\Question;
 use Friendica\Model\User;
 use Friendica\Module\Api\ApiResponse;
 use Friendica\Module\BaseApi;
@@ -117,7 +118,7 @@ class InstanceV2 extends BaseApi
 		return new InstanceEntity\Configuration(
 			$statuses_config,
 			new InstanceEntity\MediaAttachmentsConfig($this->supportedMimeTypes(), $image_size_limit, $image_matrix_limit, $media_size_limit),
-			new InstanceEntity\Polls(),
+			new InstanceEntity\Polls(Question::MAX_OPTIONS, Question::MAX_CHARACTERS_PER_OPTION, Question::MIN_EXPIRATION, Question::MAX_EXPIRATION),
 			new InstanceEntity\Accounts(),
 		);
 	}

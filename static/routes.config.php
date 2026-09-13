@@ -256,7 +256,7 @@ return [
 			'/notifications/clear'                     => [Module\Api\Mastodon\Notifications\Clear::class,      [        R::POST]],
 			'/notifications/{id:\d+}/dismiss'          => [Module\Api\Mastodon\Notifications\Dismiss::class,    [        R::POST]],
 			'/polls/{id:\d+}'                          => [Module\Api\Mastodon\Polls::class,                    [R::GET         ]],
-			'/polls/{id:\d+}/votes'                    => [Module\Api\Mastodon\Unimplemented::class,            [        R::POST]], // not supported
+			'/polls/{id:\d+}/votes'                    => [Module\Api\Mastodon\Polls\Votes::class,             [        R::POST]], // larpnet: local voting only, not federated
 			'/preferences'                             => [Module\Api\Mastodon\Preferences::class,              [R::GET         ]],
 			'/push/subscription'                       => [Module\Api\Mastodon\PushSubscription::class,         [R::GET, R::POST, R::PUT, R::DELETE]],
 			'/reports'                                 => [Module\Api\Mastodon\Reports::class,                  [        R::POST]],
@@ -478,6 +478,7 @@ return [
 		'/pin'             => [Module\Item\Pin::class,         [        R::POST]],
 		'/searchtext'      => [Module\Item\Searchtext::class,  [R::GET]],
 		'/star'            => [Module\Item\Star::class,        [        R::POST]],
+		'/vote'            => [Module\Item\Vote::class,        [        R::POST]], // larpnet: local voting only, not federated
 	],
 
 	'/localtime'             => [Module\Debug\Localtime::class, [R::GET, R::POST]],
