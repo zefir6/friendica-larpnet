@@ -91,7 +91,7 @@ class Question
 	 */
 	public static function validatePoll(array $options, bool $multiple, int $expires_in): ?string
 	{
-		$options = array_values(array_filter(array_map('trim', $options)));
+		$options = array_values(array_filter(array_map(trim(...), $options)));
 
 		if (count($options) < 2) {
 			return DI::l10n()->t('A poll needs at least two options.');
@@ -167,7 +167,7 @@ class Question
 	 */
 	public static function createFromOptions(int $uri_id, array $options, bool $multiple, int $expires_in): bool
 	{
-		$options = array_values(array_filter(array_map('trim', $options)));
+		$options = array_values(array_filter(array_map(trim(...), $options)));
 
 		$result = self::update($uri_id, [
 			'multiple' => $multiple,
@@ -210,7 +210,7 @@ class Question
 			return self::VOTE_ALREADY_VOTED;
 		}
 
-		$option_ids = array_values(array_unique(array_map('intval', $option_ids)));
+		$option_ids = array_values(array_unique(array_map(intval(...), $option_ids)));
 		if (empty($option_ids) || (!$question['multiple'] && count($option_ids) > 1)) {
 			return self::VOTE_INVALID_OPTION;
 		}

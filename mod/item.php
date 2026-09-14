@@ -137,7 +137,7 @@ function item_insert(int $uid, array $request, bool $preview, string $return_pat
 {
 	// larpnet: local (non-federated) poll creation. Validated up front so an
 	// invalid poll never leaves behind a poll-less orphan post.
-	$poll_options    = array_values(array_filter((array) ($request['poll_options'] ?? []), fn ($option) => trim((string) $option) !== ''));
+	$poll_options    = array_values(array_filter((array) ($request['poll_options'] ?? []), fn ($option): bool => trim((string) $option) !== ''));
 	$poll_multiple   = !empty($request['poll_multiple']);
 	$poll_expires_in = (int) ($request['poll_expires_in'] ?? 0);
 

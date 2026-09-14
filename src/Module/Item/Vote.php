@@ -39,7 +39,7 @@ class Vote extends BaseModule
 			throw new HTTPException\NotFoundException();
 		}
 
-		$options = array_map('intval', (array) ($_REQUEST['options'] ?? []));
+		$options = array_map(intval(...), (array) ($_REQUEST['options'] ?? []));
 
 		switch (Question::vote($item['uri-id'], $uid, $options)) {
 			case Question::VOTE_NOT_FOUND:
