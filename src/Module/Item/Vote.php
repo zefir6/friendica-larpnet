@@ -41,6 +41,20 @@ class Vote extends BaseModule
 
 		$options = array_map(intval(...), (array) ($_REQUEST['options'] ?? []));
 
+		// TEMP DIAGNOSTIC -- remove before merging. Investigating "Poll not
+		// found" on test.larpnet.pl that doesn't reproduce locally.
+		if (!empty($_REQUEST['debug'])) {
+			$question = Question::getByURIId($item['uri-id']);
+			$this->earlyJsonExit([
+				'param_id'       => $this->parameters['id'],
+				'uid'            => $uid,
+				'resolved_uri_id' => $item['uri-id'],
+				'question_row'   => $question,
+				'post_exists'    => \Friendica\Model\Post::exists(['uri-id' => $item['uri-id'], 'uid' => [0, $uid]]),
+				'options_parsed' => $options,
+			]);
+		}
+
 		$outcome = Question::vote($item['uri-id'], $uid, $options);
 
 		$errorMessage = match ($outcome) {
