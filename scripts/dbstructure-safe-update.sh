@@ -18,6 +18,12 @@
 # console quirk, not specific to this script), so success/failure here is
 # determined by scanning its output text, not its exit code.
 #
+# Run with --force: the plain command only actually diffs/applies the
+# schema when system.build differs from the DB_UPDATE_VERSION constant in
+# static/dbstructure.config.php, which larpnet-only table additions don't
+# bump (that's reserved for real upstream migrations) -- so without
+# --force it silently no-ops for them.
+#
 # As of the container-start automation in bin/dbstructure-auto-update.sh
 # (invoked by larpnet-entrypoint.sh on every container start), this no
 # longer needs to be run by hand after a normal deploy -- it happens
@@ -93,7 +99,7 @@ resolve_index_conflict() {
 attempt=1
 while (( attempt <= MAX_ATTEMPTS )); do
 	echo "== dbstructure update: attempt $attempt/$MAX_ATTEMPTS =="
-	output="$(compose exec -T "$FRIENDICA_SERVICE" php bin/console.php dbstructure update 2>&1)"
+	output="$(compose exec -T "$FRIENDICA_SERVICE" php bin/console.php dbstructure update --force 2>&1)"
 	echo "$output"
 
 	# Friendica's wrapper text around this is localized, but the raw driver
