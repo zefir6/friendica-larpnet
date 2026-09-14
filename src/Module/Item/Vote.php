@@ -41,24 +41,36 @@ class Vote extends BaseModule
 
 		$options = array_map(intval(...), (array) ($_REQUEST['options'] ?? []));
 
-		switch (Question::vote($item['uri-id'], $uid, $options)) {
-			case Question::VOTE_NOT_FOUND:
-				DI::sysmsg()->addNotice($l10n->t('Poll not found.'));
-				break;
-			case Question::VOTE_ALREADY_VOTED:
-				DI::sysmsg()->addNotice($l10n->t('You have already voted on this poll.'));
-				break;
-			case Question::VOTE_EXPIRED:
-				DI::sysmsg()->addNotice($l10n->t('This poll has ended.'));
-				break;
-			case Question::VOTE_INVALID_OPTION:
-				DI::sysmsg()->addNotice($l10n->t('Invalid poll option.'));
-				break;
+		$outcome = Question::vote($item['uri-id'], $uid, $options);
+
+		$errorMessage = match ($outcome) {
+			Question::VOTE_NOT_FOUND => $l10n->t('Poll not found.'),
+			Question::VOTE_ALREADY_VOTED => $l10n->t('You have already voted on this poll.'),
+			Question::VOTE_EXPIRED => $l10n->t('This poll has ended.'),
+			Question::VOTE_INVALID_OPTION => $l10n->t('Invalid poll option.'),
+			default => null,
+		};
+
+		if ($errorMessage !== null) {
+			DI::sysmsg()->addNotice($errorMessage);
 		}
 
 		$return_path = $_REQUEST['return'] ?? '';
 		if (!empty($return_path)) {
 			DI::baseUrl()->redirect($return_path);
+		}
+
+		// No return path (e.g. a bare AJAX/API-style caller): report the real
+		// outcome instead of always claiming success -- the flash-message
+		// notice above is only ever seen on the next full page load via the
+		// redirect, so a caller with no return_path would otherwise have no
+		// way to know voting failed.
+		if ($errorMessage !== null) {
+			$httpCode = match ($outcome) {
+				Question::VOTE_NOT_FOUND => 404,
+				default => 422,
+			};
+			$this->earlyJsonError($httpCode, ['status' => 'error', 'message' => $errorMessage]);
 		}
 
 		$this->earlyJsonExit(['status' => 'ok']);
