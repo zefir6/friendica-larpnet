@@ -149,21 +149,8 @@ class Compose extends BaseModule
 		}
 
 		// larpnet: local (non-federated) poll creation
-		$poll_option_placeholders = [];
-		for ($i = 1; $i <= Question::MAX_OPTIONS; $i++) {
-			$poll_option_placeholders[] = $this->l10n->t('Option %d', $i);
-		}
-
-		$poll_expiry_options = [
-			['value' => 300,     'label' => $this->l10n->t('5 minutes')],
-			['value' => 1800,    'label' => $this->l10n->t('30 minutes')],
-			['value' => 3600,    'label' => $this->l10n->t('1 hour')],
-			['value' => 21600,   'label' => $this->l10n->t('6 hours')],
-			['value' => 86400,   'label' => $this->l10n->t('1 day')],
-			['value' => 259200,  'label' => $this->l10n->t('3 days')],
-			['value' => 604800,  'label' => $this->l10n->t('1 week')],
-			['value' => 2629746, 'label' => $this->l10n->t('1 month')],
-		];
+		$poll_option_placeholders = Question::optionPlaceholders();
+		$poll_expiry_options      = Question::expiryOptions();
 
 		$tpl = Renderer::getMarkupTemplate('item/compose.tpl');
 		return $html . Renderer::replaceMacros($tpl, [
