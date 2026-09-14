@@ -55,8 +55,11 @@ class Poll extends BaseFactory
 			$ownvotes = null;
 			$voted    = null;
 		} else {
-			$ownvotes = [];
-			$voted    = false;
+			// larpnet: populate from locally-tracked votes (Model\Post\QuestionOptionVote).
+			// Remote-origin polls voted on via the poll's origin server (not this instance)
+			// won't show as voted here -- there's no way to know that without federation.
+			$ownvotes = Post\QuestionOptionVote::getVotedOptions($question['uri-id'], $uid);
+			$voted    = !empty($ownvotes);
 		}
 
 		return new \Friendica\Object\Api\Mastodon\Poll($question, $options, $expired, $votes, $ownvotes, $voted);

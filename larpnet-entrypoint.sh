@@ -39,9 +39,26 @@ if [ -f /var/www/html/index.php ]; then
     static/routes.config.php \
     view/lang/pl/strings.php \
     src/Security/Authentication.php \
-    src/Module/Conversation/Timeline.php
+    src/Module/Conversation/Timeline.php \
+    static/dbstructure.config.php \
+    mod/item.php \
+    src/Model/Post/Question.php \
+    src/Model/Post/QuestionOptionVote.php \
+    src/Factory/Api/Mastodon/Poll.php \
+    src/Module/Api/Mastodon/Polls/Votes.php \
+    src/Object/Api/Mastodon/InstanceV2/Polls.php \
+    src/Module/Api/Mastodon/InstanceV2.php \
+    src/Module/Api/Mastodon/Instance.php \
+    src/Module/Item/Vote.php \
+    src/Content/Conversation/StatusEditor.php \
+    view/templates/item/compose.tpl \
+    view/templates/content/question.tpl
   do
-    cp "/usr/src/friendica/$f" "/var/www/html/$f"
+    if [ -f "/usr/src/friendica/$f" ]; then
+      install -D "/usr/src/friendica/$f" "/var/www/html/$f"
+    else
+      echo "larpnet-entrypoint: skipping missing patched file $f" >&2
+    fi
   done
 
   for addon in larpnet_banner larpnet_calendar larpnet_wifi larpnet_fcm; do

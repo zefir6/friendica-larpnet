@@ -40,6 +40,11 @@
                     <button type="button" id="button_emojipicker" class="btn btn-default emojis" aria-label="{{$l10n.edemojis}}" title="{{$l10n.edemojis}}" tabindex="6">
                       <i class="ri ri-emotion-line"></i>
                     </button>
+                    {{if $type == 'post'}}
+                    <button type="button" class="btn btn-default" id="toggle-poll" aria-label="{{$l10n.poll_title}}" title="{{$l10n.poll_title}}" onclick="togglePoll()" tabindex="6">
+                        <i class="ri ri-bar-chart-2-line"></i>
+                    </button>
+                    {{/if}}
                 </div>
 
                 <div class="pull-right">
@@ -125,6 +130,22 @@
 
             <div id="comment-edit-preview-{{$id}}" class="comment-edit-preview" style="display:none;"></div>
 
+            {{if $type == 'post'}}
+                <div id="jot-poll-wrap" style="display: none;">
+                    <h3>{{$l10n.poll_title}}</h3>
+                    {{foreach $poll_option_placeholders as $placeholder}}
+                        <input type="text" name="poll_options[]" class="form-control" maxlength="100" placeholder="{{$placeholder}}" />
+                    {{/foreach}}
+                    {{include file="field_checkbox.tpl" field=$poll_multiple_field}}
+                    <label for="jot-poll-expires">{{$l10n.poll_expires}}</label>
+                    <select name="poll_expires_in" id="jot-poll-expires" class="form-control">
+                        {{foreach $poll_expiry_options as $poll_expiry_option}}
+                            <option value="{{$poll_expiry_option.value}}">{{$poll_expiry_option.label}}</option>
+                        {{/foreach}}
+                    </select>
+                </div>
+            {{/if}}
+
             <div id="permissions-section" style="display: none;">
                 {{if $type == 'post'}}
                     <h3>{{$l10n.visibility_title}}</h3>
@@ -180,6 +201,15 @@
             permissionsSection.style.display = 'block';
         } else {
             permissionsSection.style.display = 'none';
+        }
+    }
+
+    function togglePoll() {
+        var pollWrap = document.getElementById('jot-poll-wrap');
+        if (pollWrap.style.display === 'none' || pollWrap.style.display === '') {
+            pollWrap.style.display = 'block';
+        } else {
+            pollWrap.style.display = 'none';
         }
     }
 

@@ -25,6 +25,7 @@ use Friendica\Database\DBA;
 use Friendica\Event\HtmlFilterEvent;
 use Friendica\Model\Contact;
 use Friendica\Model\Item;
+use Friendica\Model\Post\Question;
 use Friendica\Model\User;
 use Friendica\Module\Response;
 use Friendica\Module\Security\Login;
@@ -147,6 +148,10 @@ class Compose extends BaseModule
 			$html = '';
 		}
 
+		// larpnet: local (non-federated) poll creation
+		$poll_option_placeholders = Question::optionPlaceholders();
+		$poll_expiry_options      = Question::expiryOptions();
+
 		$tpl = Renderer::getMarkupTemplate('item/compose.tpl');
 		return $html . Renderer::replaceMacros($tpl, [
 			'$enableAdvancedComposer' => $advancedComposer,
@@ -181,7 +186,11 @@ class Compose extends BaseModule
 				'placeholdertitle'     => $this->l10n->t('Set title'),
 				'placeholdersummary'   => Feature::isEnabled($this->session->getLocalUserId(), Feature::SUMMARY) ? $this->l10n->t('Set summary, abstract or spoiler text') : '',
 				'placeholdercategory'  => Feature::isEnabled($this->session->getLocalUserId(), Feature::CATEGORIES) ? $this->l10n->t('Categories (comma-separated list)') : '',
-				'always_open_compose'  => $this->pConfig->get(
+				// larpnet: local (non-federated) poll creation
+				'poll_title'          => $this->l10n->t('Poll (optional)'),
+				'poll_multiple'       => $this->l10n->t('Multiple choice'),
+				'poll_expires'        => $this->l10n->t('Poll duration'),
+				'always_open_compose' => $this->pConfig->get(
 					$this->session->getLocalUserId(),
 					'frio',
 					'always_open_compose',
@@ -217,8 +226,14 @@ class Compose extends BaseModule
 			'$contact_deny'  => implode(',', $contact_deny_list),
 			'$circle_deny'   => implode(',', $circle_deny_list),
 
-			'$jotplugins'   => $jotplugins,
-			'$rand_num'     => Crypto::randomDigits(12),
+			'$jotplugins' => $jotplugins,
+			'$rand_num'   => Crypto::randomDigits(12),
+
+			// larpnet: local (non-federated) poll creation
+			'$poll_option_placeholders' => $poll_option_placeholders,
+			'$poll_multiple_field'      => ['poll_multiple', $this->l10n->t('Multiple choice'), false],
+			'$poll_expiry_options'      => $poll_expiry_options,
+
 			'$acl_selector' => ACL::getFullSelectorHTML($this->page, $this->session->getLocalUserId(), $doesFederate, [
 				'allow_cid' => $contact_allow_list,
 				'allow_gid' => $circle_allow_list,
