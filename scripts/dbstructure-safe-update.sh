@@ -18,8 +18,13 @@
 # console quirk, not specific to this script), so success/failure here is
 # determined by scanning its output text, not its exit code.
 #
-# Deploy: run from the docker host after every upgrade, in place of calling
-# `dbstructure update` directly:
+# As of the container-start automation in bin/dbstructure-auto-update.sh
+# (invoked by larpnet-entrypoint.sh on every container start), this no
+# longer needs to be run by hand after a normal deploy -- it happens
+# automatically. This docker-host version still exists for manual/local-dev
+# use: e.g. re-applying a static/dbstructure.config.php edit without
+# restarting the container, or investigating a schema issue directly from
+# outside the container.
 #   ./scripts/dbstructure-safe-update.sh
 #
 # Configure COMPOSE_FILE / FRIENDICA_SERVICE / DB_SERVICE below to match your
