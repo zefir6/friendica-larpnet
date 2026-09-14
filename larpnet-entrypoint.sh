@@ -66,6 +66,20 @@ if [ -f /var/www/html/index.php ]; then
   done
 
   cp -r "/usr/src/friendica/view/theme/larpnet" "/var/www/html/view/theme/"
+
+  # Applies any pending schema changes (e.g. the post-question-option-vote
+  # table added for polls) automatically on every start -- no-op if the
+  # schema is already current. Run from the fresh build-time copy, not the
+  # persistent volume, so it's always this image's version of the script.
+  # Lives under bin/, not scripts/ -- .dockerignore excludes scripts/
+  # entirely (it's host-side tooling like dbstructure-safe-update.sh,
+  # never meant to be baked into the image), which silently dropped this
+  # file from the build the first time it was added there: the container
+  # crash-looped on every start because larpnet-entrypoint.sh's `set -e`
+  # turned that missing-file error into a dead entrypoint, taking down
+  # test.larpnet.pl. See bin/dbstructure-auto-update.sh for the
+  # self-healing details.
+  sh /usr/src/friendica/bin/dbstructure-auto-update.sh
 fi
 
 exec /entrypoint.sh "$@"
