@@ -41,50 +41,6 @@ class Vote extends BaseModule
 
 		$options = array_map(intval(...), (array) ($_REQUEST['options'] ?? []));
 
-		// TEMP DIAGNOSTIC -- remove before merging. Investigating "Poll not
-		// found" on test.larpnet.pl that doesn't reproduce locally.
-		if (!empty($_REQUEST['debug'])) {
-			$question = Question::getByURIId($item['uri-id']);
-
-			$tableExists = null;
-			$insertResult = null;
-			$insertError = null;
-			try {
-				$tableExists = \Friendica\Database\DBA::e('SELECT 1 FROM `post-question-option-vote` LIMIT 1');
-			} catch (\Throwable $e) {
-				$tableExists = 'EXCEPTION: ' . $e->getMessage();
-			}
-
-			$probeOption = 999999;
-			try {
-				$insertResult = \Friendica\Database\DBA::insert('post-question-option-vote', [
-					'uri-id'  => $item['uri-id'],
-					'uid'     => $uid,
-					'option'  => $probeOption,
-					'created' => \Friendica\Util\DateTimeFormat::utcNow(),
-				]);
-				if (!$insertResult) {
-					$insertError = \Friendica\Database\DBA::errorMessage();
-				} else {
-					\Friendica\Database\DBA::delete('post-question-option-vote', ['uri-id' => $item['uri-id'], 'uid' => $uid, 'option' => $probeOption]);
-				}
-			} catch (\Throwable $e) {
-				$insertError = 'EXCEPTION: ' . $e->getMessage();
-			}
-
-			$this->earlyJsonExit([
-				'param_id'       => $this->parameters['id'],
-				'uid'            => $uid,
-				'resolved_uri_id' => $item['uri-id'],
-				'question_row'   => $question,
-				'post_exists'    => \Friendica\Model\Post::exists(['uri-id' => $item['uri-id'], 'uid' => [0, $uid]]),
-				'options_parsed' => $options,
-				'table_select_probe' => $tableExists,
-				'test_insert_result' => $insertResult,
-				'test_insert_error'  => $insertError,
-			]);
-		}
-
 		$outcome = Question::vote($item['uri-id'], $uid, $options);
 
 		$errorMessage = match ($outcome) {

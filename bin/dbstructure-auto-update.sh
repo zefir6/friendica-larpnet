@@ -6,8 +6,17 @@
 # start (invoked by larpnet-entrypoint.sh), instead of requiring someone to
 # SSH in and run the docker-host script by hand after every deploy.
 #
-# `dbstructure update` is a no-op when the schema is already current, so
-# running it unconditionally on every start is safe and cheap.
+# `dbstructure update` is run with --force: the plain command is gated
+# behind system.build vs. the DB_UPDATE_VERSION constant in
+# static/dbstructure.config.php, and only actually diffs/applies the
+# schema when those differ. larpnet-only table additions (e.g.
+# post-question-option-vote for polls) don't bump DB_UPDATE_VERSION --
+# it's reserved for real upstream migrations -- so without --force the
+# structure update silently never runs for them. The underlying diff/apply
+# (Friendica\Database\DBStructure::performUpdate()) is idempotent and
+# --force doesn't replay any version-numbered pre/post update functions
+# when stored build == current build, so running it unconditionally on
+# every start is still safe and cheap.
 #
 # Same self-healing as dbstructure-safe-update.sh for MySQL/MariaDB error
 # 1553 ("Cannot drop index '...': needed in a foreign key constraint") --
@@ -65,7 +74,7 @@ attempt=1
 while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
 	echo "larpnet-entrypoint: dbstructure update attempt $attempt/$MAX_ATTEMPTS"
 	set +e
-	output="$(php bin/console.php dbstructure update 2>&1)"
+	output="$(php bin/console.php dbstructure update --force 2>&1)"
 	set -e
 	echo "$output"
 
