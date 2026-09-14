@@ -114,7 +114,26 @@
 						<textarea rows="8" cols="64" class="profile-jot-text form-control text-autosize" id="profile-jot-text" name="body" placeholder="{{$share}}" onFocus="jotTextOpenUI(this);" onBlur="jotTextCloseUI(this);" style="min-width:100%; max-width:100%;" dir="auto" onkeydown="sendOnCtrlEnter(event, 'profile-jot-submit')">{{if $content}}{{$content nofilter}}{{/if}}</textarea>
 					</div>
 
+					{{if $poll_option_placeholders}}
+					<div id="jot-poll-wrap" style="display: none;">
+						<h3>{{$poll_title}}</h3>
+						{{foreach $poll_option_placeholders as $placeholder}}
+							<input type="text" name="poll_options[]" class="form-control" maxlength="100" placeholder="{{$placeholder}}" />
+						{{/foreach}}
+						{{include file="field_checkbox.tpl" field=$poll_multiple_field}}
+						<label for="jot-poll-expires">{{$poll_expires}}</label>
+						<select name="poll_expires_in" id="jot-poll-expires" class="form-control">
+							{{foreach $poll_expiry_options as $poll_expiry_option}}
+								<option value="{{$poll_expiry_option.value}}">{{$poll_expiry_option.label}}</option>
+							{{/foreach}}
+						</select>
+					</div>
+					{{/if}}
+
 					<ul id="profile-jot-submit-wrapper" class="jothidden nav nav-pills">
+						{{if $poll_option_placeholders}}
+						<li><button type="button" class="btn-link icon" id="toggle-poll" style="cursor: pointer;" aria-label="{{$poll_title}}" title="{{$poll_title}}" onclick="togglePoll();"><i class="ri ri-bar-chart-2-line"></i></button></li>
+						{{/if}}
 						<li><button type="button" class="hidden-xs btn-link icon underline" style="cursor: pointer;" aria-label="{{$eduline}}" title="{{$eduline}}" onclick="insertFormattingToPost('u');"><i class="ri ri-underline"></i></button></li>
 						<li><button type="button" class="hidden-xs btn-link icon italic" style="cursor: pointer;" aria-label="{{$editalic}}" title="{{$editalic}}" onclick="insertFormattingToPost('i');"><i class="ri ri-italic"></i></button></li>
 						<li><button type="button" class="hidden-xs btn-link icon bold" style="cursor: pointer;" aria-label="{{$edbold}}" title="{{$edbold}}" onclick="insertFormattingToPost('b');"><i class="ri ri-bold"></i></button></li>
@@ -189,4 +208,13 @@ can load different content into the jot modal (e.g. the item edit jot)
 
 <script>
 	dzFactory.setupDropzone('#jot-text-wrap', 'profile-jot-text');
+
+	function togglePoll() {
+		var pollWrap = document.getElementById('jot-poll-wrap');
+		if (pollWrap.style.display === 'none' || pollWrap.style.display === '') {
+			pollWrap.style.display = 'block';
+		} else {
+			pollWrap.style.display = 'none';
+		}
+	}
 </script>

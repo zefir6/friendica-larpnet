@@ -27,7 +27,7 @@ class Question
 	// larpnet: shared poll-creation limits, enforced here and advertised via
 	// Object\Api\Mastodon\InstanceV2\Polls (/api/v2/instance). Mastodon's own
 	// stock defaults.
-	public const MAX_OPTIONS               = 4;
+	public const MAX_OPTIONS               = 20;
 	public const MAX_CHARACTERS_PER_OPTION = 100;
 	public const MIN_EXPIRATION            = 300;      // 5 minutes
 	public const MAX_EXPIRATION            = 2629746;  // ~1 month
@@ -112,6 +112,43 @@ class Question
 		}
 
 		return null;
+	}
+
+	/**
+	 * larpnet: Placeholder text ("Option 1", "Option 2", ...) for each poll
+	 * option input, shared by every editor that offers poll creation
+	 * (Module\Item\Compose and Content\Conversation\StatusEditor).
+	 *
+	 * @return string[]
+	 */
+	public static function optionPlaceholders(): array
+	{
+		$placeholders = [];
+		for ($i = 1; $i <= self::MAX_OPTIONS; $i++) {
+			$placeholders[] = DI::l10n()->t('Option %d', $i);
+		}
+
+		return $placeholders;
+	}
+
+	/**
+	 * larpnet: Poll-duration choices offered in the editor, shared by every
+	 * editor that offers poll creation. Bounded by MIN_EXPIRATION/MAX_EXPIRATION.
+	 *
+	 * @return array
+	 */
+	public static function expiryOptions(): array
+	{
+		return [
+			['value' => 300,     'label' => DI::l10n()->t('5 minutes')],
+			['value' => 1800,    'label' => DI::l10n()->t('30 minutes')],
+			['value' => 3600,    'label' => DI::l10n()->t('1 hour')],
+			['value' => 21600,   'label' => DI::l10n()->t('6 hours')],
+			['value' => 86400,   'label' => DI::l10n()->t('1 day')],
+			['value' => 259200,  'label' => DI::l10n()->t('3 days')],
+			['value' => 604800,  'label' => DI::l10n()->t('1 week')],
+			['value' => 2629746, 'label' => DI::l10n()->t('1 month')],
+		];
 	}
 
 	/**

@@ -22,6 +22,7 @@ use Friendica\Core\Session\Capability\IHandleUserSessions;
 use Friendica\Event\HtmlFilterEvent;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Friendica\Model\Item as ItemModel;
+use Friendica\Model\Post\Question;
 use Friendica\Model\User;
 use Friendica\Util\Crypto;
 use Friendica\Util\Profiler;
@@ -205,6 +206,13 @@ final class StatusEditor
 
 			'$compose_link_title'  => $this->l10n->t('Open Compose page'),
 			'$always_open_compose' => $this->pConfig->get($this->session->getLocalUserId(), 'frio', 'always_open_compose', false),
+
+			// larpnet: local (non-federated) poll creation
+			'$poll_title'               => $this->l10n->t('Poll (optional)'),
+			'$poll_expires'             => $this->l10n->t('Poll duration'),
+			'$poll_option_placeholders' => Question::optionPlaceholders(),
+			'$poll_multiple_field'      => ['poll_multiple', $this->l10n->t('Multiple choice'), false],
+			'$poll_expiry_options'      => Question::expiryOptions(),
 		]);
 
 		if ($popup === true) {

@@ -50,6 +50,7 @@ if [ -f /var/www/html/index.php ]; then
     src/Module/Api/Mastodon/InstanceV2.php \
     src/Module/Api/Mastodon/Instance.php \
     src/Module/Item/Vote.php \
+    src/Content/Conversation/StatusEditor.php \
     view/templates/item/compose.tpl \
     view/templates/content/question.tpl
   do

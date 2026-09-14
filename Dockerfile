@@ -90,5 +90,6 @@ COPY src/Object/Api/Mastodon/InstanceV2/Polls.php            /usr/src/friendica/
 COPY src/Module/Api/Mastodon/InstanceV2.php                  /usr/src/friendica/src/Module/Api/Mastodon/InstanceV2.php
 COPY src/Module/Api/Mastodon/Instance.php                    /usr/src/friendica/src/Module/Api/Mastodon/Instance.php
 COPY src/Module/Item/Vote.php                                /usr/src/friendica/src/Module/Item/Vote.php
+COPY src/Content/Conversation/StatusEditor.php               /usr/src/friendica/src/Content/Conversation/StatusEditor.php
 COPY view/templates/item/compose.tpl                         /usr/src/friendica/view/templates/item/compose.tpl
 COPY view/templates/content/question.tpl                     /usr/src/friendica/view/templates/content/question.tpl
