@@ -1637,8 +1637,16 @@ return [
 			"created" => ["type" => "datetime", "not null" => "1", "default" => DBA::NULL_DATETIME, "comment" => "When the vote was cast"],
 		],
 		"indexes" => [
-			"PRIMARY"    => ["uri-id", "uid", "option"],
-			"uri-id_uid" => ["uri-id", "uid"],
+			"PRIMARY" => ["uri-id", "uid", "option"],
+			// Must stay declared: 'uid' has a 'foreign' key above, and MySQL/MariaDB
+			// refuses to drop an index still backing a foreign key constraint (error
+			// 1553). PRIMARY already covers lookups filtered by uri-id+uid (leftmost
+			// prefix), so this index exists purely to satisfy the FK -- without it,
+			// the differ queues a DROP INDEX `uid` on every schema diff (i.e. on
+			// every container start, since bin/dbstructure-auto-update.sh runs this
+			// unconditionally) while the FK constraint keeps blocking that very
+			// statement, same class of issue as addon/larpnet_fcm's fcm-token.
+			"uid"     => ["uid"],
 		],
 	],
 	"post-searchindex" => [
