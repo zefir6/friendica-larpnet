@@ -11,7 +11,7 @@
 
 		<div id="site-location" aria-hidden="true">{{$sitelocation}}</div>
 		<div id="banner" class="hidden-sm hidden-xs">
-			<a href="{{$baseurl}}" aria-hidden="true">
+			<a href="{{if $nav.community}}{{$nav.community.0}}{{else}}{{$baseurl}}{{/if}}" aria-hidden="true">
 				<div id="logo-img" aria-label="{{$home}}"></div>
 			</a>
 		</div>
@@ -50,12 +50,11 @@
 						<li class="sr-only">
 							<a class="sr-only" href="{{$baseurl}}">{{$home}}</a>
 						</li>
-						{{if $nav.network}}
+						{{if $nav.community}}
 							<li class="nav-segment">
-								<a accesskey="n" class="nav-menu {{$sel.network}}" href="{{$nav.network.0}}"
-									data-toggle="tooltip" data-viewport="#topbar-first" aria-label="{{$nav.network.3}}" title="{{$nav.network.3}}"><span class="nav-icon"><i
-										class="ri ri-lg ri-grid-line ri-fw" aria-hidden="true"></i><span id="net-update"
-										class="nav-network-badge badge nav-notification"></span></span><span class="nav-menu-label hidden-xs hidden-sm hidden-md">{{$nav.network.4}}</span></a>
+								<a accesskey="c" class="nav-menu {{$sel.community}}" href="{{$nav.community.0}}"
+									data-toggle="tooltip" data-viewport="#topbar-first" aria-label="{{$nav.community.3}}" title="{{$nav.community.3}}"><span class="nav-icon"><i
+										class="ri ri-lg ri-earth-line ri-fw" aria-hidden="true"></i></span><span class="nav-menu-label hidden-xs hidden-sm hidden-md">{{$nav.community.4}}</span></a>
 							</li>
 						{{/if}}
 
@@ -76,11 +75,12 @@
 							</li>
 						{{/if}}
 
-						{{if $nav.community}}
+						{{if $nav.network}}
 							<li class="nav-segment">
-								<a accesskey="c" class="nav-menu {{$sel.community}}" href="{{$nav.community.0}}"
-									data-toggle="tooltip" data-viewport="#topbar-first" aria-label="{{$nav.community.3}}" title="{{$nav.community.3}}"><span class="nav-icon"><i
-										class="ri ri-lg ri-earth-line ri-fw" aria-hidden="true"></i></span><span class="nav-menu-label hidden-xs hidden-sm hidden-md">{{$nav.community.4}}</span></a>
+								<a accesskey="n" class="nav-menu {{$sel.network}}" href="{{$nav.network.0}}"
+									data-toggle="tooltip" data-viewport="#topbar-first" aria-label="{{$nav.network.3}}" title="{{$nav.network.3}}"><span class="nav-icon"><i
+										class="ri ri-lg ri-grid-line ri-fw" aria-hidden="true"></i><span id="net-update"
+										class="nav-network-badge badge nav-notification"></span></span><span class="nav-menu-label hidden-xs hidden-sm hidden-md">{{$nav.network.4}}</span></a>
 							</li>
 						{{/if}}
 
