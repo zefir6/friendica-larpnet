@@ -42,7 +42,7 @@ class Home extends BaseModule
 		);
 
 		if (DI::userSession()->getLocalUserId() && (DI::userSession()->getLocalUserNickname())) {
-			DI::baseUrl()->redirect('network');
+			DI::baseUrl()->redirect('community');
 		}
 
 		if ($config->get('system', 'singleuser')) {
