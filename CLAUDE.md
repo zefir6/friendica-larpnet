@@ -133,6 +133,7 @@ All files below are larpnet additions or patches. When rebasing onto a new Frien
 | `mod/item.php` | Patched `item_insert()` to validate and persist `poll_options[]`/`poll_multiple`/`poll_expires_in` from the classic web compose form |
 | `src/Module/Item/Vote.php` | New file. Classic web UI vote submission handler, `POST /item/{id}/vote` |
 | `src/Content/Conversation/StatusEditor.php` | Patched `renderEditor()` to pass poll-creation fields (`Question::optionPlaceholders()`/`expiryOptions()`) into `jot.tpl`, so the quick "New Post" popup jot modal offers poll creation too, not just the full `/compose` page |
+| `src/Module/Home.php` | One-line patch: a logged-in user hitting `/` is redirected to `community` (the Larpnet tab) instead of upstream's default `network` (Contacts posts) tab |
 | `view/templates/item/compose.tpl` | Adds the poll-creation fields (up to `Question::MAX_OPTIONS` option inputs, multiple-choice checkbox, expiry select) as their own toggle-able section (dedicated toolbar icon, independent of the visibility/permissions panel) on the "post" compose form |
 | `view/templates/content/question.tpl` | Replaced the read-only result list with a vote `<form>` (radios/checkboxes per `Question::MAX_OPTIONS`) shown to a logged-in local user who hasn't voted yet and whose poll hasn't expired; falls back to the original read-only results otherwise |
 
