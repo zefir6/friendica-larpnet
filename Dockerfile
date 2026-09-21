@@ -44,6 +44,7 @@ COPY addon/larpnet_banner    /usr/src/friendica/addon/larpnet_banner
 COPY addon/larpnet_calendar  /usr/src/friendica/addon/larpnet_calendar
 COPY addon/larpnet_wifi      /usr/src/friendica/addon/larpnet_wifi
 COPY addon/larpnet_fcm       /usr/src/friendica/addon/larpnet_fcm
+COPY addon/larpnet_matrix    /usr/src/friendica/addon/larpnet_matrix
 
 # Core patches
 COPY src/Protocol/ActivityPub/Transmitter.php     /usr/src/friendica/src/Protocol/ActivityPub/Transmitter.php
