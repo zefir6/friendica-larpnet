@@ -8,7 +8,12 @@
  *   Web in an iframe) for a logged-in web user; POST /larpnet_matrix returns the
  *   identity + JWT as JSON to an OAuth2-authenticated native app. Inert unless the
  *   LARPNET_MATRIX_* environment variables are set.
- * Version: 1.0
+ *
+ *   GET /larpnet_matrix?dm=<nickname> deep-links the same widget straight into a
+ *   DM with that other local user (src/Model/Profile.php's "Chat" link on a
+ *   profile page builds this) -- chat/sso.html carries the target through the
+ *   SSO handoff and opens Element's #/user/<mxid> panel once logged in.
+ * Version: 1.1
  * Author: larpnet admin
  */
 
@@ -50,15 +55,27 @@ function larpnet_matrix_settings(): ?array
 }
 
 /**
+ * The Matrix localpart for a larpnet nickname (lower-cased), or null if it
+ * isn't valid for Matrix. Shared with src/Model/Profile.php's
+ * getMatrixChatLink() (require_once's this file, same pattern as
+ * src/Worker/FcmPush.php + addon/larpnet_fcm) so "can this user be reached
+ * via chat" can't drift from what larpnet_matrix_identity() actually mints.
+ */
+function larpnet_matrix_localpart(string $nickname): ?string
+{
+	$sub = strtolower($nickname);
+	return preg_match('/^[a-z0-9._=\-\/+]+$/', $sub) ? $sub : null;
+}
+
+/**
  * Matrix identity + a fresh login JWT for a local user, or null if the
- * nickname isn't a valid Matrix localpart. Localpart = lower-cased nickname,
- * so it maps 1:1 and stays stable.
+ * nickname isn't a valid Matrix localpart.
  */
 function larpnet_matrix_identity(int $uid, array $settings): ?array
 {
 	$user = User::getById($uid, ['nickname']);
-	$sub  = strtolower($user['nickname'] ?? '');
-	if (!preg_match('/^[a-z0-9._=\-\/+]+$/', $sub)) {
+	$sub  = larpnet_matrix_localpart($user['nickname'] ?? '');
+	if (!$sub) {
 		return null;
 	}
 
@@ -82,9 +99,29 @@ function larpnet_matrix_jwt(array $claims, string $secret): string
 }
 
 /**
+ * The target of a ?dm=<nickname> deep link, resolved against the real user
+ * table rather than trusting the query string directly -- only a nickname
+ * that actually exists (and maps to a valid localpart) becomes a mxid.
+ */
+function larpnet_matrix_dm_target(string $server): ?string
+{
+	$nickname = $_GET['dm'] ?? null;
+	if (!$nickname) {
+		return null;
+	}
+
+	$target = User::getByNickname($nickname, ['nickname']);
+	$sub    = $target ? larpnet_matrix_localpart($target['nickname']) : null;
+	return $sub ? '@' . $sub . ':' . $server : null;
+}
+
+/**
  * GET /larpnet_matrix — the chat widget for a logged-in web user. The JWT goes
  * in the URL fragment (never sent to a server or logged) of the chat host's
- * sso.html, which logs in and opens Element.
+ * sso.html, which logs in and opens Element. An optional ?dm=<nickname>
+ * (used by the "Chat" link on another local user's profile page) is passed
+ * through the same fragment so sso.html can open a DM with them once logged
+ * in, instead of just landing on Element's default view.
  */
 function larpnet_matrix_content(): string
 {
@@ -100,6 +137,10 @@ function larpnet_matrix_content(): string
 	}
 
 	$src = $identity['homeserver'] . '/sso.html#jwt=' . $identity['token'];
+	$dm  = larpnet_matrix_dm_target($settings['server']);
+	if ($dm) {
+		$src .= '&dm=' . urlencode($dm);
+	}
 	return '<iframe src="' . htmlspecialchars($src) . '" title="Chat" allow="clipboard-write; microphone; camera" '
 		. 'style="width:100%;height:80vh;min-height:480px;border:0;"></iframe>';
 }

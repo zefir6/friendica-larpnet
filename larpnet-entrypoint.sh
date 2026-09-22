@@ -13,6 +13,7 @@ if [ -f /var/www/html/index.php ]; then
     src/Core/ACL.php \
     src/Model/Item.php \
     src/Model/Photo.php \
+    src/Model/Profile.php \
     src/Content/Conversation/PostTemplateBuilder.php \
     src/Module/Item/Compose.php \
     src/Module/Item/Display.php \
