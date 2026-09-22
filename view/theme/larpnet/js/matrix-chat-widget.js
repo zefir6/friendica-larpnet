@@ -47,7 +47,10 @@
     var iframe = document.createElement('iframe');
     iframe.title = 'Czat';
     iframe.allow = 'clipboard-write; microphone; camera; storage-access';
-    iframe.src = chatUrl + (dm ? '?dm=' + encodeURIComponent(dm) : '');
+    // embed=1: larpnet_matrix redirects straight to the chat host instead of
+    // rendering the full Friendica page -- otherwise this iframe would show
+    // an entire nested copy of the page (nav bar and all) instead of chat.
+    iframe.src = chatUrl + '?embed=1' + (dm ? '&dm=' + encodeURIComponent(dm) : '');
     body.appendChild(iframe);
     loaded = true;
     currentDm = dm || null;
