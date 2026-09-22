@@ -41,7 +41,7 @@
 			{{if $account_type}}<div class="account-type">({{$account_type}})</div>{{/if}}
 		</div>
 
-		{{if $follow_link || $unfollow_link || $wallmessage_link}}
+		{{if $follow_link || $unfollow_link || $wallmessage_link || $matrix_chat_link}}
 			<div id="profile-extra-links">
 				{{if $follow_link || $unfollow_link}}
 					<div id="dfrn-request-link-button">
@@ -72,6 +72,14 @@
 							<span><i class="ri ri-mail-line"></i></span>
 							<span>{{$wallmessage}}</span>
 						</button>
+					</div>
+				{{/if}}
+				{{if $matrix_chat_link}}
+					<div id="matrix-chat-link-button">
+						<a id="matrix-chat-link" class="btn btn-labeled btn-primary" href="{{$matrix_chat_link}}">
+							<span><i class="ri ri-message-3-line"></i></span>
+							<span>{{$matrix_chat}}</span>
+						</a>
 					</div>
 				{{/if}}
 				{{if $profile.addr && !$is_owner}}
