@@ -238,6 +238,8 @@ function larpnet_head(string &$b): void
 </script>
 JS;
 
+	larpnet_matrix_chat_widget_head($b);
+
 	$ntfyUrl      = DI::config()->get('larpnet_notifications', 'ntfy_url');
 	$ntfyVapidKey = DI::config()->get('larpnet_notifications', 'ntfy_vapid_public_key');
 	// Use read-only token for the browser — never expose the write token client-side
@@ -262,6 +264,32 @@ JS;
 	$b .= "<script>window.LarpnetPush = {$config};</script>\n";
 
 	DI::page()->registerFooterScript(__DIR__ . '/js/push.js?v=2026.03');
+}
+
+/**
+ * Injects the site-wide Facebook/Google-Chat style floating chat bubble
+ * (js/matrix-chat-widget.js) on every page, so chat is reachable as a popup
+ * rather than only via a full-page navigation to larpnet_matrix. Reaches
+ * into addon/larpnet_matrix/ via require_once to reuse its "is chat
+ * actually configured" check, same pattern as src/Model/Profile.php's
+ * getMatrixChatLink() and src/Worker/FcmPush.php + addon/larpnet_fcm/.
+ * No-op (nothing injected) if the addon isn't available or isn't configured.
+ */
+function larpnet_matrix_chat_widget_head(string &$b): void
+{
+	$addonFile = __DIR__ . '/../../../addon/larpnet_matrix/larpnet_matrix.php';
+	if (!file_exists($addonFile)) {
+		return;
+	}
+	require_once $addonFile;
+	if (!function_exists('larpnet_matrix_settings') || !larpnet_matrix_settings()) {
+		return;
+	}
+
+	$b .= "<script>window.LarpnetMatrixChat = " . json_encode(['chatUrl' => 'larpnet_matrix']) . ";</script>\n";
+
+	DI::page()->registerStylesheet(__DIR__ . '/css/matrix-chat-widget.css');
+	DI::page()->registerFooterScript(__DIR__ . '/js/matrix-chat-widget.js');
 }
 
 // ---------------------------------------------------------------------------
