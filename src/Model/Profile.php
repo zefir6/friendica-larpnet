@@ -340,6 +340,15 @@ class Profile
 				}
 			}
 		}
+
+		// larpnet_matrix deep link: only ever offered on another LOCAL
+		// user's own /profile/<nickname> page (this route doesn't exist
+		// for remote/fediverse contacts, so there's no risk of linking to
+		// a Matrix identity that was never provisioned by the JWT bridge).
+		$matrix_chat_link = null;
+		if (!$local_user_is_self && DI::userSession()->getLocalUserId() && !empty($profile['nickname'])) {
+			$matrix_chat_link = self::getMatrixChatLink($profile['nickname']);
+		}
 		if ($local_user_is_self && $view_as_contact_id == 0) {
 			$picture_dest_url            = DI::baseUrl() . '/settings/profile?profilepicture';
 			$change_profile_picture_text = DI::l10n()->t('Change profile picture');
@@ -484,6 +493,8 @@ class Profile
 			'$subscribe_feed_link'         => $profile['hidewall'] ?? 0 ? '' : $profile['poll'],
 			'$wallmessage'                 => DI::l10n()->t('Message'),
 			'$wallmessage_link'            => $wallmessage_link,
+			'$matrix_chat'                 => DI::l10n()->t('Chat'),
+			'$matrix_chat_link'            => $matrix_chat_link,
 			'$account_type_name'           => $account_type_name,
 			'$account_type'                => $profile['account-type'],
 			'$page_flags'                  => $profile['page-flags'],
@@ -517,6 +528,37 @@ class Profile
 		$o       = $hook_data['entry']   ?? $o;
 
 		return $o;
+	}
+
+	/**
+	 * A larpnet_matrix deep link that opens (or starts) a chat DM with the
+	 * given local user, or null if chat isn't enabled/configured, or the
+	 * nickname can't map to a Matrix localpart.
+	 *
+	 * Reaches into the addon rather than duplicating its logic here, same
+	 * pattern as src/Worker/FcmPush.php reaching into addon/larpnet_fcm --
+	 * this only builds the link; larpnet_matrix_content() does the actual
+	 * identity/JWT work when it's clicked.
+	 *
+	 * @param string $nickname The target user's nickname
+	 */
+	private static function getMatrixChatLink(string $nickname): ?string
+	{
+		if (!DI::addonHelper()->isAddonEnabled('larpnet_matrix')) {
+			return null;
+		}
+
+		require_once __DIR__ . '/../../addon/larpnet_matrix/larpnet_matrix.php';
+		if (!function_exists('larpnet_matrix_settings') || !function_exists('larpnet_matrix_localpart')) {
+			DI::logger()->warning('Profile: larpnet_matrix addon not available');
+			return null;
+		}
+
+		if (!larpnet_matrix_settings() || !larpnet_matrix_localpart($nickname)) {
+			return null;
+		}
+
+		return 'larpnet_matrix?dm=' . urlencode($nickname);
 	}
 
 	/**
