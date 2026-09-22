@@ -13,13 +13,18 @@
  *   DM with that other local user (src/Model/Profile.php's "Chat" link on a
  *   profile page builds this) -- chat/sso.html carries the target through the
  *   SSO handoff and opens Element's #/user/<mxid> panel once logged in.
- * Version: 1.1
+ *
+ *   On each (throttled) page load, also pushes the user's larpnet display
+ *   name + avatar to their Matrix profile via a server-side login against
+ *   LARPNET_MATRIX_INTERNAL_URL -- see larpnet_matrix_sync_profile().
+ * Version: 1.2
  * Author: larpnet admin
  */
 
 use Friendica\Core\Hook;
 use Friendica\DI;
 use Friendica\Model\Contact;
+use Friendica\Model\Photo;
 use Friendica\Model\User;
 use Friendica\Module\BaseApi;
 
@@ -42,6 +47,14 @@ function larpnet_matrix_app_menu(array &$data)
  * Deployment settings from the environment (per stack — test never shares
  * prod's secret, which is why this is not a DB config row: the test DB is a
  * copy of prod's). Null = not configured = feature off.
+ *
+ * 'internal_url', unlike the others, is optional: profile sync
+ * (larpnet_matrix_sync_profile()) is skipped without it, everything else
+ * still works. It's deliberately NOT the same value as 'url' -- friendica's
+ * container has no general internet egress (see CLAUDE.md's Test/staging
+ * environment isolation design), so it can't reach the public
+ * chat-test.larpnet.pl the browser uses. It reaches Synapse directly
+ * instead, over the internal network they both sit on.
  */
 function larpnet_matrix_settings(): ?array
 {
@@ -51,7 +64,12 @@ function larpnet_matrix_settings(): ?array
 	if (!$secret || !$server || !$url) {
 		return null;
 	}
-	return ['secret' => $secret, 'server' => $server, 'url' => rtrim($url, '/')];
+	return [
+		'secret'       => $secret,
+		'server'       => $server,
+		'url'          => rtrim($url, '/'),
+		'internal_url' => rtrim((string) getenv('LARPNET_MATRIX_INTERNAL_URL'), '/') ?: null,
+	];
 }
 
 /**
@@ -116,6 +134,77 @@ function larpnet_matrix_dm_target(string $server): ?string
 }
 
 /**
+ * Best-effort: pushes the larpnet account's display name + avatar to its
+ * Matrix profile, via a server-side login using the same short-lived JWT
+ * larpnet_matrix_identity() just minted. Throttled to once an hour per user
+ * (pconfig-tracked) -- this costs a handful of HTTP round-trips to Synapse,
+ * no need to pay for it on every chat page load or DM navigation. Never
+ * throws: a sync failure must not break the chat widget itself.
+ */
+function larpnet_matrix_sync_profile(int $uid, array $identity, array $settings): void
+{
+	$internal = $settings['internal_url'] ?? null;
+	if (!$internal) {
+		return;
+	}
+
+	if (time() - DI::pConfig()->get($uid, 'larpnet_matrix', 'synced_at', 0) < 3600) {
+		return;
+	}
+
+	try {
+		$mxid = rawurlencode($identity['user_id']);
+
+		$login = DI::httpClient()->request('POST', $internal . '/_matrix/client/v3/login', [
+			'body'   => json_encode(['type' => 'org.matrix.login.jwt', 'token' => $identity['token']]),
+			'header' => ['Content-Type: application/json'],
+		]);
+		$token = $login->isSuccess() ? (json_decode($login->getBodyString(), true)['access_token'] ?? null) : null;
+		if (!$token) {
+			DI::logger()->warning('larpnet_matrix: profile sync login failed', ['code' => $login->getReturnCode()]);
+			return;
+		}
+		$auth = ['Authorization: Bearer ' . $token];
+
+		$current     = DI::httpClient()->request('GET', $internal . '/_matrix/client/v3/profile/' . $mxid, ['header' => $auth]);
+		$currentName = $current->isSuccess() ? (json_decode($current->getBodyString(), true)['displayname'] ?? null) : null;
+		if ($currentName !== $identity['displayname']) {
+			DI::httpClient()->request('PUT', $internal . '/_matrix/client/v3/profile/' . $mxid . '/displayname', [
+				'body'   => json_encode(['displayname' => $identity['displayname']]),
+				'header' => [...$auth, 'Content-Type: application/json'],
+			]);
+		}
+
+		// scale 4 = the small/avatar-sized rendition of the user's own
+		// current profile photo -- same lookup src/Module/Photo.php uses
+		// to serve /photo/profile/<uid>.jpg.
+		$photo = Photo::selectFirst([], ['uid' => $uid, 'profile' => true, 'scale' => 4]);
+		$tag   = $photo ? $photo['resource-id'] . '@' . $photo['edited'] : null;
+		if ($photo && $tag !== DI::pConfig()->get($uid, 'larpnet_matrix', 'avatar_tag', '')) {
+			$data = Photo::getImageDataForPhoto($photo);
+			if ($data) {
+				$upload  = DI::httpClient()->request('POST', $internal . '/_matrix/media/v3/upload', [
+					'body'   => $data,
+					'header' => [...$auth, 'Content-Type: ' . $photo['type']],
+				]);
+				$mxcUri = $upload->isSuccess() ? (json_decode($upload->getBodyString(), true)['content_uri'] ?? null) : null;
+				if ($mxcUri) {
+					DI::httpClient()->request('PUT', $internal . '/_matrix/client/v3/profile/' . $mxid . '/avatar_url', [
+						'body'   => json_encode(['avatar_url' => $mxcUri]),
+						'header' => [...$auth, 'Content-Type: application/json'],
+					]);
+					DI::pConfig()->set($uid, 'larpnet_matrix', 'avatar_tag', $tag);
+				}
+			}
+		}
+
+		DI::pConfig()->set($uid, 'larpnet_matrix', 'synced_at', time());
+	} catch (\Throwable $e) {
+		DI::logger()->warning('larpnet_matrix: profile sync failed', ['error' => $e->getMessage()]);
+	}
+}
+
+/**
  * GET /larpnet_matrix — the chat widget for a logged-in web user. The JWT goes
  * in the URL fragment (never sent to a server or logged) of the chat host's
  * sso.html, which logs in and opens Element. An optional ?dm=<nickname>
@@ -135,6 +224,8 @@ function larpnet_matrix_content(): string
 	if (!$identity) {
 		return '<p>' . DI::l10n()->t('Chat is not available.') . '</p>';
 	}
+
+	larpnet_matrix_sync_profile((int) $uid, $identity, $settings);
 
 	$src = $identity['homeserver'] . '/sso.html#jwt=' . $identity['token'];
 	$dm  = larpnet_matrix_dm_target($settings['server']);
@@ -175,6 +266,8 @@ function larpnet_matrix_post()
 		echo json_encode(['error' => 'unsupported_nickname']);
 		exit;
 	}
+
+	larpnet_matrix_sync_profile((int) $uid, $identity, $settings);
 
 	echo json_encode($identity);
 	exit;
