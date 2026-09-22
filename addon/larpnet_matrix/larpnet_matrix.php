@@ -258,6 +258,17 @@ function larpnet_matrix_content(): string
 	if ($dm) {
 		$src .= '&dm=' . urlencode($dm);
 	}
+
+	// ?embed=1 (used only by the floating popup widget's own <iframe>, see
+	// js/matrix-chat-widget.js) redirects straight to the chat host instead
+	// of rendering the normal full Friendica page below -- otherwise the
+	// widget's iframe would show this ENTIRE page (nav bar and all) with
+	// *its own* nested iframe inside, not a clean chat popup.
+	if (!empty($_GET['embed'])) {
+		header('Location: ' . $src);
+		exit;
+	}
+
 	// storage-access: without it, some browsers (notably Safari, Firefox)
 	// partition or block IndexedDB for a cross-origin iframe like this one,
 	// which Element reads as "browser not supported" even though it's
