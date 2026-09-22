@@ -18,10 +18,11 @@
  *   name + avatar to their Matrix profile via a server-side login against
  *   LARPNET_MATRIX_INTERNAL_URL -- see larpnet_matrix_sync_profile().
  *
- *   The minted JWT also carries an `rk` claim (larpnet_matrix_recovery_key())
- *   that chat/sso.html uses to silently bootstrap/restore E2EE device
- *   verification, so nobody ever sees Element's "Verify this device" prompt.
- * Version: 1.3
+ *   Does NOT attempt silent E2EE device verification (tried and reverted --
+ *   see chat/sso.html in larpnet-config for why: bootstrapping crypto state
+ *   with a separately-versioned matrix-js-sdk broke Element's own session
+ *   restore instead of just suppressing its "Verify this device" prompt).
+ * Version: 1.4
  * Author: larpnet admin
  */
 
@@ -90,21 +91,6 @@ function larpnet_matrix_localpart(string $nickname): ?string
 }
 
 /**
- * The same 32 raw bytes every time for a given user -- used as the E2EE
- * secret-storage/recovery key so chat/sso.html can silently self-verify
- * every new device (see its bootstrapVerification()), with no recovery key
- * ever shown to or typed in by a user. Domain-separated from JWT signing
- * (different HMAC message prefix) despite reusing the same underlying
- * secret, so the two uses can't be confused for one another. This doesn't
- * introduce a new trust dependency: the whole bridge already roots each
- * user's chat identity in this same secret via larpnet_matrix_jwt().
- */
-function larpnet_matrix_recovery_key(string $sub, string $secret): string
-{
-	return base64_encode(hash_hmac('sha256', 'ssss-recovery:' . $sub, $secret, true));
-}
-
-/**
  * Matrix identity + a fresh login JWT for a local user, or null if the
  * nickname isn't a valid Matrix localpart.
  */
@@ -124,14 +110,7 @@ function larpnet_matrix_identity(int $uid, array $settings): ?array
 		'displayname' => $self['name'] ?? $sub,
 		'homeserver'  => $settings['url'],
 		'login_type'  => 'org.matrix.login.jwt',
-		'token'       => larpnet_matrix_jwt([
-			'sub' => $sub,
-			'iss' => 'friendica',
-			'aud' => 'synapse',
-			'iat' => $now,
-			'exp' => $now + 60,
-			'rk'  => larpnet_matrix_recovery_key($sub, $settings['secret']),
-		], $settings['secret']),
+		'token'       => larpnet_matrix_jwt(['sub' => $sub, 'iss' => 'friendica', 'aud' => 'synapse', 'iat' => $now, 'exp' => $now + 60], $settings['secret']),
 	];
 }
 
