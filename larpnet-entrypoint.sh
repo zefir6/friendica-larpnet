@@ -62,7 +62,7 @@ if [ -f /var/www/html/index.php ]; then
     fi
   done
 
-  for addon in larpnet_banner larpnet_calendar larpnet_wifi larpnet_fcm; do
+  for addon in larpnet_banner larpnet_calendar larpnet_wifi larpnet_fcm larpnet_matrix; do
     cp -r "/usr/src/friendica/addon/${addon}" "/var/www/html/addon/"
   done
 

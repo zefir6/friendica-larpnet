@@ -80,6 +80,7 @@ venv/
 !/addon/larpnet_calendar
 !/addon/larpnet_wifi
 !/addon/larpnet_fcm
+!/addon/larpnet_matrix
 
 #ignore base .htaccess
 /.htaccess
