@@ -76,7 +76,11 @@
 				{{/if}}
 				{{if $matrix_chat_link}}
 					<div id="matrix-chat-link-button">
-						<a id="matrix-chat-link" class="btn btn-labeled btn-primary" href="{{$matrix_chat_link}}">
+						{{* Opens the floating chat popup (js/matrix-chat-widget.js) when it's
+						    available, instead of navigating away to the full chat page --
+						    href is kept as a plain-navigation fallback if it isn't (JS
+						    disabled, or chat not configured for this deployment). *}}
+						<a id="matrix-chat-link" class="btn btn-labeled btn-primary" href="{{$matrix_chat_link}}" onclick="if (window.openMatrixChat) { event.preventDefault(); openMatrixChat('{{$profile.nickname}}'); }">
 							<span><i class="ri ri-message-3-line"></i></span>
 							<span>{{$matrix_chat}}</span>
 						</a>
