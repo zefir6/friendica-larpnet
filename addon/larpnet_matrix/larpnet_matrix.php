@@ -17,7 +17,11 @@
  *   On each (throttled) page load, also pushes the user's larpnet display
  *   name + avatar to their Matrix profile via a server-side login against
  *   LARPNET_MATRIX_INTERNAL_URL -- see larpnet_matrix_sync_profile().
- * Version: 1.2
+ *
+ *   The minted JWT also carries an `rk` claim (larpnet_matrix_recovery_key())
+ *   that chat/sso.html uses to silently bootstrap/restore E2EE device
+ *   verification, so nobody ever sees Element's "Verify this device" prompt.
+ * Version: 1.3
  * Author: larpnet admin
  */
 
@@ -86,6 +90,21 @@ function larpnet_matrix_localpart(string $nickname): ?string
 }
 
 /**
+ * The same 32 raw bytes every time for a given user -- used as the E2EE
+ * secret-storage/recovery key so chat/sso.html can silently self-verify
+ * every new device (see its bootstrapVerification()), with no recovery key
+ * ever shown to or typed in by a user. Domain-separated from JWT signing
+ * (different HMAC message prefix) despite reusing the same underlying
+ * secret, so the two uses can't be confused for one another. This doesn't
+ * introduce a new trust dependency: the whole bridge already roots each
+ * user's chat identity in this same secret via larpnet_matrix_jwt().
+ */
+function larpnet_matrix_recovery_key(string $sub, string $secret): string
+{
+	return base64_encode(hash_hmac('sha256', 'ssss-recovery:' . $sub, $secret, true));
+}
+
+/**
  * Matrix identity + a fresh login JWT for a local user, or null if the
  * nickname isn't a valid Matrix localpart.
  */
@@ -105,7 +124,14 @@ function larpnet_matrix_identity(int $uid, array $settings): ?array
 		'displayname' => $self['name'] ?? $sub,
 		'homeserver'  => $settings['url'],
 		'login_type'  => 'org.matrix.login.jwt',
-		'token'       => larpnet_matrix_jwt(['sub' => $sub, 'iss' => 'friendica', 'aud' => 'synapse', 'iat' => $now, 'exp' => $now + 60], $settings['secret']),
+		'token'       => larpnet_matrix_jwt([
+			'sub' => $sub,
+			'iss' => 'friendica',
+			'aud' => 'synapse',
+			'iat' => $now,
+			'exp' => $now + 60,
+			'rk'  => larpnet_matrix_recovery_key($sub, $settings['secret']),
+		], $settings['secret']),
 	];
 }
 
@@ -232,7 +258,11 @@ function larpnet_matrix_content(): string
 	if ($dm) {
 		$src .= '&dm=' . urlencode($dm);
 	}
-	return '<iframe src="' . htmlspecialchars($src) . '" title="Chat" allow="clipboard-write; microphone; camera" '
+	// storage-access: without it, some browsers (notably Safari, Firefox)
+	// partition or block IndexedDB for a cross-origin iframe like this one,
+	// which Element reads as "browser not supported" even though it's
+	// really just storage access -- not an actual compatibility problem.
+	return '<iframe src="' . htmlspecialchars($src) . '" title="Chat" allow="clipboard-write; microphone; camera; storage-access" '
 		. 'style="width:100%;height:80vh;min-height:480px;border:0;"></iframe>';
 }
 
