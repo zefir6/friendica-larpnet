@@ -39,7 +39,42 @@ body {
 
 .lnc-app {
   display: flex;
+  flex-direction: column;
   height: 100%;
+}
+
+.lnc-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--lnc-accent);
+  color: #ffffff;
+}
+
+.lnc-header-title {
+  font-weight: 600;
+}
+
+.lnc-header-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.lnc-header-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.lnc-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .lnc-room-list {
@@ -54,6 +89,94 @@ body {
   padding: 16px;
   color: var(--lnc-text-secondary);
   font-size: 0.9em;
+}
+
+.lnc-new-chat-btn {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  background: var(--lnc-accent);
+  color: #ffffff;
+  border: none;
+  border-bottom: 1px solid var(--lnc-border);
+  cursor: pointer;
+  font-weight: 600;
+  text-align: left;
+}
+
+.lnc-new-chat-btn:hover {
+  opacity: 0.9;
+}
+
+.lnc-picker-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.lnc-picker {
+  background: #ffffff;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 320px;
+  max-height: 70%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.lnc-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--lnc-accent);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.lnc-picker-close {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lnc-picker-search {
+  margin: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--lnc-border);
+  border-radius: 6px;
+}
+
+.lnc-picker-list {
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+
+.lnc-picker-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--lnc-border);
+  cursor: pointer;
+}
+
+.lnc-picker-item:hover {
+  background: var(--lnc-accent-light);
 }
 
 .lnc-room-item {

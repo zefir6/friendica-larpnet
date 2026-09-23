@@ -9,9 +9,10 @@ function roomDisplayName(room, client) {
   return other?.name || other?.userId || 'Rozmowa';
 }
 
-export function RoomList({ rooms, selectedRoomId, onSelect, client }) {
+export function RoomList({ rooms, selectedRoomId, onSelect, client, onNewChat }) {
   return (
     <div class="lnc-room-list">
+      <button type="button" class="lnc-new-chat-btn" onClick={onNewChat}>+ Nowy czat</button>
       {rooms.length === 0 && <div class="lnc-room-list-empty">Brak rozmów</div>}
       {rooms.map((room) => (
         <button

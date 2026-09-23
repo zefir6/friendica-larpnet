@@ -22,6 +22,7 @@ use Friendica\Core\Worker;
 use Friendica\Database\DBA;
 use Friendica\DI;
 use Friendica\Model;
+use Friendica\Model\Profile;
 use Friendica\Model\User;
 use Friendica\Module\Security\Login;
 use Friendica\Network\HTTPException\InternalServerErrorException;
@@ -611,6 +612,20 @@ class Contact extends BaseModule
 
 		[$administrator, $moderator] = Model\Contact::getType($contact['id'], $contact['url']);
 
+		// larpnet_matrix "Chat" entry point on this contact's photo menu --
+		// same "Chat" access other views (src/Model/Profile.php's own
+		// profile page) offer. getMatrixChatLink() re-validates against the
+		// real user table itself, so it's safe to call with an arbitrary
+		// contact's `nick` even though that field is just a denormalized
+		// copy, not a guarantee this is genuinely a local account.
+		$photoMenu = Model\Contact::photoMenu($contact, DI::userSession()->getLocalUserId());
+		if (empty($contact['self'])) {
+			$chatLink = Profile::getMatrixChatLink($contact['nick'] ?? '');
+			if ($chatLink) {
+				$photoMenu['chat'] = [DI::l10n()->t('Chat'), $chatLink];
+			}
+		}
+
 		return [
 			'id'                => $contact['id'],
 			'is_admin'          => $administrator,
@@ -619,7 +634,7 @@ class Contact extends BaseModule
 			'moderator_title'   => DI::l10n()->t('Moderator'),
 			'url'               => $url,
 			'img_hover'         => DI::l10n()->t('Visit %s\'s profile [%s]', $contact['name'], $contact['url']),
-			'photo_menu'        => Model\Contact::photoMenu($contact, DI::userSession()->getLocalUserId()),
+			'photo_menu'        => $photoMenu,
 			'thumb'             => Model\Contact::getThumb($contact, true),
 			'alt_text'          => $alt_text,
 			'name'              => $contact['name'],

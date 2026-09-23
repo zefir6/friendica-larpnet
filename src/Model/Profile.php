@@ -533,32 +533,31 @@ class Profile
 	/**
 	 * A larpnet_matrix deep link that opens (or starts) a chat DM with the
 	 * given local user, or null if chat isn't enabled/configured, or the
-	 * nickname can't map to a Matrix localpart.
+	 * nickname isn't a real local user.
 	 *
 	 * Reaches into the addon rather than duplicating its logic here, same
 	 * pattern as src/Worker/FcmPush.php reaching into addon/larpnet_fcm --
 	 * this only builds the link; larpnet_matrix_content() does the actual
-	 * identity/JWT work when it's clicked.
+	 * identity/JWT work when it's clicked. Public (not just used by
+	 * getVCardHtml() below): src/Module/Contact.php's contact/directory
+	 * listings call this too, for the same "Chat" entry point on more
+	 * views than just a user's own profile page.
 	 *
 	 * @param string $nickname The target user's nickname
 	 */
-	private static function getMatrixChatLink(string $nickname): ?string
+	public static function getMatrixChatLink(string $nickname): ?string
 	{
 		if (!DI::addonHelper()->isAddonEnabled('larpnet_matrix')) {
 			return null;
 		}
 
 		require_once __DIR__ . '/../../addon/larpnet_matrix/larpnet_matrix.php';
-		if (!function_exists('larpnet_matrix_settings') || !function_exists('larpnet_matrix_localpart')) {
+		if (!function_exists('larpnet_matrix_chat_link_for_nickname')) {
 			DI::logger()->warning('Profile: larpnet_matrix addon not available');
 			return null;
 		}
 
-		if (!larpnet_matrix_settings() || !larpnet_matrix_localpart($nickname)) {
-			return null;
-		}
-
-		return 'larpnet_matrix?dm=' . urlencode($nickname);
+		return larpnet_matrix_chat_link_for_nickname($nickname);
 	}
 
 	/**

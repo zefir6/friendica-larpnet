@@ -38,6 +38,7 @@ use Friendica\Core\Hook;
 use Friendica\DI;
 use Friendica\Model\Contact;
 use Friendica\Model\Photo;
+use Friendica\Model\Profile;
 use Friendica\Model\User;
 use Friendica\Module\BaseApi;
 
@@ -87,15 +88,42 @@ function larpnet_matrix_settings(): ?array
 
 /**
  * The Matrix localpart for a larpnet nickname (lower-cased), or null if it
- * isn't valid for Matrix. Shared with src/Model/Profile.php's
- * getMatrixChatLink() (require_once's this file, same pattern as
- * src/Worker/FcmPush.php + addon/larpnet_fcm) so "can this user be reached
- * via chat" can't drift from what larpnet_matrix_identity() actually mints.
+ * isn't valid for Matrix. Used by larpnet_matrix_chat_link_for_nickname()
+ * below (itself the single source of truth every core-file call site goes
+ * through, via src/Model/Profile.php's getMatrixChatLink()) so "can this
+ * user be reached via chat" can't drift from what larpnet_matrix_identity()
+ * actually mints.
  */
 function larpnet_matrix_localpart(string $nickname): ?string
 {
 	$sub = strtolower($nickname);
 	return preg_match('/^[a-z0-9._=\-\/+]+$/', $sub) ? $sub : null;
+}
+
+/**
+ * The Chat deep link for a nickname, or null if chat isn't configured or
+ * this isn't actually a real local user -- the single authoritative check
+ * for "can this nickname be reached via chat," used from every core-file
+ * call site that offers a Chat entry point (src/Model/Profile.php's own
+ * profile page, src/Module/Contact.php's contact/directory listings, ...).
+ * Unlike larpnet_matrix_localpart() alone, this re-validates against the
+ * real user table rather than trusting the caller's context: a directory
+ * or contact-list row's `nick` field is just a denormalized copy from
+ * whenever the contact was added, not a guarantee it's a genuinely local
+ * account (a remote contact could coincidentally share a nickname string
+ * with an unrelated local user) -- same reasoning as
+ * larpnet_matrix_dm_localpart()'s own re-validation of `?dm=`.
+ */
+function larpnet_matrix_chat_link_for_nickname(?string $nickname): ?string
+{
+	if (!$nickname || !larpnet_matrix_settings()) {
+		return null;
+	}
+	$user = User::getByNickname($nickname, ['nickname']);
+	if (!$user || !larpnet_matrix_localpart($user['nickname'])) {
+		return null;
+	}
+	return 'larpnet_matrix?dm=' . urlencode($user['nickname']);
 }
 
 /**
@@ -145,6 +173,35 @@ function larpnet_matrix_dm_localpart(): ?string
 
 	$target = User::getByNickname($nickname, ['nickname']);
 	return $target ? larpnet_matrix_localpart($target['nickname']) : null;
+}
+
+/**
+ * The picker list for the client's own "start a new chat" button --
+ * everyone else Profile::searchProfiles() would list (same population, same
+ * privacy semantics, as the existing Site Directory: verified, not
+ * blocked/removed, and opted into `publish` unless the site publishes all
+ * profiles) with a valid Matrix localpart. Reuses that method rather than
+ * inventing a separate "who's chattable" population, so this list can't
+ * drift from what the Directory already shows as publicly listed.
+ */
+function larpnet_matrix_contact_list(int $excludeUid): array
+{
+	$profiles = Profile::searchProfiles(0, 500)['entries'];
+
+	$out = [];
+	foreach ($profiles as $p) {
+		if ((int) ($p['uid'] ?? 0) === $excludeUid) {
+			continue;
+		}
+		$sub = larpnet_matrix_localpart($p['nickname'] ?? '');
+		if (!$sub) {
+			continue;
+		}
+		$out[] = ['nickname' => $p['nickname'], 'name' => $p['name'] ?: $p['nickname']];
+	}
+
+	usort($out, fn($a, $b) => strcasecmp($a['name'], $b['name']));
+	return $out;
 }
 
 /**
@@ -309,6 +366,7 @@ function larpnet_matrix_content(): string
 		'jwt'           => $identity['token'],
 		'dm'            => larpnet_matrix_dm_localpart(),
 		'deviceName'    => 'larpnet web',
+		'contacts'      => larpnet_matrix_contact_list((int) $uid),
 	];
 
 	// Raw exit, not a normal module return: this is meant to be a clean
