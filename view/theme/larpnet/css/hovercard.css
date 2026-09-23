@@ -331,6 +331,12 @@
 
 .hover-card-actions {
 	display: flex;
+	/* The card has a fixed width (350px) but the number of action buttons
+	   varies per contact (pm/mention/edit/follow/unfollow, soon +chat) --
+	   without wrap, buttons past the first row/whatever fits just overflow
+	   past the card's right edge instead of dropping to a new line. */
+	flex-wrap: wrap;
+	gap: 4px;
 }
 
 .hover-card-actions-connection {

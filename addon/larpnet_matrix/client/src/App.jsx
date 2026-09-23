@@ -2,12 +2,33 @@ import { useEffect, useState, useCallback } from 'preact/hooks';
 import { loginAndStart, dmTargetMxid, findOrCreateDirectRoom } from './matrix.js';
 import { RoomList } from './RoomList.jsx';
 import { Conversation } from './Conversation.jsx';
+import { ContactPicker } from './ContactPicker.jsx';
+
+// Remembers the popup's own initial size/position (set by
+// js/matrix-chat-widget.js's window.open features) so the maximize button
+// has something to restore back to.
+const initialWindowRect = { x: window.screenX, y: window.screenY, w: window.outerWidth, h: window.outerHeight };
+
+function toggleFullWindow(setIsFull) {
+  setIsFull((wasFull) => {
+    if (wasFull) {
+      window.resizeTo(initialWindowRect.w, initialWindowRect.h);
+      window.moveTo(initialWindowRect.x, initialWindowRect.y);
+    } else {
+      window.moveTo(0, 0);
+      window.resizeTo(window.screen.availWidth, window.screen.availHeight);
+    }
+    return !wasFull;
+  });
+}
 
 export function App({ config }) {
   const [client, setClient] = useState(null);
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [error, setError] = useState(null);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
+  const [isFullWindow, setIsFullWindow] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
   // Bumped on any client event that could change what's on screen (new
   // room, new message, membership change...) -- components re-read live
   // state off `client` directly rather than duplicating it, so this is
@@ -66,10 +87,39 @@ export function App({ config }) {
     .filter((r) => r.getMyMembership() === 'join' || r.getMyMembership() === 'invite')
     .sort((a, b) => (b.getLastActiveTimestamp() || 0) - (a.getLastActiveTimestamp() || 0));
 
+  const handlePick = async (nickname) => {
+    setShowPicker(false);
+    const targetMxid = '@' + nickname + ':' + config.serverName;
+    const roomId = await findOrCreateDirectRoom(client, targetMxid);
+    setSelectedRoomId(roomId);
+  };
+
   return (
     <div class="lnc-app">
-      <RoomList rooms={rooms} selectedRoomId={selectedRoomId} onSelect={setSelectedRoomId} client={client} />
-      <Conversation client={client} roomId={selectedRoomId} />
+      <div class="lnc-header">
+        <span class="lnc-header-title">Czat</span>
+        <button
+          type="button"
+          class="lnc-header-btn"
+          title={isFullWindow ? 'Przywróć rozmiar okna' : 'Pełne okno'}
+          onClick={() => toggleFullWindow(setIsFullWindow)}
+        >
+          {isFullWindow ? 'Przywróć' : 'Pełny ekran'}
+        </button>
+      </div>
+      <div class="lnc-body">
+        <RoomList
+          rooms={rooms}
+          selectedRoomId={selectedRoomId}
+          onSelect={setSelectedRoomId}
+          client={client}
+          onNewChat={() => setShowPicker(true)}
+        />
+        <Conversation client={client} roomId={selectedRoomId} />
+      </div>
+      {showPicker && (
+        <ContactPicker contacts={config.contacts || []} onPick={handlePick} onClose={() => setShowPicker(false)} />
+      )}
     </div>
   );
 }
