@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'preact/hooks';
 import { Composer } from './Composer.jsx';
+import { resolveDisplayName } from './matrix.js';
 
-export function Conversation({ client, roomId }) {
+export function Conversation({ client, roomId, contacts }) {
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -34,7 +35,11 @@ export function Conversation({ client, roomId }) {
           const failed = ev.isDecryptionFailure?.();
           return (
             <div key={ev.getId()} class={'lnc-message' + (mine ? ' lnc-message-mine' : '')}>
-              {!mine && <div class="lnc-message-sender">{room.getMember(ev.getSender())?.name || ev.getSender()}</div>}
+              {!mine && (
+                <div class="lnc-message-sender">
+                  {resolveDisplayName(ev.getSender(), contacts) || room.getMember(ev.getSender())?.name || ev.getSender()}
+                </div>
+              )}
               <div class="lnc-message-body">
                 {failed ? <em>Nie można odszyfrować wiadomości</em> : ev.getContent().body}
               </div>
