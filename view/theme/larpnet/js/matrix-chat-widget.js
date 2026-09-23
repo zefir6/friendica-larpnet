@@ -1,56 +1,98 @@
-// Facebook/Google-Chat style floating chat bubble, on every page, that
-// opens the larpnet_matrix chat client in its own popup window (not an
-// embedded <iframe>).
+// Facebook/Google-Chat style floating chat widget: a bubble in the corner
+// that expands into an in-page overlay panel embedding the larpnet_matrix
+// client in an <iframe>.
 //
-// Why a popup window and not an iframe: an earlier iframe-embedded version
-// of this widget hit a reliable "Unable to restore session" crypto-store
-// corruption bug. Root cause, confirmed by live testing: Friendica is a
-// classic multi-page app, so every click-through to a new Friendica page
-// destroyed and recreated the iframe (and the Matrix client rebooting
-// inside it), racing the browser's IndexedDB connection teardown for the
-// crypto store against the next boot's connection open. A popup window is
-// its own top-level browsing context: it survives every Friendica page
-// navigation in the *parent* tab untouched, so the chat client inside it
-// only ever boots once per real session instead of once per page click.
+// This embeds in-page (not a popup window) per explicit user preference.
+// An earlier version of this widget used a popup window instead, because an
+// EARLIER iframe-embedded design (still redirecting into a separately
+// hosted Element Web at the time) hit a reliable "Unable to restore
+// session" crypto-store corruption bug. Re-examining that bug's actual
+// confirmed root cause: it was the old bridge page's `?jwt=` handoff
+// SKIPPING a real login and hand-seeding a previous session's tokens into
+// localStorage whenever one already existed, leaving Element's crypto
+// engine to cold-boot-restore a session it never itself logged into. This
+// addon's own client (client/src/matrix.js) never does that -- every boot
+// does one real, fresh JWT login, iframe or not -- so that specific
+// mechanism no longer applies. The separate, never-fully-confirmed
+// suspicion (destroying/recreating the iframe's crypto store across page
+// navigations racing IndexedDB teardown) is mitigated best-effort by the
+// client itself calling stopClient() on pagehide -- see matrix.js. If this
+// turns out to still be unsafe in practice, that's the thing to revisit
+// (e.g. back to a popup window styled to sit in the corner), not something
+// to silently paper over.
 //
 // window.openMatrixChat(nickname) is the public entry point -- called from
 // the "Chat" button on another local user's profile page (see vcard.tpl),
-// as well as usable by this bubble itself. Injected only when chat is
-// actually configured -- see larpnet_head() in theme.php, which sets
-// window.LarpnetMatrixChat before this file is loaded.
+// contact/directory rows (see contact/entry.tpl), as well as usable by this
+// bubble itself. Injected only when chat is actually configured -- see
+// larpnet_head() in theme.php, which sets window.LarpnetMatrixChat before
+// this file is loaded.
 (function () {
   if (!window.LarpnetMatrixChat) {
     return;
   }
   var chatUrl = window.LarpnetMatrixChat.chatUrl;
 
-  // A fixed window.open target name: calling window.open again with the
-  // same name re-navigates and focuses the SAME popup instead of spawning
-  // a new one, so switching DM targets from different profile pages still
-  // reuses one chat window/session.
-  var POPUP_NAME = 'larpnet-chat';
-  var POPUP_FEATURES = 'width=380,height=640,resizable=yes,scrollbars=yes';
-
-  function openPopup(dm) {
-    var url = chatUrl + (dm ? '?dm=' + encodeURIComponent(dm) : '');
-    var win = window.open(url, POPUP_NAME, POPUP_FEATURES);
-    if (win) {
-      win.focus();
-    }
-  }
+  var bubble, panel, currentDm, loaded = false;
 
   function build() {
-    var bubble = document.createElement('button');
+    bubble = document.createElement('button');
     bubble.type = 'button';
     bubble.id = 'larpnet-chat-bubble';
     bubble.setAttribute('aria-label', 'Czat');
+    bubble.setAttribute('aria-expanded', 'false');
     bubble.innerHTML = '<i class="ri ri-message-3-line" aria-hidden="true"></i>';
-    bubble.addEventListener('click', function () { openPopup(null); });
+    bubble.addEventListener('click', function () { toggle(); });
+
+    panel = document.createElement('div');
+    panel.id = 'larpnet-chat-panel';
+    panel.innerHTML = '<div id="larpnet-chat-panel-body"></div>';
+
     document.body.appendChild(bubble);
+    document.body.appendChild(panel);
+  }
+
+  function ensureIframe(dm) {
+    if (loaded && dm === currentDm) {
+      return;
+    }
+    var body = panel.querySelector('#larpnet-chat-panel-body');
+    body.innerHTML = '';
+    var iframe = document.createElement('iframe');
+    iframe.title = 'Czat';
+    iframe.allow = 'clipboard-write; microphone; camera; storage-access';
+    iframe.src = chatUrl + (dm ? '?dm=' + encodeURIComponent(dm) : '');
+    body.appendChild(iframe);
+    loaded = true;
+    currentDm = dm || null;
+  }
+
+  function open(dm) {
+    ensureIframe(dm || null);
+    panel.classList.add('open');
+    bubble.classList.add('open');
+    bubble.setAttribute('aria-expanded', 'true');
+  }
+
+  function close() {
+    panel.classList.remove('open');
+    bubble.classList.remove('open');
+    bubble.setAttribute('aria-expanded', 'false');
+  }
+
+  function toggle() {
+    if (panel.classList.contains('open')) {
+      close();
+    } else {
+      open(currentDm);
+    }
   }
 
   window.openMatrixChat = function (nickname) {
-    openPopup(nickname || null);
+    if (!bubble) {
+      build();
+    }
+    open(nickname || null);
   };
 
   if (document.readyState === 'loading') {

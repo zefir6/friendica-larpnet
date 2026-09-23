@@ -1,8 +1,8 @@
-/* Facebook/Google-Chat style floating chat bubble that opens the chat
- * client in its own popup window (see js/matrix-chat-widget.js for why a
- * popup window rather than an embedded iframe). Color matches the site's
- * own brand purple (#833c89 topbar/buttons, sampled from the live theme)
- * rather than looking like a foreign embedded app. */
+/* Facebook/Google-Chat style floating chat bubble + in-page overlay panel
+ * (see js/matrix-chat-widget.js for why this is an iframe overlay rather
+ * than a popup window). Color matches the site's own brand purple
+ * (#833c89 topbar/buttons, sampled from the live theme) rather than
+ * looking like a foreign embedded app. */
 
 #larpnet-chat-bubble {
   position: fixed;
@@ -21,7 +21,7 @@
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-  z-index: 1050;
+  z-index: 1051;
   transition: transform 0.15s ease;
 }
 
@@ -29,9 +29,73 @@
   transform: scale(1.06);
 }
 
+#larpnet-chat-panel {
+  position: fixed;
+  right: 24px;
+  bottom: 92px;
+  width: 380px;
+  height: 600px;
+  max-height: calc(100vh - 116px);
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  z-index: 1050;
+  transform: translateY(16px) scale(0.98);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+
+#larpnet-chat-panel.open {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Toggled by the client itself (client/src/App.jsx's "Pełny ekran" button,
+ * same-origin DOM access into the parent page) when embedded in this
+ * overlay -- expands the panel to fill the viewport instead of trying
+ * (and failing) to resize the real browser window from inside an iframe. */
+#larpnet-chat-panel.larpnet-chat-panel-maximized {
+  right: 0;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  border-radius: 0;
+}
+
+#larpnet-chat-panel-body {
+  width: 100%;
+  height: 100%;
+}
+
+#larpnet-chat-panel-body iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
 @media (max-width: 480px) {
   #larpnet-chat-bubble {
     right: 16px;
     bottom: 16px;
+  }
+
+  #larpnet-chat-panel {
+    right: 0;
+    left: 0;
+    bottom: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    border-radius: 0;
   }
 }

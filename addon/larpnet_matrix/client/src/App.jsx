@@ -4,14 +4,32 @@ import { RoomList } from './RoomList.jsx';
 import { Conversation } from './Conversation.jsx';
 import { ContactPicker } from './ContactPicker.jsx';
 
-// Remembers the popup's own initial size/position (set by
-// js/matrix-chat-widget.js's window.open features) so the maximize button
-// has something to restore back to.
+// Whether this client is running inside the widget's iframe overlay (see
+// js/matrix-chat-widget.js) rather than as its own top-level window/tab
+// (e.g. a direct navigation to /larpnet_matrix, the JS-disabled fallback
+// vcard.tpl's Chat link href points at). Each case needs a different
+// "full window" mechanism -- an iframe can't resize the real browser
+// window it's embedded in, so it asks the parent page to expand the
+// overlay panel itself (same-origin, so this is a plain direct call, no
+// postMessage needed) instead of calling window.resizeTo like a real
+// top-level window can.
+const isEmbedded = window.top !== window.self;
+
+// Remembers a real top-level window's own initial size/position so the
+// maximize button has something to restore back to. Meaningless (and
+// unused) when isEmbedded.
 const initialWindowRect = { x: window.screenX, y: window.screenY, w: window.outerWidth, h: window.outerHeight };
 
 function toggleFullWindow(setIsFull) {
   setIsFull((wasFull) => {
-    if (wasFull) {
+    if (isEmbedded) {
+      try {
+        const panel = window.parent.document.getElementById('larpnet-chat-panel');
+        panel?.classList.toggle('larpnet-chat-panel-maximized', !wasFull);
+      } catch (e) {
+        // cross-origin or parent gone -- nothing we can do
+      }
+    } else if (wasFull) {
       window.resizeTo(initialWindowRect.w, initialWindowRect.h);
       window.moveTo(initialWindowRect.x, initialWindowRect.y);
     } else {
@@ -29,6 +47,7 @@ export function App({ config }) {
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [isFullWindow, setIsFullWindow] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const [roomListCollapsed, setRoomListCollapsed] = useState(false);
   // Bumped on any client event that could change what's on screen (new
   // room, new message, membership change...) -- components re-read live
   // state off `client` directly rather than duplicating it, so this is
@@ -57,6 +76,7 @@ export function App({ config }) {
           const roomId = await findOrCreateDirectRoom(c, targetMxid);
           if (!cancelled) {
             setSelectedRoomId(roomId);
+            setRoomListCollapsed(true);
           }
         }
       } catch (e) {
@@ -87,16 +107,32 @@ export function App({ config }) {
     .filter((r) => r.getMyMembership() === 'join' || r.getMyMembership() === 'invite')
     .sort((a, b) => (b.getLastActiveTimestamp() || 0) - (a.getLastActiveTimestamp() || 0));
 
+  // Selecting a conversation auto-collapses the room list -- there isn't
+  // much width to spare in the overlay panel, and once you're in a
+  // conversation the list is one click away again via the toggle.
+  const selectRoom = (roomId) => {
+    setSelectedRoomId(roomId);
+    setRoomListCollapsed(true);
+  };
+
   const handlePick = async (nickname) => {
     setShowPicker(false);
     const targetMxid = '@' + nickname + ':' + config.serverName;
     const roomId = await findOrCreateDirectRoom(client, targetMxid);
-    setSelectedRoomId(roomId);
+    selectRoom(roomId);
   };
 
   return (
     <div class="lnc-app">
       <div class="lnc-header">
+        <button
+          type="button"
+          class="lnc-header-btn"
+          title={roomListCollapsed ? 'Pokaż rozmowy' : 'Zwiń rozmowy'}
+          onClick={() => setRoomListCollapsed((c) => !c)}
+        >
+          Rozmowy
+        </button>
         <span class="lnc-header-title">Czat</span>
         <button
           type="button"
@@ -111,9 +147,10 @@ export function App({ config }) {
         <RoomList
           rooms={rooms}
           selectedRoomId={selectedRoomId}
-          onSelect={setSelectedRoomId}
+          onSelect={selectRoom}
           client={client}
           onNewChat={() => setShowPicker(true)}
+          collapsed={roomListCollapsed}
         />
         <Conversation client={client} roomId={selectedRoomId} />
       </div>
