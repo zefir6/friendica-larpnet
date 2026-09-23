@@ -50,8 +50,29 @@ export async function loginAndStart(cfg) {
   await client.initRustCrypto();
 
   await client.startClient({ initialSyncLimit: 30 });
+  // startClient() resolves once the sync loop is STARTED, not once rooms
+  // are actually populated -- calling findOrCreateDirectRoom() right after
+  // it (before this) saw an empty room list every time and created a fresh
+  // duplicate DM room on every single popup open. Wait for the first
+  // completed sync (state -> 'PREPARED') before the caller looks at rooms.
+  await waitForInitialSync(client);
 
   return client;
+}
+
+function waitForInitialSync(client) {
+  return new Promise((resolve, reject) => {
+    const onSync = (state) => {
+      if (state === 'PREPARED') {
+        client.removeListener('sync', onSync);
+        resolve();
+      } else if (state === 'ERROR') {
+        client.removeListener('sync', onSync);
+        reject(new Error('Initial sync failed'));
+      }
+    };
+    client.on('sync', onSync);
+  });
 }
 
 export function dmTargetMxid(cfg) {
