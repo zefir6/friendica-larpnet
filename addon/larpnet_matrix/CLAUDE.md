@@ -55,6 +55,39 @@ an oversight:
   here, it must use a key generated client-side and shown to the user once,
   never known by the server.
 
+## Matrix displayname sync -- why it matters for names shown to *other* users
+
+Matrix's own displayname for an account is only ever set by that account
+setting it on itself. `larpnet_matrix_sync_profile()` pushes the
+currently-authenticated user's own larpnet name to their own Matrix profile
+on each throttled page load -- but that only ever covers the *viewer*.
+Anyone who's never opened chat has no Matrix displayname at all, so they'd
+show up to *everyone else* as a raw `@localpart:server` mxid -- in the room
+list, and in any group room they're a member of (matrix-js-sdk's own
+multi-member room-name summary reads each member's real Matrix
+displayname, so this isn't just a room-list cosmetic issue).
+
+Three layers close this gap, each covering what the one before it misses:
+1. `client/src/matrix.js`'s `resolveDisplayName()` -- client-side, maps a
+   mxid back to a Friendica name via `config.contacts` (same list the
+   picker uses). Instant, but only covers 1:1 DMs with a *published*
+   profile, and doesn't fix group-room naming (that comes from Matrix's
+   own summary, not this client's rendering).
+2. `larpnet_matrix_content()` syncing the active `?dm=` target's own
+   Matrix profile, not just the viewer's. Fixes it at the source (once
+   synced, *everyone* sees that person's real name, including in group
+   rooms), but only for users someone has actually opened a DM with via
+   that route (not e.g. someone only ever reached through the picker).
+3. `larpnet_matrix_cron()` (registered on the `cron` hook) -- eventually
+   syncs every local user, closing the remaining gap (picker-only
+   contacts, group members never DMed directly). **Only fires on a
+   deployment with an active worker daemon.** The test stack deliberately
+   has none (see root `CLAUDE.md`'s "Test/staging environment" isolation
+   design) -- this is inert there by construction, not a bug, and can't be
+   live-verified on `test.larpnet.pl` for that reason. Verify it (if ever
+   in doubt) on a deployment that actually runs a worker, or by invoking
+   `larpnet_matrix_cron()` manually.
+
 ## Key files
 
 | Path | Purpose |
