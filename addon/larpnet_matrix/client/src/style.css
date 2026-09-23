@@ -1,0 +1,157 @@
+/* Larpnet's own chat client -- colors match the site's own brand purple
+   (#833c89 topbar/buttons, #a54bad link accent), sampled live from
+   test.larpnet.pl, same values the old Element custom theme used. */
+:root {
+  --lnc-accent: #833c89;
+  --lnc-accent-light: #f5eef6;
+  --lnc-border: #e3d5e6;
+  --lnc-text: #2e2f32;
+  --lnc-text-secondary: #6b4a70;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--lnc-text);
+}
+
+.lnc-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+  color: var(--lnc-text-secondary);
+}
+
+.lnc-status-error {
+  color: #b50404;
+}
+
+.lnc-app {
+  display: flex;
+  height: 100%;
+}
+
+.lnc-room-list {
+  width: 220px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  background: var(--lnc-accent-light);
+  border-right: 1px solid var(--lnc-border);
+}
+
+.lnc-room-list-empty {
+  padding: 16px;
+  color: var(--lnc-text-secondary);
+  font-size: 0.9em;
+}
+
+.lnc-room-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--lnc-border);
+  cursor: pointer;
+  color: var(--lnc-text);
+  font-size: 0.95em;
+}
+
+.lnc-room-item:hover {
+  background: #ffffff;
+}
+
+.lnc-room-item-active {
+  background: #ffffff;
+  font-weight: 600;
+  color: var(--lnc-accent);
+}
+
+.lnc-conversation {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lnc-timeline {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.lnc-message {
+  max-width: 75%;
+  margin-bottom: 10px;
+}
+
+.lnc-message-sender {
+  font-size: 0.8em;
+  color: var(--lnc-text-secondary);
+  margin-bottom: 2px;
+}
+
+.lnc-message-body {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--lnc-accent-light);
+  word-break: break-word;
+}
+
+.lnc-message-mine {
+  margin-left: auto;
+  text-align: right;
+}
+
+.lnc-message-mine .lnc-message-body {
+  background: var(--lnc-accent);
+  color: #ffffff;
+}
+
+.lnc-composer {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--lnc-border);
+}
+
+.lnc-composer input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--lnc-border);
+  border-radius: 20px;
+  font-size: 0.95em;
+}
+
+.lnc-composer input:focus {
+  outline: none;
+  border-color: var(--lnc-accent);
+}
+
+.lnc-composer button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 20px;
+  background: var(--lnc-accent);
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.lnc-composer button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

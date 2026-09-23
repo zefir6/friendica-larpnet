@@ -1,28 +1,36 @@
 <?php
 /**
  * Name: LARPnet Matrix Chat
- * Description: Login bridge between a larpnet account and the self-hosted Synapse
- *   homeserver. Mints a 60-second HS256 JWT per user that clients trade at Synapse's
- *   standard /login (type org.matrix.login.jwt) for a normal Matrix access token, so
- *   no second password exists. GET /larpnet_matrix renders the chat widget (Element
- *   Web in an iframe) for a logged-in web user; POST /larpnet_matrix returns the
- *   identity + JWT as JSON to an OAuth2-authenticated native app. Inert unless the
- *   LARPNET_MATRIX_* environment variables are set.
+ * Description: Login bridge AND same-origin host for larpnet's own minimal Matrix
+ *   web client (client/, Preact + matrix-js-sdk -- see CLAUDE.md). Mints a
+ *   60-second HS256 JWT per user that the client trades at Synapse's standard
+ *   /login (type org.matrix.login.jwt) for a normal Matrix access token, so no
+ *   second password exists. GET /larpnet_matrix serves the client's HTML shell
+ *   for a logged-in web user, with a fresh JWT injected inline; GET
+ *   /larpnet_matrix/<asset path> serves the client's own built JS/CSS/wasm
+ *   (client/dist/, same-origin, no separate chat subdomain). POST
+ *   /larpnet_matrix returns the identity + JWT as JSON to an OAuth2-authenticated
+ *   native app. Inert unless the LARPNET_MATRIX_* environment variables are set.
  *
- *   GET /larpnet_matrix?dm=<nickname> deep-links the same widget straight into a
- *   DM with that other local user (src/Model/Profile.php's "Chat" link on a
- *   profile page builds this) -- chat/sso.html carries the target through the
- *   SSO handoff and opens Element's #/user/<mxid> panel once logged in.
+ *   GET /larpnet_matrix?dm=<nickname> deep-links straight into a DM with that
+ *   other local user (src/Model/Profile.php's "Chat" link on a profile page
+ *   builds this) -- the target's localpart is injected into the client's config
+ *   and it resolves/creates the DM room itself on load.
  *
  *   On each (throttled) page load, also pushes the user's larpnet display
  *   name + avatar to their Matrix profile via a server-side login against
  *   LARPNET_MATRIX_INTERNAL_URL -- see larpnet_matrix_sync_profile().
  *
- *   Does NOT attempt silent E2EE device verification (tried and reverted --
- *   see chat/sso.html in larpnet-config for why: bootstrapping crypto state
- *   with a separately-versioned matrix-js-sdk broke Element's own session
- *   restore instead of just suppressing its "Verify this device" prompt).
- * Version: 1.4
+ *   Does NOT implement any device-verification UI -- see CLAUDE.md "Why
+ *   there's no device verification UI". A single device can encrypt/decrypt
+ *   without cross-signing; that's only needed for cross-device trust, which
+ *   this client doesn't model. An earlier version of the previous
+ *   (Element-embedding) design tried silently bootstrapping cross-signing
+ *   with a separately-versioned matrix-js-sdk and broke Element's own session
+ *   restore instead -- moot now that this addon owns the whole client, but
+ *   the underlying lesson (don't derive/hold secret-storage keys ourselves)
+ *   still applies, see CLAUDE.md.
+ * Version: 2.0
  * Author: larpnet admin
  */
 
@@ -124,9 +132,11 @@ function larpnet_matrix_jwt(array $claims, string $secret): string
 /**
  * The target of a ?dm=<nickname> deep link, resolved against the real user
  * table rather than trusting the query string directly -- only a nickname
- * that actually exists (and maps to a valid localpart) becomes a mxid.
+ * that actually exists (and maps to a valid localpart) is returned. The
+ * client builds the full mxid itself (localpart + the serverName it's
+ * already given), so this stays a plain localpart, not a mxid.
  */
-function larpnet_matrix_dm_target(string $server): ?string
+function larpnet_matrix_dm_localpart(): ?string
 {
 	$nickname = $_GET['dm'] ?? null;
 	if (!$nickname) {
@@ -134,8 +144,7 @@ function larpnet_matrix_dm_target(string $server): ?string
 	}
 
 	$target = User::getByNickname($nickname, ['nickname']);
-	$sub    = $target ? larpnet_matrix_localpart($target['nickname']) : null;
-	return $sub ? '@' . $sub . ':' . $server : null;
+	return $target ? larpnet_matrix_localpart($target['nickname']) : null;
 }
 
 /**
@@ -210,15 +219,77 @@ function larpnet_matrix_sync_profile(int $uid, array $identity, array $settings)
 }
 
 /**
- * GET /larpnet_matrix — the chat widget for a logged-in web user. The JWT goes
- * in the URL fragment (never sent to a server or logged) of the chat host's
- * sso.html, which logs in and opens Element. An optional ?dm=<nickname>
- * (used by the "Chat" link on another local user's profile page) is passed
- * through the same fragment so sso.html can open a DM with them once logged
- * in, instead of just landing on Element's default view.
+ * Extension -> Content-Type for files under client/dist/. Anything not
+ * listed here is refused (see larpnet_matrix_serve_asset()) rather than
+ * guessed, so this route can never be used to serve an arbitrary file type.
+ */
+const LARPNET_MATRIX_ASSET_TYPES = [
+	'js'   => 'application/javascript; charset=utf-8',
+	'css'  => 'text/css; charset=utf-8',
+	'wasm' => 'application/wasm',
+	'map'  => 'application/json; charset=utf-8',
+];
+
+/**
+ * Serves one static file out of client/dist/ (the built chat client -- see
+ * client/package.json's build script) and exits. Path segments come from
+ * the request's own argv (e.g. GET /larpnet_matrix/pkg/foo.wasm ->
+ * ['pkg', 'foo.wasm']), never trusted as a literal filesystem path: each
+ * segment is checked against a plain filename pattern (rejects '..', '/',
+ * hidden files) before being joined, and the final realpath() must still
+ * land inside dist/ -- defense in depth, same spirit as core's
+ * src/Module/Photo.php raw-response pattern this addon already follows for
+ * the JSON API branch below.
+ *
+ * No cache-busting/hashed filenames in this build (see client/build.mjs),
+ * so responses are marked no-cache rather than long-lived -- a redeploy
+ * must not leave a browser tab stuck on a stale bundle indefinitely.
+ */
+function larpnet_matrix_serve_asset(array $segments): void
+{
+	// Note: '..' (and '.') match the character class below on their own --
+	// they must be rejected explicitly, not just by restricting characters.
+	$safe = array_filter($segments, fn($s) => $s !== '' && $s !== '.' && $s !== '..' && preg_match('/^[a-zA-Z0-9._-]+$/', $s));
+	if (count($safe) !== count($segments)) {
+		http_response_code(404);
+		exit;
+	}
+
+	$distRoot = realpath(__DIR__ . '/client/dist');
+	$path     = $distRoot ? realpath($distRoot . '/' . implode('/', $segments)) : false;
+	if (!$path || !$distRoot || !str_starts_with($path, $distRoot . DIRECTORY_SEPARATOR)) {
+		http_response_code(404);
+		exit;
+	}
+
+	$ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+	if (!isset(LARPNET_MATRIX_ASSET_TYPES[$ext])) {
+		http_response_code(404);
+		exit;
+	}
+
+	header('Content-Type: ' . LARPNET_MATRIX_ASSET_TYPES[$ext]);
+	header('Cache-Control: no-cache');
+	echo file_get_contents($path);
+	exit;
+}
+
+/**
+ * GET /larpnet_matrix[/<asset path>] — with no extra path segments, the chat
+ * client's HTML shell for a logged-in web user, with a fresh login JWT and
+ * (if ?dm=<nickname> was given, see larpnet_matrix_dm_localpart()) a DM
+ * target injected inline as window.LARPNET_CHAT_CONFIG. With extra path
+ * segments, one of the client's own built static files (see
+ * larpnet_matrix_serve_asset()) -- same route, same origin, so the browser
+ * never talks to a separate chat host at all.
  */
 function larpnet_matrix_content(): string
 {
+	$argv = DI::args()->getArgv();
+	if (count($argv) > 1) {
+		larpnet_matrix_serve_asset(array_slice($argv, 1));
+	}
+
 	$uid = DI::userSession()->getLocalUserId();
 	if (!$uid) {
 		return '<p>' . DI::l10n()->t('Please log in to use chat.') . '</p>';
@@ -232,28 +303,27 @@ function larpnet_matrix_content(): string
 
 	larpnet_matrix_sync_profile((int) $uid, $identity, $settings);
 
-	$src = $identity['homeserver'] . '/sso.html#jwt=' . $identity['token'];
-	$dm  = larpnet_matrix_dm_target($settings['server']);
-	if ($dm) {
-		$src .= '&dm=' . urlencode($dm);
-	}
+	$config = [
+		'homeserverUrl' => $settings['url'],
+		'serverName'    => $settings['server'],
+		'jwt'           => $identity['token'],
+		'dm'            => larpnet_matrix_dm_localpart(),
+		'deviceName'    => 'larpnet web',
+	];
 
-	// ?embed=1 (used only by the floating popup widget's own <iframe>, see
-	// js/matrix-chat-widget.js) redirects straight to the chat host instead
-	// of rendering the normal full Friendica page below -- otherwise the
-	// widget's iframe would show this ENTIRE page (nav bar and all) with
-	// *its own* nested iframe inside, not a clean chat popup.
-	if (!empty($_GET['embed'])) {
-		header('Location: ' . $src);
-		exit;
-	}
-
-	// storage-access: without it, some browsers (notably Safari, Firefox)
-	// partition or block IndexedDB for a cross-origin iframe like this one,
-	// which Element reads as "browser not supported" even though it's
-	// really just storage access -- not an actual compatibility problem.
-	return '<iframe src="' . htmlspecialchars($src) . '" title="Chat" allow="clipboard-write; microphone; camera; storage-access" '
-		. 'style="width:100%;height:80vh;min-height:480px;border:0;"></iframe>';
+	// Raw exit, not a normal module return: this is meant to be a clean
+	// standalone document (its own popup window, see
+	// js/matrix-chat-widget.js), not wrapped in Friendica's own page chrome
+	// (nav bar, sidebar) the way a plain _content() string return would be.
+	header('Content-Type: text/html; charset=utf-8');
+	echo '<!doctype html><html><head><meta charset="utf-8">'
+		. '<title>Czat</title>'
+		. '<link rel="stylesheet" href="larpnet_matrix/app.css">'
+		. '</head><body><div id="app"></div>'
+		. '<script>window.LARPNET_CHAT_CONFIG = ' . json_encode($config) . ';</script>'
+		. '<script type="module" src="larpnet_matrix/app.js"></script>'
+		. '</body></html>';
+	exit;
 }
 
 /**

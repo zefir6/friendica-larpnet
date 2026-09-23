@@ -1,0 +1,75 @@
+import { useEffect, useState, useCallback } from 'preact/hooks';
+import { loginAndStart, dmTargetMxid, findOrCreateDirectRoom } from './matrix.js';
+import { RoomList } from './RoomList.jsx';
+import { Conversation } from './Conversation.jsx';
+
+export function App({ config }) {
+  const [client, setClient] = useState(null);
+  const [status, setStatus] = useState('loading'); // loading | ready | error
+  const [error, setError] = useState(null);
+  const [selectedRoomId, setSelectedRoomId] = useState(null);
+  // Bumped on any client event that could change what's on screen (new
+  // room, new message, membership change...) -- components re-read live
+  // state off `client` directly rather than duplicating it, so this is
+  // just a re-render trigger, not a data store.
+  const [tick, setTick] = useState(0);
+  const bump = useCallback(() => setTick((t) => t + 1), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const c = await loginAndStart(config);
+        if (cancelled) {
+          return;
+        }
+        c.on('Room', bump);
+        c.on('Room.timeline', bump);
+        c.on('Room.name', bump);
+        c.on('RoomMember.membership', bump);
+        c.on('sync', bump);
+        setClient(c);
+        setStatus('ready');
+
+        const targetMxid = dmTargetMxid(config);
+        if (targetMxid) {
+          const roomId = await findOrCreateDirectRoom(c, targetMxid);
+          if (!cancelled) {
+            setSelectedRoomId(roomId);
+          }
+        }
+      } catch (e) {
+        console.error('larpnet chat: login failed', e);
+        if (!cancelled) {
+          setError(e);
+          setStatus('error');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // config is injected once by the server for this page load; it never
+    // changes during the component's lifetime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (status === 'loading') {
+    return <div class="lnc-status">Logowanie do czatu…</div>;
+  }
+  if (status === 'error') {
+    return <div class="lnc-status lnc-status-error">Nie udało się zalogować do czatu.<br />{String(error?.message || error)}</div>;
+  }
+
+  const rooms = client
+    .getRooms()
+    .filter((r) => r.getMyMembership() === 'join' || r.getMyMembership() === 'invite')
+    .sort((a, b) => (b.getLastActiveTimestamp() || 0) - (a.getLastActiveTimestamp() || 0));
+
+  return (
+    <div class="lnc-app">
+      <RoomList rooms={rooms} selectedRoomId={selectedRoomId} onSelect={setSelectedRoomId} client={client} />
+      <Conversation client={client} roomId={selectedRoomId} />
+    </div>
+  );
+}
