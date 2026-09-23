@@ -57,6 +57,20 @@ export async function loginAndStart(cfg) {
   // completed sync (state -> 'PREPARED') before the caller looks at rooms.
   await waitForInitialSync(client);
 
+  // Best-effort: give the crypto store's IndexedDB connection a chance to
+  // close cleanly before this browsing context is torn down (chat is
+  // embedded in an <iframe> again, so a Friendica page navigation destroys
+  // it -- see js/matrix-chat-widget.js's docblock for the history here).
+  // Not a guarantee -- pagehide handlers aren't given unlimited time -- but
+  // better than doing nothing, and cheap to attempt.
+  window.addEventListener('pagehide', () => {
+    try {
+      client.stopClient();
+    } catch (e) {
+      // best-effort only; nothing useful to do if this fails during teardown
+    }
+  });
+
   return client;
 }
 
