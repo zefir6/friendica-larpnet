@@ -71,6 +71,11 @@
 					<i class="ri ri-user-unfollow-line" aria-hidden="true"></i>
 				</a>
 				{{/if}}
+				{{if $contact.photo_menu.chat}}
+				<a class="contact-action-link btn btn-default" href="{{$contact.photo_menu.chat.1}}" onclick="if (window.openMatrixChat) { event.preventDefault(); openMatrixChat('{{$contact.nick}}'); }" data-toggle="tooltip" title="{{$contact.photo_menu.chat.0}}">
+					<i class="ri ri-message-3-line" aria-hidden="true"></i>
+				</a>
+				{{/if}}
 				{{if $contact.photo_menu.hide}}
 				<a class="contact-action-link btn btn-default" href="{{$contact.photo_menu.hide.1}}" data-toggle="tooltip" title="{{$contact.photo_menu.hide.0}}">
 					<i class="ri ri-close-line" aria-hidden="true"></i>
