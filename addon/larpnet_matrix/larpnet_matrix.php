@@ -19,7 +19,11 @@
  *
  *   On each (throttled) page load, also pushes the user's larpnet display
  *   name + avatar to their Matrix profile via a server-side login against
- *   LARPNET_MATRIX_INTERNAL_URL -- see larpnet_matrix_sync_profile().
+ *   LARPNET_MATRIX_INTERNAL_URL -- see larpnet_matrix_sync_profile(). The
+ *   active ?dm= target gets the same treatment (larpnet_matrix_content()),
+ *   and a 'cron' hook (larpnet_matrix_cron()) eventually syncs everyone
+ *   else too, so nobody shows up as a raw @localpart:server mxid to other
+ *   users just for never having opened chat themselves.
  *
  *   Does NOT implement any device-verification UI -- see CLAUDE.md "Why
  *   there's no device verification UI". A single device can encrypt/decrypt
@@ -45,7 +49,52 @@ use Friendica\Module\BaseApi;
 function larpnet_matrix_install()
 {
 	Hook::register('app_menu', __FILE__, 'larpnet_matrix_app_menu');
+	Hook::register('cron', __FILE__, 'larpnet_matrix_cron');
 	DI::logger()->info('installed addon larpnet_matrix');
+}
+
+/**
+ * Periodic bulk sync of every local user's Matrix displayname/avatar --
+ * covers users who show up in a group room or get picked via the client's
+ * own "+ Nowy czat" picker without ever having opened chat themselves
+ * (larpnet_matrix_content()'s per-request sync only ever covers the
+ * viewer and, since larpnet_matrix_dm_localpart() support was added, the
+ * active ?dm= target -- this cron hook is what eventually catches
+ * everyone else). Only fires where a worker daemon actually runs cron
+ * jobs -- the test stack deliberately has none, see CLAUDE.md's
+ * "Test/staging environment" isolation design, so this is inert there by
+ * construction, not a bug.
+ *
+ * Capped at 20 syncs per tick, not "all users every tick": the existing
+ * per-user hourly throttle in larpnet_matrix_sync_profile() means this is
+ * a fast no-op for anyone already synced, but a large *unsynced* backlog
+ * (e.g. right after this feature ships) would otherwise mean one cron
+ * tick doing dozens of serial HTTP round-trips to Synapse. Capping spreads
+ * that backlog over several ticks instead.
+ */
+function larpnet_matrix_cron(): void
+{
+	$settings = larpnet_matrix_settings();
+	if (!$settings || !($settings['internal_url'] ?? null)) {
+		return;
+	}
+
+	$synced = 0;
+	foreach (User::getList(0, 1000, 'active', 'name') as $user) {
+		if ($synced >= 20) {
+			break;
+		}
+		$uid = (int) $user['uid'];
+		if (time() - DI::pConfig()->get($uid, 'larpnet_matrix', 'synced_at', 0) < 3600) {
+			continue;
+		}
+		$identity = larpnet_matrix_identity($uid, $settings);
+		if (!$identity) {
+			continue;
+		}
+		larpnet_matrix_sync_profile($uid, $identity, $settings);
+		$synced++;
+	}
 }
 
 function larpnet_matrix_module() {}
@@ -360,11 +409,31 @@ function larpnet_matrix_content(): string
 
 	larpnet_matrix_sync_profile((int) $uid, $identity, $settings);
 
+	$dm = larpnet_matrix_dm_localpart();
+	// Also sync the DM target's own Matrix name -- not just the viewer's.
+	// Matrix's own displayname for someone is only ever set once *they*
+	// open chat themselves (larpnet_matrix_sync_profile() only pushes the
+	// currently-authenticated user's own name), so anyone who's never
+	// opened chat would otherwise show up as a raw @localpart:server mxid
+	// to everyone else -- in the room list, and in any group room they're
+	// a member of (matrix-js-sdk's own multi-member name summary uses each
+	// member's real Matrix displayname, so this fixes group naming too,
+	// not just the client-side per-DM lookup in client/src/matrix.js).
+	if ($dm) {
+		$target = User::getByNickname($dm, ['uid']);
+		if ($target) {
+			$targetIdentity = larpnet_matrix_identity((int) $target['uid'], $settings);
+			if ($targetIdentity) {
+				larpnet_matrix_sync_profile((int) $target['uid'], $targetIdentity, $settings);
+			}
+		}
+	}
+
 	$config = [
 		'homeserverUrl' => $settings['url'],
 		'serverName'    => $settings['server'],
 		'jwt'           => $identity['token'],
-		'dm'            => larpnet_matrix_dm_localpart(),
+		'dm'            => $dm,
 		'deviceName'    => 'larpnet web',
 		'contacts'      => larpnet_matrix_contact_list((int) $uid),
 		'displayName'   => $identity['displayname'],
