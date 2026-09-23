@@ -289,10 +289,21 @@ function larpnet_matrix_sync_profile(int $uid, array $identity, array $settings)
 		$current     = DI::httpClient()->request('GET', $internal . '/_matrix/client/v3/profile/' . $mxid, ['header' => $auth]);
 		$currentName = $current->isSuccess() ? (json_decode($current->getBodyString(), true)['displayname'] ?? null) : null;
 		if ($currentName !== $identity['displayname']) {
-			DI::httpClient()->request('PUT', $internal . '/_matrix/client/v3/profile/' . $mxid . '/displayname', [
+			$displaynamePut = DI::httpClient()->request('PUT', $internal . '/_matrix/client/v3/profile/' . $mxid . '/displayname', [
 				'body'   => json_encode(['displayname' => $identity['displayname']]),
 				'header' => [...$auth, 'Content-Type: application/json'],
 			]);
+			// Was previously unchecked: a failure here was completely silent
+			// (no warning, and synced_at still got marked below as if it had
+			// worked, blocking a retry for another hour) -- this is what
+			// masked profile sync never actually updating anyone's name.
+			if (!$displaynamePut->isSuccess()) {
+				DI::logger()->warning('larpnet_matrix: profile sync displayname update failed', [
+					'uid'  => $uid,
+					'code' => $displaynamePut->getReturnCode(),
+					'body' => $displaynamePut->getBodyString(),
+				]);
+			}
 		}
 
 		// scale 4 = the small/avatar-sized rendition of the user's own
@@ -308,12 +319,26 @@ function larpnet_matrix_sync_profile(int $uid, array $identity, array $settings)
 					'header' => [...$auth, 'Content-Type: ' . $photo['type']],
 				]);
 				$mxcUri = $upload->isSuccess() ? (json_decode($upload->getBodyString(), true)['content_uri'] ?? null) : null;
-				if ($mxcUri) {
-					DI::httpClient()->request('PUT', $internal . '/_matrix/client/v3/profile/' . $mxid . '/avatar_url', [
+				if (!$mxcUri) {
+					DI::logger()->warning('larpnet_matrix: profile sync avatar upload failed', [
+						'uid'  => $uid,
+						'code' => $upload->getReturnCode(),
+						'body' => $upload->getBodyString(),
+					]);
+				} else {
+					$avatarPut = DI::httpClient()->request('PUT', $internal . '/_matrix/client/v3/profile/' . $mxid . '/avatar_url', [
 						'body'   => json_encode(['avatar_url' => $mxcUri]),
 						'header' => [...$auth, 'Content-Type: application/json'],
 					]);
-					DI::pConfig()->set($uid, 'larpnet_matrix', 'avatar_tag', $tag);
+					if (!$avatarPut->isSuccess()) {
+						DI::logger()->warning('larpnet_matrix: profile sync avatar_url update failed', [
+							'uid'  => $uid,
+							'code' => $avatarPut->getReturnCode(),
+							'body' => $avatarPut->getBodyString(),
+						]);
+					} else {
+						DI::pConfig()->set($uid, 'larpnet_matrix', 'avatar_tag', $tag);
+					}
 				}
 			}
 		}
