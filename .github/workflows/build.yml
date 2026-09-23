@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE: cr.mj12.cloud/friendica-larpnet
+  IMAGE: ${{ vars.REGISTRY }}/${{ vars.IMAGE_NAME }}
 
 jobs:
   build:
@@ -19,7 +19,7 @@ jobs:
       - name: Log in to registry
         uses: docker/login-action@v3
         with:
-          registry: cr.mj12.cloud
+          registry: ${{ vars.REGISTRY }}
           username: ${{ secrets.REGISTRY_USER }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 

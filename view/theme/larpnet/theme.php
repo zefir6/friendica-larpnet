@@ -26,6 +26,10 @@ use Friendica\Model\LarpnetPush;
 use Friendica\Util\DateTimeFormat;
 use Friendica\Util\Strings;
 
+// ---------------------------------------------------------------------------
+// BRAND CONFIGURATION — edit these values for your own deployment
+// (colors, top-nav labels; see README.md's "Deploying your own instance")
+
 const LARPNET_SCHEME_ACCENT_BLUE   = '#1e87c2';
 const LARPNET_SCHEME_ACCENT_RED    = '#b50404';
 const LARPNET_SCHEME_ACCENT_PURPLE = '#a54bad';
@@ -34,6 +38,20 @@ const LARPNET_SCHEME_ACCENT_PINK   = '#d900a9';
 
 const LARPNET_DEFAULT_SCHEME = 'light';
 const LARPNET_CUSTOM_SCHEME  = '---';
+
+// Top-nav labels, applied in larpnet_nav_labels() below via DI::l10n()->t().
+// view/lang/pl/strings.php translates these same English literals by exact
+// string match — keep the two in sync if you change a value here. (These
+// constants are referenced, not inlined, at each t() call site below; that
+// already doesn't matter for Friendica's normal xgettext extraction, since
+// view/lang/pl/strings.php is a hand-maintained core-file patch here, not
+// generated from this theme's own .pot — see CLAUDE.md.)
+const LARPNET_NAV_LABEL_NETWORK   = 'Contacts posts';
+const LARPNET_NAV_LABEL_HOME      = 'Your posts';
+const LARPNET_NAV_LABEL_COMMUNITY = 'Larpnet';
+const LARPNET_NAV_LABEL_DIRECTORY = 'People';
+
+// ---------------------------------------------------------------------------
 
 function larpnet_init(AppHelper $appHelper): void
 {
@@ -84,16 +102,16 @@ function larpnet_install(): void
 function larpnet_nav_labels(array &$nav_info): void
 {
 	if (!empty($nav_info['nav']['network'])) {
-		$nav_info['nav']['network'][4] = DI::l10n()->t('Contacts posts');
+		$nav_info['nav']['network'][4] = DI::l10n()->t(LARPNET_NAV_LABEL_NETWORK);
 	}
 	if (!empty($nav_info['nav']['home'])) {
-		$nav_info['nav']['home'][4] = DI::l10n()->t('Your posts');
+		$nav_info['nav']['home'][4] = DI::l10n()->t(LARPNET_NAV_LABEL_HOME);
 	}
 	if (!empty($nav_info['nav']['community'])) {
-		$nav_info['nav']['community'][4] = DI::l10n()->t('Larpnet');
+		$nav_info['nav']['community'][4] = DI::l10n()->t(LARPNET_NAV_LABEL_COMMUNITY);
 	}
 	if (!empty($nav_info['nav']['directory'])) {
-		$nav_info['nav']['directory'][4] = DI::l10n()->t('People');
+		$nav_info['nav']['directory'][4] = DI::l10n()->t(LARPNET_NAV_LABEL_DIRECTORY);
 	}
 }
 
