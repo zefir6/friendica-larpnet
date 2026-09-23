@@ -89,6 +89,23 @@ function waitForInitialSync(client) {
   });
 }
 
+// Larpnet display name for a Matrix userId, or null if it doesn't match
+// anyone in `contacts` (config.contacts, the same nickname->name list the
+// "+ Nowy czat" picker uses). Matrix's own displayname for a user is only
+// set once *they themselves* have opened chat at least once (see
+// larpnet_matrix_sync_profile() -- it pushes the logged-in user's own
+// name to their own Matrix profile, not anyone else's), so someone who's
+// never opened chat would otherwise show as their raw @localpart:server
+// mxid in the room list/timeline. Preferring the Friendica name we already
+// know avoids that regardless of whether the other party has logged in.
+export function resolveDisplayName(userId, contacts) {
+  const localpart = /^@([^:]+):/.exec(userId || '')?.[1];
+  if (!localpart) {
+    return null;
+  }
+  return contacts?.find((c) => c.nickname.toLowerCase() === localpart)?.name || null;
+}
+
 export function dmTargetMxid(cfg) {
   if (!cfg.dm) {
     return null;

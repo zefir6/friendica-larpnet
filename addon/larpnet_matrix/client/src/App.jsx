@@ -133,7 +133,7 @@ export function App({ config }) {
         >
           Rozmowy
         </button>
-        <span class="lnc-header-title">Czat</span>
+        <span class="lnc-header-title">{config.displayName || 'Czat'}</span>
         <button
           type="button"
           class="lnc-header-btn"
@@ -151,8 +151,9 @@ export function App({ config }) {
           client={client}
           onNewChat={() => setShowPicker(true)}
           collapsed={roomListCollapsed}
+          contacts={config.contacts}
         />
-        <Conversation client={client} roomId={selectedRoomId} />
+        <Conversation client={client} roomId={selectedRoomId} contacts={config.contacts} />
       </div>
       {showPicker && (
         <ContactPicker contacts={config.contacts || []} onPick={handlePick} onClose={() => setShowPicker(false)} />
