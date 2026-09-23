@@ -1,3 +1,15 @@
+# Builds the larpnet_matrix addon's own chat client (Preact + matrix-js-sdk,
+# served same-origin by the addon itself -- see addon/larpnet_matrix/CLAUDE.md).
+# Separate, self-contained stage: only this addon's client/ directory is
+# needed as build context, so a change anywhere else in the repo doesn't
+# invalidate npm install's cache layer.
+FROM node:20-alpine AS matrix-client-builder
+WORKDIR /build
+COPY addon/larpnet_matrix/client/package.json addon/larpnet_matrix/client/package-lock.json ./
+RUN npm ci
+COPY addon/larpnet_matrix/client/ ./
+RUN npm run build
+
 FROM friendica:2026.08-rc-fpm AS base
 
 # friendica:2026.08-rc-fpm ships from Docker Hub without any Friendica
@@ -45,6 +57,7 @@ COPY addon/larpnet_calendar  /usr/src/friendica/addon/larpnet_calendar
 COPY addon/larpnet_wifi      /usr/src/friendica/addon/larpnet_wifi
 COPY addon/larpnet_fcm       /usr/src/friendica/addon/larpnet_fcm
 COPY addon/larpnet_matrix    /usr/src/friendica/addon/larpnet_matrix
+COPY --from=matrix-client-builder /build/dist /usr/src/friendica/addon/larpnet_matrix/client/dist
 
 # Core patches
 COPY src/Protocol/ActivityPub/Transmitter.php     /usr/src/friendica/src/Protocol/ActivityPub/Transmitter.php
