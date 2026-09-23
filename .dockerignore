@@ -9,3 +9,7 @@ scripts/
 config/local.config.php
 # Built fresh by the Dockerfile via composer install; never trust a local copy.
 vendor/
+# Same idea for the larpnet_matrix chat client -- built fresh by the
+# matrix-client-builder stage via `npm ci`; never trust a local copy.
+addon/larpnet_matrix/client/node_modules/
+addon/larpnet_matrix/client/dist/

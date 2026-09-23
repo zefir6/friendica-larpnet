@@ -1,6 +1,17 @@
-// Facebook/Google-Chat style floating chat widget: a bubble in the corner
-// that expands into a small popup panel embedding the larpnet_matrix iframe,
-// on every page, instead of navigating away to a full page for it.
+// Facebook/Google-Chat style floating chat bubble, on every page, that
+// opens the larpnet_matrix chat client in its own popup window (not an
+// embedded <iframe>).
+//
+// Why a popup window and not an iframe: an earlier iframe-embedded version
+// of this widget hit a reliable "Unable to restore session" crypto-store
+// corruption bug. Root cause, confirmed by live testing: Friendica is a
+// classic multi-page app, so every click-through to a new Friendica page
+// destroyed and recreated the iframe (and the Matrix client rebooting
+// inside it), racing the browser's IndexedDB connection teardown for the
+// crypto store against the next boot's connection open. A popup window is
+// its own top-level browsing context: it survives every Friendica page
+// navigation in the *parent* tab untouched, so the chat client inside it
+// only ever boots once per real session instead of once per page click.
 //
 // window.openMatrixChat(nickname) is the public entry point -- called from
 // the "Chat" button on another local user's profile page (see vcard.tpl),
@@ -13,75 +24,33 @@
   }
   var chatUrl = window.LarpnetMatrixChat.chatUrl;
 
-  var bubble, panel, currentDm, loaded = false;
+  // A fixed window.open target name: calling window.open again with the
+  // same name re-navigates and focuses the SAME popup instead of spawning
+  // a new one, so switching DM targets from different profile pages still
+  // reuses one chat window/session.
+  var POPUP_NAME = 'larpnet-chat';
+  var POPUP_FEATURES = 'width=380,height=640,resizable=yes,scrollbars=yes';
+
+  function openPopup(dm) {
+    var url = chatUrl + (dm ? '?dm=' + encodeURIComponent(dm) : '');
+    var win = window.open(url, POPUP_NAME, POPUP_FEATURES);
+    if (win) {
+      win.focus();
+    }
+  }
 
   function build() {
-    bubble = document.createElement('button');
+    var bubble = document.createElement('button');
     bubble.type = 'button';
     bubble.id = 'larpnet-chat-bubble';
     bubble.setAttribute('aria-label', 'Czat');
-    bubble.setAttribute('aria-expanded', 'false');
     bubble.innerHTML = '<i class="ri ri-message-3-line" aria-hidden="true"></i>';
-    bubble.addEventListener('click', function () { toggle(); });
-
-    panel = document.createElement('div');
-    panel.id = 'larpnet-chat-panel';
-    panel.innerHTML =
-      '<div id="larpnet-chat-panel-header">' +
-      '<span>Czat</span>' +
-      '<button type="button" id="larpnet-chat-panel-close" aria-label="Zamknij czat">&times;</button>' +
-      '</div>' +
-      '<div id="larpnet-chat-panel-body"></div>';
-    panel.querySelector('#larpnet-chat-panel-close').addEventListener('click', function () { close(); });
-
+    bubble.addEventListener('click', function () { openPopup(null); });
     document.body.appendChild(bubble);
-    document.body.appendChild(panel);
-  }
-
-  function ensureIframe(dm) {
-    if (loaded && dm === currentDm) {
-      return;
-    }
-    var body = panel.querySelector('#larpnet-chat-panel-body');
-    body.innerHTML = '';
-    var iframe = document.createElement('iframe');
-    iframe.title = 'Czat';
-    iframe.allow = 'clipboard-write; microphone; camera; storage-access';
-    // embed=1: larpnet_matrix redirects straight to the chat host instead of
-    // rendering the full Friendica page -- otherwise this iframe would show
-    // an entire nested copy of the page (nav bar and all) instead of chat.
-    iframe.src = chatUrl + '?embed=1' + (dm ? '&dm=' + encodeURIComponent(dm) : '');
-    body.appendChild(iframe);
-    loaded = true;
-    currentDm = dm || null;
-  }
-
-  function open(dm) {
-    ensureIframe(dm || null);
-    panel.classList.add('open');
-    bubble.classList.add('open');
-    bubble.setAttribute('aria-expanded', 'true');
-  }
-
-  function close() {
-    panel.classList.remove('open');
-    bubble.classList.remove('open');
-    bubble.setAttribute('aria-expanded', 'false');
-  }
-
-  function toggle() {
-    if (panel.classList.contains('open')) {
-      close();
-    } else {
-      open(currentDm);
-    }
   }
 
   window.openMatrixChat = function (nickname) {
-    if (!bubble) {
-      build();
-    }
-    open(nickname || null);
+    openPopup(nickname || null);
   };
 
   if (document.readyState === 'loading') {
