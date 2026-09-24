@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from 'preact/hooks';
 import { loginAndStart, dmTargetMxid, findOrCreateDirectRoom, roomDisplayName } from './matrix.js';
+import { getRecoveryStatus, setUpRecovery, restoreFromRecoveryKey } from './recovery.js';
 import { RoomList } from './RoomList.jsx';
 import { Conversation } from './Conversation.jsx';
 import { ContactPicker } from './ContactPicker.jsx';
+import { RecoveryKeyModal } from './RecoveryKeyModal.jsx';
 
 // Whether this client is running inside the widget's iframe overlay (see
 // js/matrix-chat-widget.js) rather than as its own top-level window/tab
@@ -42,12 +44,17 @@ function toggleFullWindow(setIsFull) {
 
 export function App({ config }) {
   const [client, setClient] = useState(null);
+  const [recoveryKeyCache, setRecoveryKeyCache] = useState(null);
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [error, setError] = useState(null);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [isFullWindow, setIsFullWindow] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [roomListCollapsed, setRoomListCollapsed] = useState(false);
+  // null once resolved to 'ready' (nothing to show); 'needs_setup' or
+  // 'needs_restore' render RecoveryKeyModal -- see recovery.js.
+  const [recoveryPrompt, setRecoveryPrompt] = useState(null);
+  const [recoveryKeyToShow, setRecoveryKeyToShow] = useState(null);
   // Bumped on any client event that could change what's on screen (new
   // room, new message, membership change...) -- components re-read live
   // state off `client` directly rather than duplicating it, so this is
@@ -59,7 +66,7 @@ export function App({ config }) {
     let cancelled = false;
     (async () => {
       try {
-        const c = await loginAndStart(config);
+        const { client: c, recoveryKeyCache: rkc } = await loginAndStart(config);
         if (cancelled) {
           return;
         }
@@ -69,7 +76,21 @@ export function App({ config }) {
         c.on('RoomMember.membership', bump);
         c.on('sync', bump);
         setClient(c);
+        setRecoveryKeyCache(rkc);
         setStatus('ready');
+
+        const recoveryStatus = await getRecoveryStatus(c);
+        if (!cancelled && recoveryStatus === 'needs_setup') {
+          // First-ever setup for this account -- generate the recovery key now
+          // so the modal has something to show as soon as it renders.
+          const key = await setUpRecovery(c);
+          if (!cancelled) {
+            setRecoveryKeyToShow(key);
+            setRecoveryPrompt('needs_setup');
+          }
+        } else if (!cancelled && recoveryStatus === 'needs_restore') {
+          setRecoveryPrompt('needs_restore');
+        }
 
         const targetMxid = dmTargetMxid(config);
         if (targetMxid) {
@@ -122,6 +143,21 @@ export function App({ config }) {
     selectRoom(roomId);
   };
 
+  const handleConfirmRecoverySetup = () => {
+    setRecoveryPrompt(null);
+    setRecoveryKeyToShow(null);
+  };
+
+  const handleSubmitRecoveryRestore = async (text) => {
+    const ok = await restoreFromRecoveryKey(client, recoveryKeyCache, text);
+    if (ok) {
+      setRecoveryPrompt(null);
+    }
+    return ok;
+  };
+
+  const handleSkipRecoveryRestore = () => setRecoveryPrompt(null);
+
   // The header shows who you're talking TO, never your own name (own name
   // was an earlier, actually-backwards design -- see git history) --
   // falls back to a generic label when no conversation is open yet (e.g.
@@ -164,6 +200,20 @@ export function App({ config }) {
       </div>
       {showPicker && (
         <ContactPicker contacts={config.contacts || []} onPick={handlePick} onClose={() => setShowPicker(false)} />
+      )}
+      {recoveryPrompt === 'needs_setup' && recoveryKeyToShow && (
+        <RecoveryKeyModal
+          mode="setup"
+          recoveryKey={recoveryKeyToShow}
+          onConfirmSetup={handleConfirmRecoverySetup}
+        />
+      )}
+      {recoveryPrompt === 'needs_restore' && (
+        <RecoveryKeyModal
+          mode="restore"
+          onSubmitRestore={handleSubmitRecoveryRestore}
+          onSkip={handleSkipRecoveryRestore}
+        />
       )}
     </div>
   );
