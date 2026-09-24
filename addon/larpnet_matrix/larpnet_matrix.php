@@ -514,7 +514,6 @@ function larpnet_matrix_content(): string
 		'dm'            => $dm,
 		'deviceName'    => 'larpnet web',
 		'contacts'      => larpnet_matrix_contact_list((int) $uid),
-		'displayName'   => $identity['displayname'],
 	];
 
 	// Raw exit, not a normal module return: this is meant to be a clean
