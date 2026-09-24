@@ -197,23 +197,39 @@ three-step dance but every device that *restores* does.
   their recovery key": there's no way to recover the *old* one, but this
   device (already unlocked) can issue a fresh one at any time.
 
-  **One non-obvious extra step, found by a spike that initially "worked"
-  but didn't actually lose history like it's supposed to:** resetting the
-  backup version alone is not enough. The room's *currently active* megolm
-  outbound session survives the reset untouched, and the very next message
-  sent in that room re-uploads that *same* session to the fresh backup
-  version -- which makes every message ever sent under that session,
-  including ones from *before* the reset, decryptable again by anyone with
-  the *new* key. Confirmed two ways in a disposable Node spike against the
-  real account: a message sent before `resetRecovery()` was still
-  perfectly decryptable, by a brand-new device, using the *new* key --
-  until `crypto.forceDiscardSession(roomId)` was called for every joined
-  room *before* the `bootstrapSecretStorage()` call, which forces a
-  genuinely new session on the next send and fixed it (confirmed again:
-  the pre-reset message became undecryptable by a fresh device with the
-  new key, while a post-reset message stayed decryptable). `resetRecovery()`
-  does this for every currently-joined room; don't drop it if this is ever
-  refactored.
+  **One non-obvious extra step:** resetting the backup version alone is
+  not enough to stop a *brand-new* message from leaking under the old
+  session. The room's *currently active* megolm outbound session survives
+  the reset untouched, and the very next message sent in that room
+  re-uploads that *same* session to the fresh backup version. Fixed by
+  calling `crypto.forceDiscardSession(roomId)` for every joined room
+  *before* the `bootstrapSecretStorage()` call, forcing a genuinely new
+  outbound session on the next send. `resetRecovery()` does this for every
+  currently-joined room; don't drop it if this is ever refactored.
+
+  **What this reset does *not* achieve, confirmed by live-testing the
+  deployed feature on test.larpnet.pl (not just a spike) -- read the UI
+  copy literally, it undersells this correctly:** `forceDiscardSession`
+  only stops *new* messages from reusing the old session. It does nothing
+  about the *inbound* sessions the resetting device already holds locally
+  for messages it has already decrypted -- and that device's ordinary
+  background key-backup upload keeps re-archiving those already-cached
+  sessions into the fresh backup version as it runs. In a live test, a
+  genuinely fresh device (new device_id, empty crypto store, confirmed via
+  network trace) that restored via the *new* passphrase right after a
+  reset could still decrypt every pre-reset message, not just post-reset
+  ones -- because the still-logged-in resetting device had already
+  re-uploaded them. Explicitly discussed with the user and this is fine:
+  the intended use case for this feature is "I forgot my old
+  passphrase/key and want to set a new one," not "shred my history on
+  every device." A device that already has the keys locally is *supposed*
+  to keep working after a reset -- that's a feature, not a leak. Achieving
+  a real history-shred (matching what e.g. Element's "reset cryptographic
+  identity" flow does) would require the resetting device to also discard
+  its own local crypto store and become a new device_id/login, which
+  `resetRecovery()` deliberately does not do. Don't "fix" this without
+  raising it with the user first -- it was a deliberate call, not an
+  oversight.
 - **User-chosen passphrases, not just random keys (`setUpRecovery()`/
   `resetRecovery()`'s optional `passphrase` argument) -- built and confirmed
   live:** `crypto.createRecoveryKeyFromPassphrase(passphrase)` derives the
