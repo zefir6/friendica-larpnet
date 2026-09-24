@@ -1,4 +1,5 @@
 import { decodeRecoveryKey } from 'matrix-js-sdk/lib/crypto-api/recovery-key.js';
+import { deriveRecoveryKeyFromPassphrase } from 'matrix-js-sdk/lib/crypto-api/key-passphrase.js';
 
 // Cross-device history recovery -- without this, each browser/profile is a
 // separate Matrix "device" with its own independent E2EE identity, and a
@@ -90,11 +91,20 @@ export async function getRecoveryStatus(client) {
  * only a *different* device restoring afterwards needs
  * loadSessionBackupPrivateKeyFromSecretStorage() first.
  *
+ * [passphrase], if given, is the user's own chosen phrase instead of a
+ * random key -- `createRecoveryKeyFromPassphrase()` derives the actual
+ * secret from it (PBKDF2, per the Matrix spec) and stores the derivation
+ * parameters (salt/iterations, not the phrase itself) in the key's public
+ * metadata, so `restoreFromRecoveryKey()` can later accept either the
+ * encoded key or the original phrase on another device. Still entirely
+ * client-side either way -- see this module's own docblock on why this
+ * addon must never be able to derive or know a user's key.
+ *
  * Returns the recovery key, encoded for display -- show it to the user
  * ONCE (they must save it themselves; we don't keep a copy anywhere) and
  * never log it.
  */
-export async function setUpRecovery(client) {
+export async function setUpRecovery(client, passphrase) {
   const crypto = client.getCrypto();
 
   // No UIA challenge for a *first-ever* device_signing/upload on a JWT-only
@@ -112,7 +122,59 @@ export async function setUpRecovery(client) {
   await crypto.bootstrapSecretStorage({
     setupNewKeyBackup: true,
     createSecretStorageKey: async () => {
-      const key = await crypto.createRecoveryKeyFromPassphrase();
+      const key = await crypto.createRecoveryKeyFromPassphrase(passphrase || undefined);
+      encodedKey = key.encodedPrivateKey;
+      return key;
+    },
+  });
+  return encodedKey;
+}
+
+/**
+ * Rotates this account's recovery key/key backup, deliberately making
+ * history encrypted under the *old* key permanently unrecoverable --
+ * exposed in Settings as "reset recovery key" for a user who suspects
+ * their old key leaked, or just wants a fresh start. [passphrase] works
+ * the same as in setUpRecovery().
+ *
+ * Unlike a full `resetEncryption()` (never call that -- see this module's
+ * docblock), this leaves cross-signing completely untouched: only the
+ * secret-storage wrapper key and the key-backup version get replaced, so
+ * there's no UIA wall to hit (that only guards *cross-signing* key
+ * changes). `setupNewSecretStorage: true` forces a new default key even
+ * though one already exists ("Reset even if keys already exist", per
+ * matrix-js-sdk's own doc comment) and `setupNewKeyBackup: true` calls
+ * resetKeyBackup() to replace the backup version.
+ *
+ * `forceDiscardSession()` for every joined room, called *before* the
+ * reset, is not optional -- confirmed empirically (disposable Node spike
+ * against the real account, see this addon's own CLAUDE.md): without it,
+ * the megolm session active at reset time keeps being used for new
+ * messages, and the first post-reset send re-uploads that *same* session
+ * to the fresh backup version, silently making pre-reset messages
+ * decryptable again under the "new" key -- defeating the entire point of
+ * resetting. Discarding forces a genuinely new session on the next send in
+ * every room, so the old session (and everything encrypted under it) is
+ * never carried into the new backup.
+ *
+ * Returns the new recovery key, encoded for display -- same one-time-show
+ * contract as setUpRecovery().
+ */
+export async function resetRecovery(client, passphrase) {
+  const crypto = client.getCrypto();
+
+  for (const room of client.getRooms()) {
+    if (room.getMyMembership() === 'join') {
+      await crypto.forceDiscardSession(room.roomId);
+    }
+  }
+
+  let encodedKey = null;
+  await crypto.bootstrapSecretStorage({
+    setupNewSecretStorage: true,
+    setupNewKeyBackup: true,
+    createSecretStorageKey: async () => {
+      const key = await crypto.createRecoveryKeyFromPassphrase(passphrase || undefined);
       encodedKey = key.encodedPrivateKey;
       return key;
     },
@@ -126,6 +188,16 @@ export async function setUpRecovery(client) {
  * device). Returns true on success, false on a malformed key or a restore
  * failure (wrong key, network error, ...) -- never throws, so callers can
  * show a plain "that didn't work" message without a try/catch.
+ *
+ * [input] can be either the encoded recovery key OR, if the account's
+ * default key was set up from a user-chosen phrase (setUpRecovery()'s
+ * optional passphrase), that phrase itself -- tried in that order: a
+ * string that doesn't decode as a valid recovery key is re-derived as a
+ * passphrase instead, using the salt/iterations already public in the
+ * key's own (non-secret) metadata. A wrong phrase just derives the wrong
+ * bytes and fails the same way a wrong recovery key would, at step 1
+ * below -- never a separate, distinguishable error, so this can't be used
+ * to test-guess a phrase from outside.
  *
  * Three steps, in order -- each one confirmed empirically necessary by
  * omitting it and watching the next thing fail or silently not work:
@@ -158,16 +230,31 @@ export async function setUpRecovery(client) {
  *    just as important as being able to read history, not an optional
  *    extra.
  */
-export async function restoreFromRecoveryKey(client, keyCache, recoveryKeyText) {
+export async function restoreFromRecoveryKey(client, keyCache, input) {
   const defaultKeyId = await client.secretStorage.getDefaultKeyId();
   if (!defaultKeyId) {
     return false;
   }
+  const trimmed = input.trim();
   let privateKey;
   try {
-    privateKey = decodeRecoveryKey(recoveryKeyText.trim());
+    privateKey = decodeRecoveryKey(trimmed);
   } catch (e) {
-    return false;
+    const keyTuple = await client.secretStorage.getKey(defaultKeyId);
+    const passphraseInfo = keyTuple?.[1]?.passphrase;
+    if (!passphraseInfo) {
+      return false;
+    }
+    try {
+      privateKey = await deriveRecoveryKeyFromPassphrase(
+        trimmed,
+        passphraseInfo.salt,
+        passphraseInfo.iterations,
+        passphraseInfo.bits,
+      );
+    } catch (e2) {
+      return false;
+    }
   }
   keyCache.set(defaultKeyId, privateKey);
   try {

@@ -186,18 +186,45 @@ three-step dance but every device that *restores* does.
   must only ever be called when `getRecoveryStatus()` says `needs_setup`
   (i.e. cross-signing/secret storage have *never* existed for this account)
   -- that check is the whole safety mechanism.
-- **If a user genuinely loses their recovery key** (and it isn't cached on
-  any still-logged-in device), there is currently no clean client-side way
-  to rotate it for a JWT-only account, for the same UIA reason -- this is a
-  real, accepted limitation, not a bug to silently work around. The one
-  remaining path (not yet built, flagged here for whoever needs it next):
-  from a device that still has cross-signing ready locally,
-  `bootstrapSecretStorage({ setupNewSecretStorage: true, setupNewKeyBackup: true, ... })`
-  rotates *just* the secret-storage key without touching cross-signing at
-  all, which should avoid the `device_signing/upload` UIA wall entirely --
-  untested this session (the test account's cross-signing state got
-  scrambled by the failed `resetEncryption()` experiment above before this
-  could be verified live).
+- **Resetting the recovery key on purpose (`resetRecovery()`, exposed in
+  Settings) -- built and confirmed live, this section previously flagged
+  it as untested:** from a device that already has cross-signing ready
+  locally, `bootstrapSecretStorage({ setupNewSecretStorage: true, setupNewKeyBackup: true, createSecretStorageKey: ... })`
+  rotates *just* the secret-storage key and the key-backup version, without
+  touching cross-signing at all -- confirmed live to avoid the
+  `device_signing/upload` UIA wall entirely, exactly as this section
+  originally guessed. This is also the fix for "a user genuinely loses
+  their recovery key": there's no way to recover the *old* one, but this
+  device (already unlocked) can issue a fresh one at any time.
+
+  **One non-obvious extra step, found by a spike that initially "worked"
+  but didn't actually lose history like it's supposed to:** resetting the
+  backup version alone is not enough. The room's *currently active* megolm
+  outbound session survives the reset untouched, and the very next message
+  sent in that room re-uploads that *same* session to the fresh backup
+  version -- which makes every message ever sent under that session,
+  including ones from *before* the reset, decryptable again by anyone with
+  the *new* key. Confirmed two ways in a disposable Node spike against the
+  real account: a message sent before `resetRecovery()` was still
+  perfectly decryptable, by a brand-new device, using the *new* key --
+  until `crypto.forceDiscardSession(roomId)` was called for every joined
+  room *before* the `bootstrapSecretStorage()` call, which forces a
+  genuinely new session on the next send and fixed it (confirmed again:
+  the pre-reset message became undecryptable by a fresh device with the
+  new key, while a post-reset message stayed decryptable). `resetRecovery()`
+  does this for every currently-joined room; don't drop it if this is ever
+  refactored.
+- **User-chosen passphrases, not just random keys (`setUpRecovery()`/
+  `resetRecovery()`'s optional `passphrase` argument) -- built and confirmed
+  live:** `crypto.createRecoveryKeyFromPassphrase(passphrase)` derives the
+  real secret from the phrase via PBKDF2 (per the Matrix spec) and stores
+  the salt/iterations -- not the phrase -- in the key's public metadata.
+  `restoreFromRecoveryKey()` tries the input as an encoded recovery key
+  first, and if that fails to decode, re-derives it as a passphrase using
+  `deriveRecoveryKeyFromPassphrase()` against that same public metadata.
+  Confirmed live: the derived bytes exactly match the original private key.
+  Still entirely client-side either way -- this addon's PHP side never
+  sees the phrase any more than it ever saw the random key.
 
 ## Chat header shows who you're talking TO, never your own name
 
@@ -289,7 +316,9 @@ problem, twice now.
 | `larpnet_matrix.php` | JWT minting/login bridge + same-origin static asset host for `client/dist/` + profile sync. |
 | `client/` | The chat client itself (Preact + matrix-js-sdk). `npm run build` (via `build.mjs`) produces `client/dist/`, which is never committed (see `client/.gitignore`) -- built fresh by the `matrix-client-builder` stage in the repo root `Dockerfile`, same "never trust a local copy" rule as `vendor/`. |
 | `client/build.mjs` | esbuild bundling + the manual wasm-copy step -- see its own comments for why esbuild's `new URL(..., import.meta.url)` asset convention does **not** apply here (confirmed empirically: esbuild does not support that pattern, unlike Vite/Webpack) and what actually resolves the WASM path instead. |
-| `client/src/recovery.js` | Cross-device E2EE history recovery (recovery-key setup/restore) -- see "Cross-device key recovery" above. |
+| `client/src/recovery.js` | Cross-device E2EE history recovery (recovery-key setup/restore/reset) -- see "Cross-device key recovery" above. |
+| `client/src/RoomInfoModal.jsx` | Per-conversation member list (add/remove) + rename (group rooms only) + leave. Plain Matrix Client-Server API wrappers (`client.invite`/`kick`/`leave`/`setRoomName`) -- no crypto involved, no UIA surprises like the recovery-key flows above. |
+| `client/src/SettingsModal.jsx` | Currently just the "reset recovery key" entry point (confirm-then-delegate to `recovery.js`'s `resetRecovery()`). |
 
 ## Making changes
 
