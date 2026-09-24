@@ -127,19 +127,36 @@ export async function setUpRecovery(client) {
  * failure (wrong key, network error, ...) -- never throws, so callers can
  * show a plain "that didn't work" message without a try/catch.
  *
- * Two steps, in order -- confirmed empirically that skipping the first
- * makes the second fail with "No decryption key found in crypto store"
- * even with the right key already cached via getSecretStorageKey:
+ * Three steps, in order -- each one confirmed empirically necessary by
+ * omitting it and watching the next thing fail or silently not work:
+ *
  * 1. `loadSessionBackupPrivateKeyFromSecretStorage()` -- reads the actual
  *    backup decryption key (a *different* secret, `m.megolm_backup.v1`)
  *    out of secret storage using the recovery key, and caches it in this
- *    device's own local crypto store. This is also what flips
- *    `getRecoveryStatus()` over to 'ready' afterwards (it makes
- *    `getActiveSessionBackupVersion()` non-null) -- and, just as
- *    importantly, is what lets *this* device's own future outgoing
- *    messages get backed up too, not only what lets it read old ones.
+ *    device's own local crypto store. Skipping this makes step 2 throw
+ *    "No decryption key found in crypto store" even with the right
+ *    recovery key already cached via getSecretStorageKey.
  * 2. `restoreKeyBackup()` -- now that the decryption key is cached,
- *    actually downloads and decrypts the backed-up room keys.
+ *    downloads and decrypts whatever *other* devices have already backed
+ *    up. This is the "read old history" half.
+ * 3. `bootstrapCrossSigning()` called *again* -- yes, again, on a device
+ *    that didn't create the keys. When cross-signing keys already exist
+ *    in (now-unlocked) secret storage, this call takes a different,
+ *    UIA-free internal path that just imports and caches them locally
+ *    (confirmed live via the SDK's own log line: "Cross-signing private
+ *    keys not found locally, but they are available in secret storage,
+ *    reading storage and caching locally") -- it does NOT attempt to
+ *    create or overwrite anything, so it's safe to call unconditionally
+ *    here. Skipping this step leaves `checkKeyBackupAndEnable()` seeing
+ *    the backup as *untrusted* (confirmed live:
+ *    `[RustBackupManager] Key backup present on server but not trusted:
+ *    not enabling key backup`) -- meaning step 1-2 alone let this device
+ *    read old messages, but its own *new* outgoing messages still never
+ *    get uploaded to backup, so no future device (including this
+ *    account's own) could ever recover them either. This step is the
+ *    "make this device's own future messages recoverable too" half --
+ *    just as important as being able to read history, not an optional
+ *    extra.
  */
 export async function restoreFromRecoveryKey(client, keyCache, recoveryKeyText) {
   const defaultKeyId = await client.secretStorage.getDefaultKeyId();
@@ -154,8 +171,14 @@ export async function restoreFromRecoveryKey(client, keyCache, recoveryKeyText) 
   }
   keyCache.set(defaultKeyId, privateKey);
   try {
-    await client.getCrypto().loadSessionBackupPrivateKeyFromSecretStorage();
-    await client.getCrypto().restoreKeyBackup();
+    const crypto = client.getCrypto();
+    await crypto.loadSessionBackupPrivateKeyFromSecretStorage();
+    await crypto.restoreKeyBackup();
+    await crypto.bootstrapCrossSigning({
+      authUploadDeviceSigningKeys: async (makeRequest) => {
+        await makeRequest({});
+      },
+    });
     return true;
   } catch (e) {
     return false;
