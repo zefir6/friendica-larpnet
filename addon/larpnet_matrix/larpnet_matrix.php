@@ -321,22 +321,30 @@ function larpnet_matrix_sync_profile(int $uid, array $identity, array $settings)
 		$mxid = rawurlencode($identity['user_id']);
 
 		$login = DI::httpClient()->request('POST', $internal . '/_matrix/client/v3/login', [
-			'body'   => json_encode(['type' => 'org.matrix.login.jwt', 'token' => $identity['token']]),
-			'header' => ['Content-Type: application/json'],
+			'body'    => json_encode(['type' => 'org.matrix.login.jwt', 'token' => $identity['token']]),
+			'headers' => ['Content-Type' => 'application/json'],
 		]);
 		$token = $login->isSuccess() ? (json_decode($login->getBodyString(), true)['access_token'] ?? null) : null;
 		if (!$token) {
 			DI::logger()->warning('larpnet_matrix: profile sync login failed', ['code' => $login->getReturnCode()]);
 			return;
 		}
-		$auth = ['Authorization: Bearer ' . $token];
+		// Friendica's HTTPClient wraps Guzzle -- the request() option key is
+		// 'headers' (plural, Guzzle's RequestOptions::HEADERS), taking an
+		// ASSOCIATIVE array (['Name' => 'value'], not "Name: value" strings).
+		// Every call below silently sent no headers at all until this was
+		// fixed (confirmed live: login worked regardless since Synapse
+		// doesn't require auth there, but every authenticated call after it
+		// failed with M_MISSING_TOKEN -- Authorization was never actually
+		// being sent).
+		$auth = ['Authorization' => 'Bearer ' . $token];
 
-		$current     = DI::httpClient()->request('GET', $internal . '/_matrix/client/v3/profile/' . $mxid, ['header' => $auth]);
+		$current     = DI::httpClient()->request('GET', $internal . '/_matrix/client/v3/profile/' . $mxid, ['headers' => $auth]);
 		$currentName = $current->isSuccess() ? (json_decode($current->getBodyString(), true)['displayname'] ?? null) : null;
 		if ($currentName !== $identity['displayname']) {
 			$displaynamePut = DI::httpClient()->request('PUT', $internal . '/_matrix/client/v3/profile/' . $mxid . '/displayname', [
-				'body'   => json_encode(['displayname' => $identity['displayname']]),
-				'header' => [...$auth, 'Content-Type: application/json'],
+				'body'    => json_encode(['displayname' => $identity['displayname']]),
+				'headers' => [...$auth, 'Content-Type' => 'application/json'],
 			]);
 			// Was previously unchecked: a failure here was completely silent
 			// (no warning, and synced_at still got marked below as if it had
@@ -360,8 +368,8 @@ function larpnet_matrix_sync_profile(int $uid, array $identity, array $settings)
 			$data = Photo::getImageDataForPhoto($photo);
 			if ($data) {
 				$upload  = DI::httpClient()->request('POST', $internal . '/_matrix/media/v3/upload', [
-					'body'   => $data,
-					'header' => [...$auth, 'Content-Type: ' . $photo['type']],
+					'body'    => $data,
+					'headers' => [...$auth, 'Content-Type' => $photo['type']],
 				]);
 				$mxcUri = $upload->isSuccess() ? (json_decode($upload->getBodyString(), true)['content_uri'] ?? null) : null;
 				if (!$mxcUri) {
@@ -372,8 +380,8 @@ function larpnet_matrix_sync_profile(int $uid, array $identity, array $settings)
 					]);
 				} else {
 					$avatarPut = DI::httpClient()->request('PUT', $internal . '/_matrix/client/v3/profile/' . $mxid . '/avatar_url', [
-						'body'   => json_encode(['avatar_url' => $mxcUri]),
-						'header' => [...$auth, 'Content-Type: application/json'],
+						'body'    => json_encode(['avatar_url' => $mxcUri]),
+						'headers' => [...$auth, 'Content-Type' => 'application/json'],
 					]);
 					if (!$avatarPut->isSuccess()) {
 						DI::logger()->warning('larpnet_matrix: profile sync avatar_url update failed', [

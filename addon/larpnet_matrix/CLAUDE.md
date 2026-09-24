@@ -104,8 +104,26 @@ now fixed: `larpnet_matrix_allow_internal_host()` (called from
 needing the addon disabled/re-enabled) adds
 `LARPNET_MATRIX_INTERNAL_URL`'s own host to Friendica's documented escape
 hatch, `system.allowed_internal_hosts`, rather than disabling the
-protection wholesale. If profile sync ever seems inert again, check this
-first, not the three layers above -- they were never actually the problem.
+protection wholesale.
+
+**A third, separate bug was still masked underneath that one**: every
+`DI::httpClient()->request()` call in `larpnet_matrix_sync_profile()` used
+the option key `'header'` (singular) -- Friendica's HTTPClient (a Guzzle
+wrapper) actually reads `'headers'` (plural, Guzzle's own
+`RequestOptions::HEADERS`), as an **associative** array (`['Name' =>
+'value']`, not `"Name: value"` strings -- see `src/Model/GServer.php` for
+a confirmed-correct example elsewhere in core). This meant **no header was
+ever actually sent on any of these calls**, `Authorization` included.
+Login still worked (Synapse's JWT login doesn't require auth), which is
+exactly why the SSRF fix above looked like it had worked -- the account
+got auto-created, just with Synapse's own bare-localpart default
+displayname, because every *authenticated* call after login
+(`GET`/`PUT .../profile`, media upload) failed with `M_MISSING_TOKEN`.
+
+If profile sync ever seems inert (or half-working -- account exists but
+name never updates) again, check this and the SSRF entry above, not the
+three layers earlier in this section -- they were never actually the
+problem, twice now.
 
 ## Key files
 
