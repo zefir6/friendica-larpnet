@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'preact/hooks';
-import { loginAndStart, dmTargetMxid, findOrCreateDirectRoom } from './matrix.js';
+import { loginAndStart, dmTargetMxid, findOrCreateDirectRoom, roomDisplayName } from './matrix.js';
 import { RoomList } from './RoomList.jsx';
 import { Conversation } from './Conversation.jsx';
 import { ContactPicker } from './ContactPicker.jsx';
@@ -122,6 +122,13 @@ export function App({ config }) {
     selectRoom(roomId);
   };
 
+  // The header shows who you're talking TO, never your own name (own name
+  // was an earlier, actually-backwards design -- see git history) --
+  // falls back to a generic label when no conversation is open yet (e.g.
+  // right after opening the bare bubble with no ?dm= target).
+  const selectedRoom = selectedRoomId ? client.getRoom(selectedRoomId) : null;
+  const headerTitle = selectedRoom ? roomDisplayName(selectedRoom, client, config.contacts) : 'Czat';
+
   return (
     <div class="lnc-app">
       <div class="lnc-header">
@@ -133,7 +140,7 @@ export function App({ config }) {
         >
           Rozmowy
         </button>
-        <span class="lnc-header-title">{config.displayName || 'Czat'}</span>
+        <span class="lnc-header-title">{headerTitle}</span>
         <button
           type="button"
           class="lnc-header-btn"
