@@ -31,29 +31,80 @@ popup window -> back to iframe over the course of this addon's development
 -- if session-restore corruption ever recurs, re-read that docblock before
 re-deriving the history from scratch.
 
-## Why there's no device-verification UI
+## Why there's no interactive device-verification (SAS/emoji) UI
 
-The client (`client/src/matrix.js`) initializes rust-crypto and starts the
-client, but never bootstraps cross-signing or secret storage, and never
-shows Element-style "Verify this device" prompts. This is deliberate, not
-an oversight:
+The client never shows Element-style "Verify this device by comparing
+emoji" prompts. A single device can encrypt and decrypt messages in a room
+it's a member of without that -- interactive verification establishes
+*trust between two devices currently online together*, which is a
+different feature from cross-device history recovery (see below, which
+this client *does* now implement).
 
-- A single device can encrypt and decrypt messages in a room it's a member
-  of without ever setting up cross-signing. Cross-signing/verification only
-  establishes *trust between multiple devices* -- irrelevant to this
-  client's actual usage pattern (one browser, one device), so there's no UI
-  to build for it in v1.
-- **Do not "fix" the lack of a verification prompt by having this addon
-  mint or derive a secret-storage/recovery key itself** (e.g. from the same
-  JWT secret used for login). That was tried in the old Element-embedding
-  design (a `larpnet_matrix_recovery_key()` function, since removed) and is
-  a bad idea independent of whether it works: if the operator can compute a
-  user's secret-storage recovery key, the operator can decrypt that user's
-  backed-up message history, which defeats E2EE's confidentiality guarantee
-  against us specifically (it still protects against network eavesdroppers
-  and outside parties, but not against us). If secure backup is ever wanted
-  here, it must use a key generated client-side and shown to the user once,
-  never known by the server.
+**Do not "fix" this by having this addon mint or derive a secret-storage/
+recovery key itself** (e.g. from the same JWT secret used for login). That
+was tried in the old Element-embedding design (a
+`larpnet_matrix_recovery_key()` function, since removed) and is a bad idea
+independent of whether it works: if the operator can compute a user's
+secret-storage recovery key, the operator can decrypt that user's backed-up
+message history, which defeats E2EE's confidentiality guarantee against us
+specifically. The recovery key `client/src/recovery.js` generates is always
+client-side (`crypto.createRecoveryKeyFromPassphrase()`), shown to the user
+once, and never sent to or knowable by this addon's PHP side.
+
+## Cross-device key recovery (`client/src/recovery.js`)
+
+Each browser/profile is a separate Matrix "device" with its own independent
+E2EE identity. Without cross-signing + key backup, a new device (or the
+same account in a different browser) can never decrypt messages from
+before it existed -- confirmed as a real, reported problem (a user's own
+message showed as undecryptable in a second browser). `recovery.js` fixes
+this with the standard Matrix answer: a client-side-generated recovery key
+("Security Phrase" in Element terms) that encrypts a server-side backup of
+room keys. `App.jsx` drives two flows off `getRecoveryStatus()`:
+
+- **`needs_setup`** (first ever device for this account): `setUpRecovery()`
+  bootstraps cross-signing + secret storage + key backup, and returns the
+  generated key for `RecoveryKeyModal` to show the user exactly once. We
+  keep no copy anywhere -- if they lose it, see the last bullet below.
+- **`needs_restore`** (secret storage already exists remotely, this device
+  just doesn't have the key yet): `RecoveryKeyModal` prompts for the
+  existing recovery key; `restoreFromRecoveryKey()` decodes it and calls
+  `restoreKeyBackup()`. Skippable -- the device still works for new
+  messages either way.
+
+**Empirically confirmed against `test.larpnet.pl`'s Synapse this session
+(important, non-obvious constraints for anyone touching this again):**
+
+- A **first-ever** `POST /keys/device_signing/upload` for an account needs
+  no User-Interactive-Auth (UIA) at all, even though this addon's accounts
+  are JWT-only (no password ever set). This is why `setUpRecovery()`'s
+  `authUploadDeviceSigningKeys` callback can just do `makeRequest({})` and
+  succeed.
+- **Overwriting *existing* cross-signing keys is a different story**:
+  Synapse demands a UIA stage for that, and a JWT-only account has *none*
+  available (`flows: []` in the 401 body) -- there is no `m.login.dummy`
+  fallback offered here. **Never call `client.getCrypto().resetEncryption()`**
+  (or otherwise try to re-bootstrap cross-signing on an account that already
+  has it) -- it is not just blocked, it is destructive on failure: confirmed
+  live that a failed reset can delete the account's existing key backup
+  (an early, UIA-free step in `resetEncryption()`'s sequence) *before*
+  hitting the UIA wall on cross-signing, leaving the account with no key
+  backup and no way to create a new one via the client either. `setUpRecovery()`
+  must only ever be called when `getRecoveryStatus()` says `needs_setup`
+  (i.e. cross-signing/secret storage have *never* existed for this account)
+  -- that check is the whole safety mechanism.
+- **If a user genuinely loses their recovery key** (and it isn't cached on
+  any still-logged-in device), there is currently no clean client-side way
+  to rotate it for a JWT-only account, for the same UIA reason -- this is a
+  real, accepted limitation, not a bug to silently work around. The one
+  remaining path (not yet built, flagged here for whoever needs it next):
+  from a device that still has cross-signing ready locally,
+  `bootstrapSecretStorage({ setupNewSecretStorage: true, setupNewKeyBackup: true, ... })`
+  rotates *just* the secret-storage key without touching cross-signing at
+  all, which should avoid the `device_signing/upload` UIA wall entirely --
+  untested this session (the test account's cross-signing state got
+  scrambled by the failed `resetEncryption()` experiment above before this
+  could be verified live).
 
 ## Chat header shows who you're talking TO, never your own name
 
@@ -145,6 +196,7 @@ problem, twice now.
 | `larpnet_matrix.php` | JWT minting/login bridge + same-origin static asset host for `client/dist/` + profile sync. |
 | `client/` | The chat client itself (Preact + matrix-js-sdk). `npm run build` (via `build.mjs`) produces `client/dist/`, which is never committed (see `client/.gitignore`) -- built fresh by the `matrix-client-builder` stage in the repo root `Dockerfile`, same "never trust a local copy" rule as `vendor/`. |
 | `client/build.mjs` | esbuild bundling + the manual wasm-copy step -- see its own comments for why esbuild's `new URL(..., import.meta.url)` asset convention does **not** apply here (confirmed empirically: esbuild does not support that pattern, unlike Vite/Webpack) and what actually resolves the WASM path instead. |
+| `client/src/recovery.js` | Cross-device E2EE history recovery (recovery-key setup/restore) -- see "Cross-device key recovery" above. |
 
 ## Making changes
 

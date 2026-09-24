@@ -1,4 +1,5 @@
 import { createClient } from 'matrix-js-sdk';
+import { createRecoveryKeyCache } from './recovery.js';
 
 const DEVICE_ID_KEY = 'larpnet_chat_device_id';
 
@@ -34,19 +35,23 @@ export async function loginAndStart(cfg) {
     initial_device_display_name: cfg.deviceName || 'larpnet web',
   });
 
+  // recoveryKeyCache backs cryptoCallbacks.getSecretStorageKey -- the crypto
+  // stack calls into it whenever it needs the recovery key (e.g. to restore
+  // key backup on this device). See recovery.js's own docblock for the full
+  // cross-device history story; the caller (App.jsx) drives setup/restore
+  // via getRecoveryStatus() once the client is ready.
+  const recoveryKeyCache = createRecoveryKeyCache();
   const client = createClient({
     baseUrl: cfg.homeserverUrl,
     userId: res.user_id,
     accessToken: res.access_token,
     deviceId: res.device_id,
+    cryptoCallbacks: recoveryKeyCache.cryptoCallbacks,
   });
 
-  // Rust-crypto backend. No cross-signing/secret-storage bootstrap here on
-  // purpose -- see addon/larpnet_matrix/CLAUDE.md "Why there's no device
-  // verification UI". A single device can encrypt/decrypt in a room it's
-  // a member of without ever setting up cross-signing; that's only needed
-  // to establish trust *across* multiple devices, which this v1 client
-  // doesn't attempt to model.
+  // Rust-crypto backend. Cross-signing/secret-storage/key-backup setup
+  // itself is NOT done here -- it's a one-time-ever, user-facing flow (see
+  // recovery.js), not something to trigger silently on every login.
   await client.initRustCrypto();
 
   await client.startClient({ initialSyncLimit: 30 });
@@ -71,7 +76,7 @@ export async function loginAndStart(cfg) {
     }
   });
 
-  return client;
+  return { client, recoveryKeyCache };
 }
 
 function waitForInitialSync(client) {
