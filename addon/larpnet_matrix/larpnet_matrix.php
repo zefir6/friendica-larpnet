@@ -535,7 +535,10 @@ function larpnet_matrix_content(): string
  * POST /larpnet_matrix — JSON identity + JWT for the OAuth2-authenticated
  * native apps. Any valid app token will do (same trust as reading the user's
  * own timeline). The app then POSTs the token to {homeserver}/_matrix/client/v3/login
- * with type "org.matrix.login.jwt".
+ * with type "org.matrix.login.jwt". Also includes `contacts` -- the same
+ * nickname->displayname list larpnet_matrix_content() injects for the web
+ * client (see larpnet_matrix_contact_list()) -- so a native client can
+ * resolve names for users who've never opened chat themselves.
  */
 function larpnet_matrix_post()
 {
@@ -563,6 +566,12 @@ function larpnet_matrix_post()
 	}
 
 	larpnet_matrix_sync_profile((int) $uid, $identity, $settings);
+
+	// Same nickname->displayname fallback the web client's
+	// resolveDisplayName() uses (config.contacts, larpnet_matrix_content())
+	// -- a native client needs it too, for anyone who's never opened chat
+	// themselves and so has no Matrix displayname yet.
+	$identity['contacts'] = larpnet_matrix_contact_list((int) $uid);
 
 	echo json_encode($identity);
 	exit;
