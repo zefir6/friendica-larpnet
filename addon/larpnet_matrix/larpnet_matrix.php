@@ -127,12 +127,57 @@ function larpnet_matrix_settings(): ?array
 	if (!$secret || !$server || !$url) {
 		return null;
 	}
+	$internal = rtrim((string) getenv('LARPNET_MATRIX_INTERNAL_URL'), '/') ?: null;
+	if ($internal) {
+		larpnet_matrix_allow_internal_host($internal);
+	}
 	return [
 		'secret'       => $secret,
 		'server'       => $server,
 		'url'          => rtrim($url, '/'),
-		'internal_url' => rtrim((string) getenv('LARPNET_MATRIX_INTERNAL_URL'), '/') ?: null,
+		'internal_url' => $internal,
 	];
+}
+
+/**
+ * Friendica's own SSRF protection (system.block_private_addresses,
+ * defaulting to true -- see src/Util/Network.php's isPrivateTarget(),
+ * checked by every DI::httpClient() call) blocks ANY outbound request to a
+ * private/non-public address -- which LARPNET_MATRIX_INTERNAL_URL
+ * necessarily is, since it's an internal Docker-network address. Every
+ * larpnet_matrix_sync_profile() call was silently hitting this wall the
+ * whole time (confirmed live: "profile sync login failed" with return
+ * code "0" -- a blocked request, not a real HTTP response -- once logging
+ * was actually turned on to see it at all; see git history for that whole
+ * investigation).
+ *
+ * Fixed via Friendica's own documented escape hatch,
+ * system.allowed_internal_hosts, adding just this one host rather than
+ * disabling the protection wholesale. Deriving the host from the env var
+ * itself (not hardcoding "synapse-test" or any other deployment's
+ * hostname) means this works unmodified on any deployment.
+ *
+ * Called from larpnet_matrix_settings() (every request that uses this
+ * addon at all) rather than only larpnet_matrix_install(), which runs
+ * once when the addon is first enabled and would NOT re-fire just because
+ * this code shipped after the addon was already enabled -- this way it
+ * self-heals on a plain redeploy. Idempotent and cheap: only ever writes
+ * when the host isn't already present.
+ */
+function larpnet_matrix_allow_internal_host(string $internalUrl): void
+{
+	$host = parse_url($internalUrl, PHP_URL_HOST);
+	if (!$host) {
+		return;
+	}
+
+	$allowed = DI::config()->get('system', 'allowed_internal_hosts', []);
+	if (in_array($host, $allowed, true)) {
+		return;
+	}
+
+	$allowed[] = $host;
+	DI::config()->set('system', 'allowed_internal_hosts', $allowed);
 }
 
 /**

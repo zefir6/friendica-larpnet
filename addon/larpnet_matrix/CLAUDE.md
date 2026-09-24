@@ -88,6 +88,25 @@ Three layers close this gap, each covering what the one before it misses:
    in doubt) on a deployment that actually runs a worker, or by invoking
    `larpnet_matrix_cron()` manually.
 
+**All three of the above were completely inert for a long time before
+anyone noticed**, because of one thing none of them had anything to do
+with: `larpnet_matrix_sync_profile()`'s server-side calls to Synapse (via
+`LARPNET_MATRIX_INTERNAL_URL`) were being silently blocked by Friendica's
+own SSRF protection the whole time (`system.block_private_addresses`,
+default `true` -- `src/Util/Network.php`'s `isPrivateTarget()`, checked by
+every `DI::httpClient()` call). An internal Docker-network address is by
+definition non-public, so every single sync attempt failed before ever
+reaching Synapse -- and failed *silently*, because the failing calls' own
+results were never checked either (see the "stop silently swallowing"
+fix), so there was nothing to notice. Two separate, compounding bugs, both
+now fixed: `larpnet_matrix_allow_internal_host()` (called from
+`larpnet_matrix_settings()`, so it self-heals on any redeploy without
+needing the addon disabled/re-enabled) adds
+`LARPNET_MATRIX_INTERNAL_URL`'s own host to Friendica's documented escape
+hatch, `system.allowed_internal_hosts`, rather than disabling the
+protection wholesale. If profile sync ever seems inert again, check this
+first, not the three layers above -- they were never actually the problem.
+
 ## Key files
 
 | Path | Purpose |
