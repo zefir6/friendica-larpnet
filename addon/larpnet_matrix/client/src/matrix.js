@@ -49,20 +49,31 @@ export async function loginAndStart(cfg) {
     cryptoCallbacks: recoveryKeyCache.cryptoCallbacks,
   });
 
-  // Rust-crypto backend. storePrefix MUST be unique per (account, device) --
-  // left unset, the SDK opens one hardcoded-named IndexedDB database shared
-  // by *every* account and *every* device on this origin (confirmed by
-  // reading matrix-js-sdk's rust-crypto/index.js: no storePrefix -> a null
-  // store_name -> a fixed default name in the underlying WASM store).
-  // Without this, two tabs open to different accounts (or even the same
-  // account, two devices) fight over the same store -- confirmed live as
-  // both a hard crash ("account in the store doesn't match the account in
-  // the constructor") switching accounts in one tab, and later as an
+  // Rust-crypto backend. cryptoDatabasePrefix MUST be unique per
+  // (account, device) -- left unset, the SDK opens one hardcoded-named
+  // IndexedDB database shared by *every* account and *every* device on
+  // this origin (confirmed by reading matrix-js-sdk's client.js: no
+  // cryptoDatabasePrefix -> a fixed default name in the underlying WASM
+  // store). Without this, two tabs open to different accounts (or even the
+  // same account, two devices) fight over the same store -- confirmed live
+  // as both a hard crash ("account in the store doesn't match the account
+  // in the constructor") switching accounts in one tab, and later as an
   // indefinite hang opening the store while some *other* tab anywhere in
-  // the browser still held it open. Cross-signing/secret-storage/key-backup
-  // setup itself is NOT done here -- it's a one-time-ever, user-facing flow
-  // (see recovery.js), not something to trigger silently on every login.
-  await client.initRustCrypto({ storePrefix: `${res.user_id}::${res.device_id}` });
+  // the browser still held it open.
+  //
+  // NB: `client.initRustCrypto()`'s own public option is
+  // `cryptoDatabasePrefix`, NOT `storePrefix` -- `storePrefix` is only the
+  // name of the *lower-level* rust-crypto/index.js parameter that
+  // `cryptoDatabasePrefix` gets translated into internally. Passing
+  // `storePrefix` directly here is silently ignored (unknown key on a
+  // plain object), which is exactly what happened on the first attempt at
+  // this fix -- confirmed live: `indexedDB.databases()` still showed only
+  // the old fixed-name database after deploying that version.
+  //
+  // Cross-signing/secret-storage/key-backup setup itself is NOT done here
+  // -- it's a one-time-ever, user-facing flow (see recovery.js), not
+  // something to trigger silently on every login.
+  await client.initRustCrypto({ cryptoDatabasePrefix: `${res.user_id}::${res.device_id}` });
 
   await client.startClient({ initialSyncLimit: 30 });
   // startClient() resolves once the sync loop is STARTED, not once rooms

@@ -51,16 +51,23 @@ specifically. The recovery key `client/src/recovery.js` generates is always
 client-side (`crypto.createRecoveryKeyFromPassphrase()`), shown to the user
 once, and never sent to or knowable by this addon's PHP side.
 
-## `initRustCrypto()` needs a per-(account, device) `storePrefix`
+## `initRustCrypto()` needs a per-(account, device) `cryptoDatabasePrefix`
 
 `matrix.js`'s `loginAndStart()` passes
-`storePrefix: \`${res.user_id}::${res.device_id}\`` to `client.initRustCrypto()`.
-**Do not drop this.** Leaving `storePrefix` unset makes matrix-js-sdk open
-one hardcoded-named IndexedDB database shared by *every* account and
-*every* device on this origin (confirmed by reading matrix-js-sdk's
-`rust-crypto/index.js`: no `storePrefix` -> a `null` store name -> a fixed
-default name in the underlying `@matrix-org/matrix-sdk-crypto-wasm` store).
-Discovered live, the hard way, in two forms:
+`cryptoDatabasePrefix: \`${res.user_id}::${res.device_id}\`` to
+`client.initRustCrypto()`. **Do not drop this, and do not rename the key
+to `storePrefix`** -- `storePrefix` is only the name of the *lower-level*
+`rust-crypto/index.js` parameter this gets translated into internally;
+passing `storePrefix` directly to the public `client.initRustCrypto()` is
+silently ignored (unknown key on a plain object, no error). This is not
+hypothetical -- it's exactly what the first attempt at this fix did, and
+it shipped and was live-verified as still broken (`indexedDB.databases()`
+in a real browser still showed only the old fixed-name database after
+deploying it) before the key name was corrected.
+
+Leaving this option unset (or wrong) makes matrix-js-sdk open one
+hardcoded-named IndexedDB database shared by *every* account and *every*
+device on this origin. Discovered live, the hard way, in two forms:
 - Switching Friendica accounts in the same browser without a full storage
   wipe crashed with `Error: the account in the store doesn't match the
   account in the constructor` -- the new account's client tried to open the
