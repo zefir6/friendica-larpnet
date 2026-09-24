@@ -8,17 +8,18 @@
   position: fixed;
   right: 24px;
   bottom: 24px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+  height: 52px;
+  min-width: 52px;
+  padding: 0 20px 0 16px;
+  border-radius: 26px;
   border: none;
   background: #833c89;
   color: #fff;
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
   z-index: 1051;
@@ -27,6 +28,12 @@
 
 #larpnet-chat-bubble:hover {
   transform: scale(1.06);
+}
+
+.larpnet-chat-bubble-label {
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 #larpnet-chat-panel {
