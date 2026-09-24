@@ -103,11 +103,12 @@ room keys. `App.jsx` drives two flows off `getRecoveryStatus()`:
   keep no copy anywhere -- if they lose it, see the last bullet below.
 - **`needs_restore`** (secret storage already exists remotely, this device
   just doesn't have the key yet): `RecoveryKeyModal` prompts for the
-  existing recovery key; `restoreFromRecoveryKey()` decodes it, calls
-  `loadSessionBackupPrivateKeyFromSecretStorage()` then `restoreKeyBackup()`.
-  Skippable -- the device still works for *new* messages either way, but
-  see the next section for what "still works" actually means for a
-  skipped device's own *outgoing* messages.
+  existing recovery key; `restoreFromRecoveryKey()` decodes it and runs
+  all three steps in the next section below, in order. Skippable -- the
+  device still works for *sending* new messages either way, but (until
+  this three-step dance completes) those messages won't be recoverable by
+  *any* device either, including this account's own future devices -- see
+  below for why.
 
 **`getRecoveryStatus()`'s per-device check, and why `isSecretStorageReady()`
 is the wrong one -- confirmed live, this was shipped broken once already:**
@@ -122,23 +123,47 @@ opening a genuinely fresh third device and getting
 `"Nie można odszyfrować wiadomości"` with no way to fix it through the UI.
 The correct per-device signal is `getActiveSessionBackupVersion()`: `null`
 until *this specific device* has actually loaded/enabled the backup
-decryption key -- which is also, not coincidentally, exactly what decides
-whether *this device's own outgoing messages* get uploaded to key backup
-at all (a device that was never given the recovery key can encrypt and
-send fine, but its messages are then just as unrecoverable to *any* other
-device, including future ones, as the history it can't read itself).
+decryption key.
 
-**`restoreKeyBackup()` needs a separate priming call first, or it silently
-finds nothing to restore:** calling it right after caching the recovery key
-(via `getSecretStorageKey`) throws `"No decryption key found in crypto
-store"` -- confirmed live. The actual backup decryption key is a
-*different* secret (`m.megolm_backup.v1`) that must first be pulled out of
-secret storage with `loadSessionBackupPrivateKeyFromSecretStorage()`
-(which is also what makes `getActiveSessionBackupVersion()` go non-null).
+**`restoreFromRecoveryKey()` is three steps, not two -- confirmed live,
+shipped broken *twice* before landing correctly:**
+1. `loadSessionBackupPrivateKeyFromSecretStorage()` -- reads the actual
+   backup decryption key (a *different* secret, `m.megolm_backup.v1`) out
+   of secret storage using the recovery key, and caches it locally.
+   Skipping this makes step 2 throw `"No decryption key found in crypto
+   store"` even with the right recovery key already cached via
+   `getSecretStorageKey` -- confirmed live. This is also what makes
+   `getActiveSessionBackupVersion()` go non-null.
+2. `restoreKeyBackup()` -- downloads and decrypts whatever *other*
+   devices have already backed up. The "read old history" half.
+3. **`bootstrapCrossSigning()`, called again** -- easy to assume this
+   step is unnecessary once 1-2 succeed, since `getRecoveryStatus()`
+   already reports `'ready'` at that point. It's not: without it,
+   `crypto.checkKeyBackupAndEnable()` keeps reporting the backup as
+   *untrusted* (confirmed live: `[RustBackupManager] Key backup present
+   on server but not trusted: not enabling key backup`, repeating on
+   every sync), which means this device's own *new* outgoing messages
+   are silently never uploaded to backup either -- steps 1-2 alone only
+   fix reading, not being read *from* in the future. Calling
+   `bootstrapCrossSigning()` again on a device that didn't create the
+   keys is safe specifically because secret storage is already unlocked
+   at this point: the SDK takes a different, UIA-free internal path that
+   just imports and caches the existing keys locally (confirmed live via
+   its own log line: `"Cross-signing private keys not found locally, but
+   they are available in secret storage, reading storage and caching
+   locally"`) -- it does not attempt to create or overwrite anything, so
+   this is not the same operation as `setUpRecovery()`'s first-ever call
+   and does not carry the same "never call this on an account that
+   already has keys" warning that applies to `resetEncryption()`.
+   Isolated and verified safe in a disposable Node script against the
+   real account *before* this was ever tried live, given how badly the
+   `resetEncryption()` experiment went earlier this session.
+
 Only `resetKeyBackup()` -- called internally by `setUpRecovery()`'s
 `bootstrapSecretStorage({ setupNewKeyBackup: true })` -- generates and
-caches that key directly, which is why the device that runs *setup*
-doesn't need this extra step but every device that *restores* does.
+caches the backup decryption key directly *and* establishes trust in one
+call, which is why the device that runs *setup* doesn't need any of this
+three-step dance but every device that *restores* does.
 
 **Empirically confirmed against `test.larpnet.pl`'s Synapse this session
 (important, non-obvious constraints for anyone touching this again):**
