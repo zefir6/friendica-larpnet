@@ -1,10 +1,12 @@
 import { useEffect, useState, useCallback } from 'preact/hooks';
 import { loginAndStart, dmTargetMxid, findOrCreateDirectRoom, roomDisplayName } from './matrix.js';
-import { getRecoveryStatus, setUpRecovery, restoreFromRecoveryKey } from './recovery.js';
+import { getRecoveryStatus, setUpRecovery, resetRecovery, restoreFromRecoveryKey } from './recovery.js';
 import { RoomList } from './RoomList.jsx';
 import { Conversation } from './Conversation.jsx';
 import { ContactPicker } from './ContactPicker.jsx';
 import { RecoveryKeyModal } from './RecoveryKeyModal.jsx';
+import { RoomInfoModal } from './RoomInfoModal.jsx';
+import { SettingsModal } from './SettingsModal.jsx';
 
 // Whether this client is running inside the widget's iframe overlay (see
 // js/matrix-chat-widget.js) rather than as its own top-level window/tab
@@ -49,10 +51,17 @@ export function App({ config }) {
   const [error, setError] = useState(null);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [isFullWindow, setIsFullWindow] = useState(false);
-  const [showPicker, setShowPicker] = useState(false);
+  // null | 'new_chat' | 'add_member' -- which purpose the ContactPicker
+  // overlay is open for, so the same picker component can drive either
+  // "start a new DM" (findOrCreateDirectRoom) or "invite to the currently
+  // open room" (client.invite) without duplicating the picker itself.
+  const [pickerMode, setPickerMode] = useState(null);
   const [roomListCollapsed, setRoomListCollapsed] = useState(false);
+  const [showRoomInfo, setShowRoomInfo] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   // null once resolved to 'ready' (nothing to show); 'needs_setup' or
-  // 'needs_restore' render RecoveryKeyModal -- see recovery.js.
+  // 'needs_restore' render RecoveryKeyModal -- see recovery.js. 'reset' is
+  // the same setup flow, triggered from Settings instead of first login.
   const [recoveryPrompt, setRecoveryPrompt] = useState(null);
   const [recoveryKeyToShow, setRecoveryKeyToShow] = useState(null);
   // Bumped on any client event that could change what's on screen (new
@@ -81,13 +90,9 @@ export function App({ config }) {
 
         const recoveryStatus = await getRecoveryStatus(c);
         if (!cancelled && recoveryStatus === 'needs_setup') {
-          // First-ever setup for this account -- generate the recovery key now
-          // so the modal has something to show as soon as it renders.
-          const key = await setUpRecovery(c);
-          if (!cancelled) {
-            setRecoveryKeyToShow(key);
-            setRecoveryPrompt('needs_setup');
-          }
+          // Key generation is deferred until the user picks random-vs-phrase
+          // in the modal itself -- see handleChooseSetup below.
+          setRecoveryPrompt('needs_setup');
         } else if (!cancelled && recoveryStatus === 'needs_restore') {
           setRecoveryPrompt('needs_restore');
         }
@@ -137,10 +142,24 @@ export function App({ config }) {
   };
 
   const handlePick = async (nickname) => {
-    setShowPicker(false);
+    setPickerMode(null);
     const targetMxid = '@' + nickname + ':' + config.serverName;
+    if (pickerMode === 'add_member') {
+      await client.invite(selectedRoomId, targetMxid);
+      return;
+    }
     const roomId = await findOrCreateDirectRoom(client, targetMxid);
     selectRoom(roomId);
+  };
+
+  const handleChooseSetup = async (passphrase) => {
+    const key = await setUpRecovery(client, passphrase);
+    setRecoveryKeyToShow(key);
+  };
+
+  const handleChooseReset = async (passphrase) => {
+    const key = await resetRecovery(client, passphrase);
+    setRecoveryKeyToShow(key);
   };
 
   const handleConfirmRecoverySetup = () => {
@@ -158,12 +177,33 @@ export function App({ config }) {
 
   const handleSkipRecoveryRestore = () => setRecoveryPrompt(null);
 
+  const handleOpenReset = () => {
+    setShowSettings(false);
+    setRecoveryPrompt('reset');
+  };
+
+  const handleRoomLeft = () => {
+    setShowRoomInfo(false);
+    setSelectedRoomId(null);
+    setRoomListCollapsed(false);
+  };
+
   // The header shows who you're talking TO, never your own name (own name
   // was an earlier, actually-backwards design -- see git history) --
   // falls back to a generic label when no conversation is open yet (e.g.
   // right after opening the bare bubble with no ?dm= target).
   const selectedRoom = selectedRoomId ? client.getRoom(selectedRoomId) : null;
   const headerTitle = selectedRoom ? roomDisplayName(selectedRoom, client, config.contacts) : 'Czat';
+
+  const existingMemberNicknames = selectedRoom
+    ? new Set(
+        selectedRoom
+          .getMembersWithMembership('join')
+          .concat(selectedRoom.getMembersWithMembership('invite'))
+          .map((m) => /^@([^:]+):/.exec(m.userId)?.[1]?.toLowerCase())
+          .filter(Boolean),
+      )
+    : new Set();
 
   return (
     <div class="lnc-app">
@@ -177,6 +217,14 @@ export function App({ config }) {
           Rozmowy
         </button>
         <span class="lnc-header-title">{headerTitle}</span>
+        {selectedRoom && (
+          <button type="button" class="lnc-header-btn" title="Informacje o rozmowie" onClick={() => setShowRoomInfo(true)}>
+            Info
+          </button>
+        )}
+        <button type="button" class="lnc-header-btn" title="Ustawienia" onClick={() => setShowSettings(true)}>
+          ⚙
+        </button>
         <button
           type="button"
           class="lnc-header-btn"
@@ -192,19 +240,38 @@ export function App({ config }) {
           selectedRoomId={selectedRoomId}
           onSelect={selectRoom}
           client={client}
-          onNewChat={() => setShowPicker(true)}
+          onNewChat={() => setPickerMode('new_chat')}
           collapsed={roomListCollapsed}
           contacts={config.contacts}
         />
         <Conversation client={client} roomId={selectedRoomId} contacts={config.contacts} />
       </div>
-      {showPicker && (
-        <ContactPicker contacts={config.contacts || []} onPick={handlePick} onClose={() => setShowPicker(false)} />
+      {pickerMode && (
+        <ContactPicker
+          contacts={(config.contacts || []).filter((c) => !existingMemberNicknames.has(c.nickname.toLowerCase()))}
+          onPick={handlePick}
+          onClose={() => setPickerMode(null)}
+        />
       )}
-      {recoveryPrompt === 'needs_setup' && recoveryKeyToShow && (
+      {showRoomInfo && selectedRoom && (
+        <RoomInfoModal
+          client={client}
+          room={selectedRoom}
+          contacts={config.contacts}
+          onClose={() => setShowRoomInfo(false)}
+          onLeft={handleRoomLeft}
+          onAddMember={() => {
+            setShowRoomInfo(false);
+            setPickerMode('add_member');
+          }}
+        />
+      )}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onResetRecovery={handleOpenReset} />}
+      {(recoveryPrompt === 'needs_setup' || recoveryPrompt === 'reset') && (
         <RecoveryKeyModal
-          mode="setup"
+          mode={recoveryPrompt === 'reset' ? 'reset' : 'setup'}
           recoveryKey={recoveryKeyToShow}
+          onChoose={recoveryPrompt === 'reset' ? handleChooseReset : handleChooseSetup}
           onConfirmSetup={handleConfirmRecoverySetup}
         />
       )}

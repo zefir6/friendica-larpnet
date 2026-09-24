@@ -1,16 +1,30 @@
 import { useState } from 'preact/hooks';
 
 /**
- * Two modes, matching recovery.js's getRecoveryStatus() values:
- * - 'setup': first time ever for this account -- show the freshly generated
- *   recoveryKey once, require an explicit "I've saved it" before closing
- *   (there's no way to see it again -- we never keep a copy).
- * - 'restore': secret storage/key backup already exist elsewhere -- let the
- *   user enter their saved recovery key, or skip (this device just won't
- *   be able to decrypt old history until they enter it some other time).
+ * Three modes:
+ * - 'setup': first time ever for this account -- let the user choose
+ *   between a randomly generated key or their own phrase, then show the
+ *   resulting encoded key once (there's no way to see it again -- we never
+ *   keep a copy).
+ * - 'reset': same choose-then-show flow as 'setup', but for
+ *   recovery.js's resetRecovery() instead -- used from Settings when the
+ *   user deliberately wants to invalidate their old key. `onChoose` is
+ *   still the prop name (App.jsx wires it to whichever function fits).
+ * - 'restore': secret storage/key backup already exist elsewhere -- let
+ *   the user enter their saved recovery key *or* the phrase they set it up
+ *   with, or skip (this device just won't be able to decrypt old history
+ *   until they enter it some other time).
+ *
+ * `recoveryKey` starts null in 'setup'/'reset' mode -- while it's null,
+ * this shows the choose-your-own-phrase-or-random form; once the parent's
+ * onChoose() resolves and passes the result back in as `recoveryKey`, this
+ * switches to the "here it is, save it" view. Kept in one component
+ * (rather than two App.jsx-level states) so the transition is a plain prop
+ * change, not a route change.
  */
-export function RecoveryKeyModal({ mode, recoveryKey, onConfirmSetup, onSubmitRestore, onSkip }) {
+export function RecoveryKeyModal({ mode, recoveryKey, onChoose, onConfirmSetup, onSubmitRestore, onSkip }) {
   const [input, setInput] = useState('');
+  const [passphrase, setPassphrase] = useState('');
   const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -25,53 +39,109 @@ export function RecoveryKeyModal({ mode, recoveryKey, onConfirmSetup, onSubmitRe
     }
   };
 
+  const handleChooseRandom = async () => {
+    setSubmitting(true);
+    await onChoose(undefined);
+    setSubmitting(false);
+  };
+
+  const handleChoosePassphrase = async (e) => {
+    e.preventDefault();
+    const trimmed = passphrase.trim();
+    if (!trimmed) {
+      return;
+    }
+    setSubmitting(true);
+    await onChoose(trimmed);
+    setSubmitting(false);
+  };
+
+  if (mode === 'setup' || mode === 'reset') {
+    if (!recoveryKey) {
+      const isReset = mode === 'reset';
+      return (
+        <div class="lnc-picker-overlay">
+          <div class="lnc-picker lnc-recovery-modal" onClick={(e) => e.stopPropagation()}>
+            <div class="lnc-picker-header">
+              <span>{isReset ? 'Resetuj klucz odzyskiwania' : 'Ustaw klucz odzyskiwania'}</span>
+            </div>
+            <p class="lnc-recovery-text">
+              {isReset
+                ? 'Stary klucz przestanie działać, a wiadomości wysłane przed resetem nie będą już do odczytania na nowych urządzeniach. Wybierz nowy klucz -- losowy albo własną frazę.'
+                : 'Ten klucz pozwala odczytać historię czatu na nowym urządzeniu lub w innej przeglądarce. Możesz wygenerować losowy klucz albo ustawić własną, łatwą do zapamiętania frazę.'}
+            </p>
+            <button type="button" class="lnc-new-chat-btn" onClick={handleChooseRandom} disabled={submitting}>
+              {submitting ? 'Generowanie…' : 'Wygeneruj losowy klucz'}
+            </button>
+            <form onSubmit={handleChoosePassphrase}>
+              <input
+                type="text"
+                class="lnc-picker-search"
+                placeholder="Albo wpisz własną frazę…"
+                value={passphrase}
+                onInput={(e) => setPassphrase(e.currentTarget.value)}
+              />
+              <div class="lnc-recovery-actions">
+                <button type="submit" class="lnc-new-chat-btn" disabled={submitting || !passphrase.trim()}>
+                  {submitting ? 'Ustawianie…' : 'Ustaw frazę'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div class="lnc-picker-overlay">
+        <div class="lnc-picker lnc-recovery-modal" onClick={(e) => e.stopPropagation()}>
+          <div class="lnc-picker-header">
+            <span>Zapisz swój klucz odzyskiwania</span>
+          </div>
+          <p class="lnc-recovery-text">
+            Zapisz go w bezpiecznym miejscu (np. menedżerze haseł) -- nikt inny, w tym
+            administrator serwera, go nie zna i nie może go odzyskać. Jeśli ustawiłeś/-aś
+            własną frazę, możesz użyć jej zamiast tego klucza na innym urządzeniu.
+          </p>
+          <code class="lnc-recovery-key">{recoveryKey}</code>
+          <button type="button" class="lnc-new-chat-btn" onClick={onConfirmSetup}>
+            Zapisałem/-am klucz
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div class="lnc-picker-overlay">
       <div class="lnc-picker lnc-recovery-modal" onClick={(e) => e.stopPropagation()}>
-        {mode === 'setup' ? (
-          <>
-            <div class="lnc-picker-header">
-              <span>Zapisz swój klucz odzyskiwania</span>
-            </div>
-            <p class="lnc-recovery-text">
-              Ten klucz pozwala odczytać historię czatu na nowym urządzeniu lub w innej
-              przeglądarce. Zapisz go w bezpiecznym miejscu (np. menedżerze haseł) --
-              nikt inny, w tym administrator serwera, go nie zna i nie może go odzyskać.
-            </p>
-            <code class="lnc-recovery-key">{recoveryKey}</code>
-            <button type="button" class="lnc-new-chat-btn" onClick={onConfirmSetup}>
-              Zapisałem/-am klucz
+        <form onSubmit={handleRestoreSubmit}>
+          <div class="lnc-picker-header">
+            <span>Odblokuj historię czatu</span>
+          </div>
+          <p class="lnc-recovery-text">
+            To nowe urządzenie/przeglądarka -- wpisz swój klucz odzyskiwania (albo frazę,
+            jeśli taką ustawiłeś/-aś), aby odczytać wcześniejsze wiadomości. Możesz to
+            zrobić później -- nowe wiadomości będą działać już teraz.
+          </p>
+          <input
+            type="text"
+            class="lnc-picker-search"
+            placeholder="Klucz odzyskiwania lub fraza…"
+            value={input}
+            onInput={(e) => setInput(e.currentTarget.value)}
+            autoFocus
+          />
+          {error && <div class="lnc-recovery-error">Nieprawidłowy klucz lub fraza. Spróbuj ponownie.</div>}
+          <div class="lnc-recovery-actions">
+            <button type="button" class="lnc-header-btn" onClick={onSkip} disabled={submitting}>
+              Później
             </button>
-          </>
-        ) : (
-          <form onSubmit={handleRestoreSubmit}>
-            <div class="lnc-picker-header">
-              <span>Odblokuj historię czatu</span>
-            </div>
-            <p class="lnc-recovery-text">
-              To nowe urządzenie/przeglądarka -- wpisz swój klucz odzyskiwania, aby
-              odczytać wcześniejsze wiadomości. Możesz to zrobić później -- nowe
-              wiadomości będą działać już teraz.
-            </p>
-            <input
-              type="text"
-              class="lnc-picker-search"
-              placeholder="Klucz odzyskiwania…"
-              value={input}
-              onInput={(e) => setInput(e.currentTarget.value)}
-              autoFocus
-            />
-            {error && <div class="lnc-recovery-error">Nieprawidłowy klucz. Spróbuj ponownie.</div>}
-            <div class="lnc-recovery-actions">
-              <button type="button" class="lnc-header-btn" onClick={onSkip} disabled={submitting}>
-                Później
-              </button>
-              <button type="submit" class="lnc-new-chat-btn" disabled={submitting || !input.trim()}>
-                {submitting ? 'Sprawdzanie…' : 'Odblokuj'}
-              </button>
-            </div>
-          </form>
-        )}
+            <button type="submit" class="lnc-new-chat-btn" disabled={submitting || !input.trim()}>
+              {submitting ? 'Sprawdzanie…' : 'Odblokuj'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
