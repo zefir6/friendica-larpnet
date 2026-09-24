@@ -55,10 +55,22 @@ export function createRecoveryKeyCache() {
  * - 'needs_restore': secret storage/key backup already exist remotely, but
  *   this device doesn't have the key yet -- prompt for an existing
  *   recovery key (skippable; the device still works for new messages).
+ *
+ * IMPORTANT, confirmed empirically (do not "simplify" this back to
+ * isSecretStorageReady() alone): `crypto.isSecretStorageReady()` is an
+ * ACCOUNT-level check -- once ANY device has ever bootstrapped secret
+ * storage, it returns true on *every* device of that account forever
+ * after, including ones that have never unlocked it themselves. Using it
+ * here meant a brand-new device was silently classified 'ready' and never
+ * prompted, while still being completely unable to decrypt anything (and,
+ * just as importantly, never enabling key backup *uploads* for its own
+ * outgoing messages either -- see setUpRecovery()'s doc). The correct
+ * per-device signal is `getActiveSessionBackupVersion()`: null until this
+ * specific device has actually loaded/enabled the backup decryption key.
  */
 export async function getRecoveryStatus(client) {
   const crypto = client.getCrypto();
-  if (await crypto.isSecretStorageReady()) {
+  if ((await crypto.getActiveSessionBackupVersion()) !== null) {
     return 'ready';
   }
   return (await client.secretStorage.hasKey()) ? 'needs_restore' : 'needs_setup';
@@ -68,6 +80,15 @@ export async function getRecoveryStatus(client) {
  * First-ever setup for this account. Only call when getRecoveryStatus()
  * returned 'needs_setup' -- see this module's own docblock for why calling
  * it again once cross-signing already exists is unsafe.
+ *
+ * `setupNewKeyBackup: true` below makes bootstrapSecretStorage() call
+ * resetKeyBackup() internally, which -- unlike restoreFromRecoveryKey()'s
+ * path -- generates and caches the backup decryption key directly rather
+ * than reading it back from secret storage, and starts this device's own
+ * backup-upload loop as a side effect. So *this* device (the one that
+ * runs setup) needs no extra step to get key backup active for itself;
+ * only a *different* device restoring afterwards needs
+ * loadSessionBackupPrivateKeyFromSecretStorage() first.
  *
  * Returns the recovery key, encoded for display -- show it to the user
  * ONCE (they must save it themselves; we don't keep a copy anywhere) and
@@ -105,6 +126,20 @@ export async function setUpRecovery(client) {
  * device). Returns true on success, false on a malformed key or a restore
  * failure (wrong key, network error, ...) -- never throws, so callers can
  * show a plain "that didn't work" message without a try/catch.
+ *
+ * Two steps, in order -- confirmed empirically that skipping the first
+ * makes the second fail with "No decryption key found in crypto store"
+ * even with the right key already cached via getSecretStorageKey:
+ * 1. `loadSessionBackupPrivateKeyFromSecretStorage()` -- reads the actual
+ *    backup decryption key (a *different* secret, `m.megolm_backup.v1`)
+ *    out of secret storage using the recovery key, and caches it in this
+ *    device's own local crypto store. This is also what flips
+ *    `getRecoveryStatus()` over to 'ready' afterwards (it makes
+ *    `getActiveSessionBackupVersion()` non-null) -- and, just as
+ *    importantly, is what lets *this* device's own future outgoing
+ *    messages get backed up too, not only what lets it read old ones.
+ * 2. `restoreKeyBackup()` -- now that the decryption key is cached,
+ *    actually downloads and decrypts the backed-up room keys.
  */
 export async function restoreFromRecoveryKey(client, keyCache, recoveryKeyText) {
   const defaultKeyId = await client.secretStorage.getDefaultKeyId();
@@ -119,6 +154,7 @@ export async function restoreFromRecoveryKey(client, keyCache, recoveryKeyText) 
   }
   keyCache.set(defaultKeyId, privateKey);
   try {
+    await client.getCrypto().loadSessionBackupPrivateKeyFromSecretStorage();
     await client.getCrypto().restoreKeyBackup();
     return true;
   } catch (e) {
