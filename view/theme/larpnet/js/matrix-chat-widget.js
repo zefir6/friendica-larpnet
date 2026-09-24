@@ -41,7 +41,10 @@
     bubble.id = 'larpnet-chat-bubble';
     bubble.setAttribute('aria-label', 'Czat');
     bubble.setAttribute('aria-expanded', 'false');
-    bubble.innerHTML = '<i class="ri ri-message-3-line" aria-hidden="true"></i>';
+    // Icon alone read as an unlabeled generic button in practice -- the
+    // visible "Czat" label is what actually makes it recognizable as chat
+    // at a glance (aria-label alone only helps screen readers).
+    bubble.innerHTML = '<i class="ri ri-message-3-line" aria-hidden="true"></i><span class="larpnet-chat-bubble-label">Czat</span>';
     bubble.addEventListener('click', function () { toggle(); });
 
     panel = document.createElement('div');
