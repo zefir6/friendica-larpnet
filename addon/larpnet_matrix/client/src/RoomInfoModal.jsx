@@ -82,7 +82,7 @@ export function RoomInfoModal({ client, room, contacts, onClose, onLeft, onAddMe
               />
               <button
                 type="submit"
-                class="lnc-header-btn"
+                class="lnc-btn-secondary"
                 disabled={busy || !nameInput.trim() || nameInput.trim() === room.name}
               >
                 Zapisz
@@ -93,7 +93,7 @@ export function RoomInfoModal({ client, room, contacts, onClose, onLeft, onAddMe
             {others.map((m) => (
               <div key={m.userId} class="lnc-room-info-member">
                 <span>{resolveDisplayName(m.userId, contacts) || m.name || m.userId}</span>
-                <button type="button" class="lnc-header-btn" onClick={() => handleRemove(m.userId)} disabled={busy}>
+                <button type="button" class="lnc-btn-secondary" onClick={() => handleRemove(m.userId)} disabled={busy}>
                   Usuń
                 </button>
               </div>

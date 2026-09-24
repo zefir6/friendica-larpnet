@@ -224,6 +224,25 @@ body {
   margin-top: 4px;
 }
 
+.lnc-btn-secondary {
+  background: none;
+  border: 1px solid var(--lnc-border);
+  color: var(--lnc-text-secondary);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.lnc-btn-secondary:hover {
+  background: var(--lnc-accent-light);
+}
+
+.lnc-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .lnc-room-info-body {
   padding: 14px;
   display: flex;
