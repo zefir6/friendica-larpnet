@@ -30,7 +30,7 @@ export function SettingsModal({ onClose, onResetRecovery }) {
                 Nowe wiadomości będą działać normalnie. Tej operacji nie można odwrócić.
               </p>
               <div class="lnc-recovery-actions">
-                <button type="button" class="lnc-header-btn" onClick={() => setConfirming(false)}>
+                <button type="button" class="lnc-btn-secondary" onClick={() => setConfirming(false)}>
                   Anuluj
                 </button>
                 <button type="button" class="lnc-room-info-leave" onClick={onResetRecovery}>

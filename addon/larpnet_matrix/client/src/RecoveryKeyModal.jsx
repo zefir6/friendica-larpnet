@@ -134,7 +134,7 @@ export function RecoveryKeyModal({ mode, recoveryKey, onChoose, onConfirmSetup, 
           />
           {error && <div class="lnc-recovery-error">Nieprawidłowy klucz lub fraza. Spróbuj ponownie.</div>}
           <div class="lnc-recovery-actions">
-            <button type="button" class="lnc-header-btn" onClick={onSkip} disabled={submitting}>
+            <button type="button" class="lnc-btn-secondary" onClick={onSkip} disabled={submitting}>
               Później
             </button>
             <button type="submit" class="lnc-new-chat-btn" disabled={submitting || !input.trim()}>
