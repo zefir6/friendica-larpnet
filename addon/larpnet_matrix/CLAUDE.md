@@ -55,6 +55,19 @@ an oversight:
   here, it must use a key generated client-side and shown to the user once,
   never known by the server.
 
+## Chat header shows who you're talking TO, never your own name
+
+`App.jsx`'s header briefly showed `config.displayName` (the *viewer's* own
+larpnet name, injected by `larpnet_matrix_content()`) -- backwards: a chat
+header should say who you're talking to, not remind you who you are. Fixed
+by computing the header title from the selected room via the same
+`roomDisplayName()` helper the room list already used (moved into
+`matrix.js` so both share it), and dropping the now-unused
+`config.displayName` field entirely (`larpnet_matrix_content()` no longer
+injects it). If this regresses, check that the header is deriving its title
+from `client.getRoom(selectedRoomId)` + `roomDisplayName()`, not from
+anything describing the logged-in user.
+
 ## Matrix displayname sync -- why it matters for names shown to *other* users
 
 Matrix's own displayname for an account is only ever set by that account
