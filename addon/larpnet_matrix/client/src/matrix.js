@@ -170,16 +170,56 @@ export function dmTargetMxid(cfg) {
   return '@' + cfg.dm + ':' + cfg.serverName;
 }
 
-// Finds an existing 1:1 room with exactly this other member, or creates
-// one. "1:1" here means exactly two joined/invited members total
-// (ourself + them) -- good enough for this client's only use case (the
-// profile-page Chat button), not a general DM-room heuristic.
+// Adds roomId under targetMxid in the m.direct account-data map (merging,
+// never overwriting other users' entries), creating the map if it doesn't
+// exist yet. This is the actual Matrix-spec mechanism for "which room is
+// my DM with this person" -- see findOrCreateDirectRoom()'s doc comment
+// for why writing it here matters, not just reading it.
+async function addDirectRoomAccountData(client, targetMxid, roomId) {
+  const direct = client.getAccountData('m.direct')?.getContent() || {};
+  const existingIds = direct[targetMxid] || [];
+  if (existingIds.includes(roomId)) {
+    return;
+  }
+  await client.setAccountData('m.direct', { ...direct, [targetMxid]: [...existingIds, roomId] });
+}
+
+// Finds an existing 1:1 room with this other member, or creates one.
+//
+// Primary lookup is the m.direct account-data event ({ [userId]: [roomId,
+// ...] }) -- the actual spec mechanism every well-behaved Matrix client
+// (including MatrixRustSDK's own Client::get_dm_room(), used by the iOS/
+// Android apps) relies on to recognize "this room is my DM with them".
+// This client used to never read OR write that event, using only a plain
+// "exactly 2 members" heuristic instead -- which meant a room this client
+// created was invisible to the mobile apps' lookup (and, symmetrically, a
+// room *they* created could be invisible to this heuristic if their
+// member-count assumption ever didn't hold), so starting a chat with the
+// same person from the phone and then from web ended up creating two
+// separate rooms instead of continuing the same conversation. Confirmed
+// live: MatrixRustSDK's get_dm_room() reads direct_targets(), sourced from
+// this same m.direct account data, nothing else.
+//
+// The old member-count heuristic is kept as a fallback (for rooms created
+// before this fix, before m.direct was ever written for them) -- if it
+// finds a match, this backfills m.direct so every client agrees on it from
+// then on, self-healing existing duplicate-prone rooms without needing a
+// migration script.
 export async function findOrCreateDirectRoom(client, targetMxid) {
+  const direct = client.getAccountData('m.direct')?.getContent() || {};
+  const knownRoom = (direct[targetMxid] || [])
+    .map((roomId) => client.getRoom(roomId))
+    .find((room) => room && room.getMyMembership() !== 'leave' && room.getMyMembership() !== 'ban');
+  if (knownRoom) {
+    return knownRoom.roomId;
+  }
+
   const existing = client.getRooms().find((room) => {
     const members = room.getMembersWithMembership('join').concat(room.getMembersWithMembership('invite'));
     return members.length === 2 && members.some((m) => m.userId === targetMxid);
   });
   if (existing) {
+    await addDirectRoomAccountData(client, targetMxid, existing.roomId);
     return existing.roomId;
   }
 
@@ -190,5 +230,6 @@ export async function findOrCreateDirectRoom(client, targetMxid) {
       { type: 'm.room.encryption', state_key: '', content: { algorithm: 'm.megolm.v1.aes-sha2' } },
     ],
   });
+  await addDirectRoomAccountData(client, targetMxid, room_id);
   return room_id;
 }
