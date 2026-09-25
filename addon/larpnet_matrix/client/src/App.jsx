@@ -8,40 +8,18 @@ import { RecoveryKeyModal } from './RecoveryKeyModal.jsx';
 import { RoomInfoModal } from './RoomInfoModal.jsx';
 import { SettingsModal } from './SettingsModal.jsx';
 
-// Whether this client is running inside the widget's iframe overlay (see
-// js/matrix-chat-widget.js) rather than as its own top-level window/tab
-// (e.g. a direct navigation to /larpnet_matrix, the JS-disabled fallback
-// vcard.tpl's Chat link href points at). Each case needs a different
-// "full window" mechanism -- an iframe can't resize the real browser
-// window it's embedded in, so it asks the parent page to expand the
-// overlay panel itself (same-origin, so this is a plain direct call, no
-// postMessage needed) instead of calling window.resizeTo like a real
-// top-level window can.
-const isEmbedded = window.top !== window.self;
-
-// Remembers a real top-level window's own initial size/position so the
-// maximize button has something to restore back to. Meaningless (and
-// unused) when isEmbedded.
-const initialWindowRect = { x: window.screenX, y: window.screenY, w: window.outerWidth, h: window.outerHeight };
-
-function toggleFullWindow(setIsFull) {
-  setIsFull((wasFull) => {
-    if (isEmbedded) {
-      try {
-        const panel = window.parent.document.getElementById('larpnet-chat-panel');
-        panel?.classList.toggle('larpnet-chat-panel-maximized', !wasFull);
-      } catch (e) {
-        // cross-origin or parent gone -- nothing we can do
-      }
-    } else if (wasFull) {
-      window.resizeTo(initialWindowRect.w, initialWindowRect.h);
-      window.moveTo(initialWindowRect.x, initialWindowRect.y);
-    } else {
-      window.moveTo(0, 0);
-      window.resizeTo(window.screen.availWidth, window.screen.availHeight);
-    }
-    return !wasFull;
-  });
+// "Pełny ekran" opens this same chat (same room, same everything -- just
+// window.location.href, which already includes any ?dm=/room state the
+// current view has) as a real new browser tab, rather than trying to
+// resize/maximize the overlay in place. A resized overlay was still just
+// the same cramped iframe with more CSS around it; a real tab gets a
+// genuinely bigger, independently-scrollable window with its own tab-level
+// back/forward/reload, which is what people actually want out of "full
+// screen". Works the same whether this is running inside the widget's
+// iframe overlay or already as its own top-level tab (opening a second tab
+// of yourself in that case is harmless, if a little redundant).
+function openInNewTab() {
+  window.open(window.location.href, '_blank', 'noopener');
 }
 
 export function App({ config }) {
@@ -50,7 +28,6 @@ export function App({ config }) {
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [error, setError] = useState(null);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
-  const [isFullWindow, setIsFullWindow] = useState(false);
   // null | 'new_chat' | 'add_member' -- which purpose the ContactPicker
   // overlay is open for, so the same picker component can drive either
   // "start a new DM" (findOrCreateDirectRoom) or "invite to the currently
@@ -225,13 +202,8 @@ export function App({ config }) {
         <button type="button" class="lnc-header-btn" title="Ustawienia" onClick={() => setShowSettings(true)}>
           ⚙
         </button>
-        <button
-          type="button"
-          class="lnc-header-btn"
-          title={isFullWindow ? 'Przywróć rozmiar okna' : 'Pełne okno'}
-          onClick={() => toggleFullWindow(setIsFullWindow)}
-        >
-          {isFullWindow ? 'Przywróć' : 'Pełny ekran'}
+        <button type="button" class="lnc-header-btn" title="Otwórz w nowej karcie" onClick={openInNewTab}>
+          Pełny ekran
         </button>
       </div>
       <div class="lnc-body">
