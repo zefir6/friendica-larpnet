@@ -325,11 +325,104 @@ name never updates) again, check this and the SSRF entry above, not the
 three layers earlier in this section -- they were never actually the
 problem, twice now.
 
+## Push notifications: custom Matrix push gateway, not Sygnal
+
+`POST /larpnet_matrix/push` implements the Matrix Push Gateway API
+(https://spec.matrix.org/latest/push-gateway-api/) directly in this addon,
+for the native iOS/Android clients' background message notifications.
+Deliberately not a separately deployed Sygnal instance -- the contract is
+one HTTP call in (`{notification: {event_id, room_id, counts, devices: [...]}}`),
+one JSON object out (`{rejected: [...]}`), and both delivery backends (FCM,
+APNs) already need hand-rolled provider-auth signing code in this
+codebase regardless (see `addon/larpnet_fcm`'s RS256 JWT and
+`larpnet_matrix_apns_jwt()`'s ES256 JWT) -- running a whole extra Python
+service for one HTTP relay would be more deployment surface for no real
+benefit. See `larpnet_matrix_push_notify()`'s own doc comment for the
+full request/response shape.
+
+**Auth**: a shared secret (`LARPNET_MATRIX_PUSH_SECRET` env var, same
+per-deployment convention as `LARPNET_MATRIX_JWT_SECRET`) passed as
+`?key=` on the URL a client registers as its pusher's `data.url` --
+Synapse itself defines no gateway-auth mechanism (a gateway is normally
+just trusted once a homeserver is configured to reach it), so this is
+defense in depth against something unrelated on the internet triggering
+FCM/APNs sends through this endpoint, not a real trust boundary between
+us and our own homeserver.
+
+**App ID contract**: `LARPNET_MATRIX_APP_ID_ANDROID` (`pl.larpnet.android`)
+and `LARPNET_MATRIX_APP_ID_IOS` (`pl.larpnet.ios`) are the exact `app_id`
+values each native client must register with Synapse
+(`POST /_matrix/client/v3/pushers/set`) -- a cross-repo contract, the same
+way `OAUTH_REDIRECT_URI` has to byte-for-byte match between
+`larpnet-android` and this server. `pushkey` is simply the raw FCM
+registration token (Android) or APNs device token (iOS); this gateway is
+stateless and keeps no registration table of its own -- Synapse's own
+pusher table is the only place that mapping lives, which is also why a
+dead pushkey just gets returned in `rejected` rather than looked up or
+deleted anywhere here.
+
+**Never leaks plaintext to Apple/Google.** For Android: only `event_id`/
+`room_id` go into the FCM message, and it's sent via
+`larpnet_fcm_send_data_message()` (data-only, no `notification` block) --
+never the existing `larpnet_fcm_send_to_tokens()`, which always includes
+a real plaintext title/body and exists only for classic Friendica
+notifications. For iOS: the APNs alert text is always the same static
+placeholder (`"Larpnet" / "New message"`) with `mutable-content: 1`, so
+Apple's servers see nothing beyond that placeholder -- the real
+sender/preview is filled in on-device by the Notification Service
+Extension after it decrypts the referenced event locally via
+MatrixRustSDK's `NotificationClient`, same pattern Element X's iOS client
+uses for encrypted rooms. A pure `content-available`-only background push
+was deliberately not used instead: it doesn't invoke the NSE for content
+modification and has no delivery-time guarantee, whereas an alert push
+does both.
+
+**Config: env vars, same as this addon's other `LARPNET_MATRIX_*` settings**
+(deliberately not admin-config the way `larpnet_fcm`'s
+`fcm_service_account_json` is -- both are valid places in this codebase
+for a secret to live, this one just follows the convention already
+established for everything else `larpnet_matrix_settings()` reads,
+rather than introducing a second pattern):
+- `LARPNET_MATRIX_APNS_KEY_ID`, `LARPNET_MATRIX_APNS_TEAM_ID` -- plain
+  strings from the Apple Developer portal's Keys page.
+- `LARPNET_MATRIX_APNS_KEY_PEM_B64` -- the `.p8` file's contents,
+  **base64-encoded** (`base64 -i AuthKey_XXXX.p8 | tr -d '\n'`), not the
+  raw PEM: a `.p8` key is multi-line, and a literal embedded newline in
+  a `.env` file's value isn't reliably supported across every
+  parser/deployment tool in this project's chain (docker compose,
+  systemd `EnvironmentFile`, ...). `larpnet_matrix_apns_send()`
+  `base64_decode()`s it back before use.
+- `LARPNET_MATRIX_APNS_TOPIC` -- optional, defaults to `pl.larpnet.ios`.
+- `LARPNET_MATRIX_APNS_USE_SANDBOX` -- optional bool (`true`/`1`),
+  defaults false/production. Only set this for a build run straight
+  from Xcode onto a device with a development provisioning profile --
+  TestFlight and App Store builds both use the production APNs
+  environment regardless of which internal/external track they're on.
+
+Same Apple Developer account/app either way, so (unlike
+`LARPNET_MATRIX_JWT_SECRET`, deliberately per-deployment since test and
+prod are separate Matrix homeservers with separate user data) these five
+vars are the same values on both `test.larpnet.pl` and prod once both
+are wired for push -- no need to mint a second APNs key for test.
+
+**The DER-to-raw ECDSA signature conversion
+(`larpnet_matrix_der_ecdsa_to_raw()`) is not optional and easy to get
+wrong.** `openssl_sign()` on an EC key always produces a DER-encoded
+signature (a SEQUENCE of two INTEGERs); JWS ES256 (what APNs' auth JWT
+requires) instead needs the raw, fixed-width 64-byte R||S concatenation.
+A DER signature handed to APNs as-is is simply rejected -- there is no
+PHP built-in for this conversion. Verified correct via 200 real
+sign/convert/reconstruct-DER/`openssl_verify()` round trips in a scratch
+script before this shipped (not just eyeballed against the RFC), since a
+subtly wrong byte-padding here would silently produce a JWT that fails
+verification 100% of the time in production while looking
+completely fine in code review.
+
 ## Key files
 
 | Path | Purpose |
 |---|---|
-| `larpnet_matrix.php` | JWT minting/login bridge + same-origin static asset host for `client/dist/` + profile sync. |
+| `larpnet_matrix.php` | JWT minting/login bridge + same-origin static asset host for `client/dist/` + profile sync + the push gateway (`POST /larpnet_matrix/push`, see above). |
 | `client/` | The chat client itself (Preact + matrix-js-sdk). `npm run build` (via `build.mjs`) produces `client/dist/`, which is never committed (see `client/.gitignore`) -- built fresh by the `matrix-client-builder` stage in the repo root `Dockerfile`, same "never trust a local copy" rule as `vendor/`. |
 | `client/build.mjs` | esbuild bundling + the manual wasm-copy step -- see its own comments for why esbuild's `new URL(..., import.meta.url)` asset convention does **not** apply here (confirmed empirically: esbuild does not support that pattern, unlike Vite/Webpack) and what actually resolves the WASM path instead. |
 | `client/src/recovery.js` | Cross-device E2EE history recovery (recovery-key setup/restore/reset) -- see "Cross-device key recovery" above. |
