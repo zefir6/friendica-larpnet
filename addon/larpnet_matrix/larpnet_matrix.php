@@ -34,7 +34,15 @@
  *   restore instead -- moot now that this addon owns the whole client, but
  *   the underlying lesson (don't derive/hold secret-storage keys ourselves)
  *   still applies, see CLAUDE.md.
- * Version: 2.0
+ *
+ *   POST /larpnet_matrix/push implements the Matrix Push Gateway API
+ *   (https://spec.matrix.org/latest/push-gateway-api/) for the native
+ *   iOS/Android clients -- Synapse calls this directly (not a browser
+ *   session, no OAuth) whenever a pusher's room has a new event. See
+ *   larpnet_matrix_push_notify() for the full contract and CLAUDE.md for
+ *   why this is a small custom endpoint here rather than a separately
+ *   deployed Sygnal instance.
+ * Version: 2.1
  * Author: larpnet admin
  */
 
@@ -542,6 +550,14 @@ function larpnet_matrix_content(): string
  */
 function larpnet_matrix_post()
 {
+	// POST /larpnet_matrix/push -- Synapse calling our push gateway, not a
+	// browser/OAuth session. Must be checked before anything below touches
+	// BaseApi::getCurrentUserID(), which has no meaning for this caller.
+	$argv = DI::args()->getArgv();
+	if (($argv[1] ?? null) === 'push') {
+		larpnet_matrix_push_notify();
+	}
+
 	header('Content-Type: application/json');
 
 	$uid = BaseApi::getCurrentUserID();
@@ -575,4 +591,346 @@ function larpnet_matrix_post()
 
 	echo json_encode($identity);
 	exit;
+}
+
+/**
+ * The two app_id values the native clients register their pushers with
+ * (see POST /_matrix/client/v3/pushers/set in each client's own repo) --
+ * single source of truth for the dispatch in larpnet_matrix_push_deliver()
+ * below. Kept as plain constants (not e.g. reading the client's bundle id
+ * from config) since they're a cross-repo contract: the iOS/Android app_id
+ * a client registers with Synapse must byte-for-byte match one of these,
+ * the same way OAUTH_REDIRECT_URI has to match between larpnet-android and
+ * this server.
+ */
+const LARPNET_MATRIX_APP_ID_ANDROID = 'pl.larpnet.android';
+const LARPNET_MATRIX_APP_ID_IOS     = 'pl.larpnet.ios';
+
+/**
+ * POST /larpnet_matrix/push -- the Matrix Push Gateway API
+ * (https://spec.matrix.org/latest/push-gateway-api/notify/). Synapse POSTs
+ * here whenever a pusher's room gets a new event; we forward to FCM
+ * (Android) or APNs (iOS) and hand back which pushkeys were permanently
+ * dead so Synapse can prune those pushers. Not an OAuth/session
+ * endpoint -- Synapse is the caller, authenticated only by a shared secret
+ * in the URL (see larpnet_matrix_push_notify_authorized() below), which is
+ * why this branches off larpnet_matrix_post() before that function's own
+ * BaseApi:: checks.
+ *
+ * Deliberately a small custom endpoint here rather than a separately
+ * deployed Sygnal instance: the Push Gateway contract is just this one
+ * HTTP call in, one JSON object out, and both delivery paths (FCM, APNs)
+ * already need hand-rolled signing code in this codebase anyway (see
+ * larpnet_fcm's RS256 JWT and larpnet_matrix_apns_jwt()'s ES256 JWT below)
+ * -- running a whole extra Python service for this would be more
+ * deployment surface for no real benefit.
+ *
+ * Never sends real message content to Apple/Google: for an encrypted
+ * room, the event's own `content` here is already opaque megolm
+ * ciphertext (so even forwarding it verbatim would leak nothing), but we
+ * don't even do that -- only event_id/room_id are forwarded, and the
+ * receiving app fetches + decrypts that one event itself via
+ * MatrixRustSDK's NotificationClient before showing anything to the user.
+ */
+function larpnet_matrix_push_notify(): void
+{
+	header('Content-Type: application/json');
+
+	if (!larpnet_matrix_push_notify_authorized()) {
+		http_response_code(401);
+		echo json_encode(['error' => 'unauthorized']);
+		exit;
+	}
+
+	$body         = json_decode(file_get_contents('php://input'), true);
+	$notification = is_array($body) ? ($body['notification'] ?? null) : null;
+	$devices      = is_array($notification) ? ($notification['devices'] ?? null) : null;
+	if (!is_array($devices)) {
+		http_response_code(400);
+		echo json_encode(['error' => 'invalid_body']);
+		exit;
+	}
+
+	$data = [
+		'event_id' => $notification['event_id'] ?? '',
+		'room_id'  => $notification['room_id'] ?? '',
+	];
+
+	$rejected = [];
+	foreach ($devices as $device) {
+		$appId   = $device['app_id'] ?? null;
+		$pushkey = $device['pushkey'] ?? null;
+		if (!$appId || !$pushkey) {
+			continue;
+		}
+		if (larpnet_matrix_push_deliver((string) $appId, (string) $pushkey, $data)) {
+			$rejected[] = $pushkey;
+		}
+	}
+
+	echo json_encode(['rejected' => $rejected]);
+	exit;
+}
+
+/**
+ * A shared secret in the URL (LARPNET_MATRIX_PUSH_SECRET, same
+ * env-var-per-deployment convention as the JWT secret in
+ * larpnet_matrix_settings()) rather than any Matrix-level auth -- the Push
+ * Gateway spec defines none, since a gateway is normally just told a
+ * pushkey/app_id and trusts whichever homeserver was configured to reach
+ * it. Since our gateway and homeserver are both ours, this is just
+ * defense in depth against something else on the internet spamming
+ * FCM/APNs sends through this endpoint, not a real trust boundary.
+ * hash_equals() (not ===) to avoid a timing side-channel on the compare.
+ */
+function larpnet_matrix_push_notify_authorized(): bool
+{
+	$secret = getenv('LARPNET_MATRIX_PUSH_SECRET');
+	return $secret && hash_equals($secret, (string) ($_GET['key'] ?? ''));
+}
+
+/**
+ * Dispatches one device's delivery by app_id (see the two
+ * LARPNET_MATRIX_APP_ID_* constants above). An app_id we don't recognise
+ * is logged and treated as delivered (not rejected) -- rejecting would
+ * tell Synapse to prune that pusher, which is wrong for e.g. a future
+ * third platform this server build just doesn't know about yet; silently
+ * dropping the send is the safer failure mode.
+ *
+ * @return bool true only if the delivery layer confirmed $pushkey itself
+ *   is permanently dead -- see larpnet_fcm_send_data_message()'s and
+ *   larpnet_matrix_apns_send()'s own doc comments for why a transient
+ *   failure must never return true here.
+ */
+function larpnet_matrix_push_deliver(string $appId, string $pushkey, array $data): bool
+{
+	if ($appId === LARPNET_MATRIX_APP_ID_ANDROID) {
+		// Reaches into the larpnet_fcm addon the same way
+		// src/Worker/FcmPush.php and src/Model/Profile.php already reach
+		// into larpnet_matrix/larpnet_fcm -- an established cross-addon
+		// pattern in this codebase, not a new one.
+		$fcmFile = __DIR__ . '/../larpnet_fcm/larpnet_fcm.php';
+		if (!file_exists($fcmFile)) {
+			DI::logger()->warning('larpnet_matrix: push notify for Android but larpnet_fcm addon is missing');
+			return false;
+		}
+		require_once $fcmFile;
+		return larpnet_fcm_send_data_message($pushkey, $data);
+	}
+
+	if ($appId === LARPNET_MATRIX_APP_ID_IOS) {
+		return larpnet_matrix_apns_send($pushkey, $data);
+	}
+
+	DI::logger()->warning('larpnet_matrix: push notify for unrecognised app_id', ['app_id' => $appId]);
+	return false;
+}
+
+/**
+ * Sends one push to a single APNs device token via Apple's HTTP/2
+ * provider API. The alert text is always the same static, generic
+ * placeholder -- it exists only so `mutable-content: 1` gets this
+ * delivered to the device's Notification Service Extension, which then
+ * replaces the placeholder with the real decrypted sender/preview
+ * (fetched+decrypted locally via MatrixRustSDK's NotificationClient)
+ * before the banner is ever shown. Apple's own servers see nothing beyond
+ * that placeholder, same "aps-push-type: alert" + "mutable-content"
+ * pattern Element X's iOS client uses for encrypted rooms -- a pure
+ * "content-available"-only background push would NOT invoke the NSE for
+ * content modification and has no delivery-time guarantee, which is why
+ * this isn't a silent/background push instead.
+ *
+ * @return bool true if APNs reported $deviceToken itself as dead
+ *   (BadDeviceToken/Unregistered/DeviceTokenNotForTopic). False covers
+ *   both success and a transient failure (network error, ExpiredProviderToken,
+ *   TooManyRequests, ...), which must NOT be reported to Synapse as
+ *   rejected -- only a genuinely dead token should prune the pusher.
+ */
+function larpnet_matrix_apns_send(string $deviceToken, array $data): bool
+{
+	$keyId    = getenv('LARPNET_MATRIX_APNS_KEY_ID');
+	$teamId   = getenv('LARPNET_MATRIX_APNS_TEAM_ID');
+	$keyPemB64 = getenv('LARPNET_MATRIX_APNS_KEY_PEM_B64');
+	$topic    = getenv('LARPNET_MATRIX_APNS_TOPIC') ?: 'pl.larpnet.ios';
+	$sandbox  = filter_var(getenv('LARPNET_MATRIX_APNS_USE_SANDBOX') ?: '', FILTER_VALIDATE_BOOLEAN);
+	if (!$keyId || !$teamId || !$keyPemB64) {
+		return false;
+	}
+
+	// Base64, not the raw PEM, in the env var: a .p8 key's contents are
+	// multi-line, and a literal newline inside a .env file's value is not
+	// reliably supported across every parser/deployment tool in this
+	// project's chain (docker compose, systemd EnvironmentFile, ...) --
+	// base64 sidesteps that entirely by construction, same reasoning as
+	// why `LARPNET_MATRIX_APNS_KEY_PEM_B64` exists instead of a plain
+	// `..._PEM` var.
+	$keyPem = base64_decode($keyPemB64, true);
+	if ($keyPem === false) {
+		DI::logger()->warning('larpnet_matrix: LARPNET_MATRIX_APNS_KEY_PEM_B64 is not valid base64');
+		return false;
+	}
+
+	$jwt = larpnet_matrix_apns_jwt((string) $keyId, (string) $teamId, $keyPem);
+	if (!$jwt) {
+		return false;
+	}
+
+	$payload = json_encode([
+		'aps' => [
+			'alert'           => [
+				'title' => 'Larpnet',
+				'body'  => DI::l10n()->t('New message'),
+			],
+			'mutable-content' => 1,
+			'sound'           => 'default',
+		],
+		...$data,
+	]);
+
+	$host = $sandbox ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
+
+	$response = DI::httpClient()->request('POST', "https://$host/3/device/$deviceToken", [
+		'body'    => $payload,
+		'headers' => [
+			'authorization'  => 'bearer ' . $jwt,
+			'apns-topic'     => (string) $topic,
+			'apns-push-type' => 'alert',
+			'apns-priority'  => '10',
+			'content-type'   => 'application/json',
+		],
+		// APNs' HTTP/2 provider API requires an actual HTTP/2 connection --
+		// it does not speak HTTP/1.1 on this endpoint. Guzzle/curl only
+		// negotiate that when explicitly told to; without this option the
+		// request fails outright regardless of the payload's correctness.
+		'version' => 2.0,
+	]);
+
+	if ($response->isSuccess()) {
+		return false;
+	}
+
+	$result = json_decode($response->getBodyString(), true);
+	$reason = $result['reason'] ?? '';
+
+	DI::logger()->info('larpnet_matrix: apns send failed', [
+		'code'   => $response->getReturnCode(),
+		'reason' => $reason,
+	]);
+
+	return in_array($reason, ['BadDeviceToken', 'Unregistered', 'DeviceTokenNotForTopic'], true);
+}
+
+/**
+ * The APNs provider auth token: a short-lived ES256-signed JWT, per
+ * https://developer.apple.com/documentation/usernotifications/establishing-a-token-based-connection-to-apns.
+ * $keyPem is the .p8 key's raw (already base64-decoded) contents -- see
+ * larpnet_matrix_apns_send() for where LARPNET_MATRIX_APNS_KEY_PEM_B64
+ * is read and decoded. Env-var-configured like the rest of this addon's
+ * LARPNET_MATRIX_* settings, rather than admin-config the way
+ * larpnet_fcm's fcm_service_account_json is -- both are equally valid
+ * places to put a secret in this codebase; this one just follows the
+ * convention already established for everything else this addon reads.
+ */
+function larpnet_matrix_apns_jwt(string $keyId, string $teamId, string $keyPem): ?string
+{
+	$b64 = fn(string $d): string => rtrim(strtr(base64_encode($d), '+/', '-_'), '=');
+
+	$header       = ['alg' => 'ES256', 'kid' => $keyId];
+	$claims       = ['iss' => $teamId, 'iat' => time()];
+	$signingInput = $b64(json_encode($header)) . '.' . $b64(json_encode($claims));
+
+	$pkey = openssl_pkey_get_private($keyPem);
+	if (!$pkey) {
+		DI::logger()->warning('larpnet_matrix: failed to load APNs private key');
+		return null;
+	}
+
+	$derSignature = '';
+	if (!openssl_sign($signingInput, $derSignature, $pkey, OPENSSL_ALGO_SHA256)) {
+		DI::logger()->warning('larpnet_matrix: failed to sign APNs auth JWT');
+		return null;
+	}
+
+	// ES256 (RFC 7518 section 3.4) needs the raw, fixed-width R||S
+	// concatenation (32 bytes each for P-256) -- see
+	// larpnet_matrix_der_ecdsa_to_raw()'s own doc comment for why openssl's
+	// DER output can't be used directly.
+	$rawSignature = larpnet_matrix_der_ecdsa_to_raw($derSignature, 32);
+	if ($rawSignature === null) {
+		DI::logger()->warning('larpnet_matrix: failed to convert APNs signature DER to raw R||S');
+		return null;
+	}
+
+	return $signingInput . '.' . $b64($rawSignature);
+}
+
+/**
+ * ext-openssl's ECDSA signatures are always DER-encoded (a SEQUENCE of two
+ * INTEGERs, R and S) -- there is no PHP option to get raw output directly.
+ * JWS ES256 (what APNs, and every other ES256-verifying JWT consumer,
+ * expects) instead requires the raw fixed-width concatenation R||S, each
+ * padded/truncated to $size bytes. A DER-encoded signature is rejected
+ * outright by any spec-compliant verifier, so this conversion isn't
+ * optional -- it's the one non-obvious step every hand-rolled ES256 JWT
+ * implementation needs and the one most likely to be silently skipped.
+ *
+ * Returns null on anything that doesn't parse as the expected DER shape
+ * (defensive -- openssl_sign() should never actually produce something
+ * else for an EC key, but a malformed/wrong-type key loaded via
+ * openssl_pkey_get_private() could).
+ */
+function larpnet_matrix_der_ecdsa_to_raw(string $der, int $size): ?string
+{
+	$offset = 0;
+	if (($der[$offset] ?? '') !== "\x30") {
+		return null;
+	}
+	$offset++;
+
+	$seqLen = ord($der[$offset] ?? "\x00");
+	$offset++;
+	// A length byte with the high bit set means "the low 7 bits are the
+	// COUNT of following length bytes", not the length itself -- we don't
+	// need the actual sequence length (readInt() below re-derives each
+	// component's own length independently), just to step past however
+	// many bytes encode it.
+	if ($seqLen & 0x80) {
+		$offset += $seqLen & 0x7F;
+	}
+
+	$readInt = function (string $der, int &$offset): ?string {
+		if (($der[$offset] ?? '') !== "\x02") {
+			return null;
+		}
+		$offset++;
+		$len = ord($der[$offset] ?? "\x00");
+		$offset++;
+		$bytes = substr($der, $offset, $len);
+		$offset += $len;
+
+		// DER pads a leading 0x00 onto an integer whenever its first real
+		// byte's high bit is set, purely so it isn't misread as a negative
+		// number in two's-complement -- R/S are never actually negative,
+		// so this pad byte carries no value and must be dropped before
+		// re-padding to a fixed width below.
+		if (strlen($bytes) > 1 && $bytes[0] === "\x00" && (ord($bytes[1]) & 0x80)) {
+			$bytes = substr($bytes, 1);
+		}
+
+		return $bytes;
+	};
+
+	$r = $readInt($der, $offset);
+	$s = $readInt($der, $offset);
+	if ($r === null || $s === null) {
+		return null;
+	}
+
+	// Left-pad with zero bytes if shorter than $size (the common case --
+	// DER strips leading zero bytes from the integer itself), or take the
+	// low $size bytes if somehow longer (shouldn't happen for a
+	// well-formed P-256 signature, but fail safe rather than throw).
+	$fit = fn(string $v): string => strlen($v) > $size ? substr($v, -$size) : str_pad($v, $size, "\x00", STR_PAD_LEFT);
+
+	return $fit($r) . $fit($s);
 }

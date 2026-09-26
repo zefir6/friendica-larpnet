@@ -291,12 +291,21 @@ JS;
  * into addon/larpnet_matrix/ via require_once to reuse its "is chat
  * actually configured" check, same pattern as src/Model/Profile.php's
  * getMatrixChatLink() and src/Worker/FcmPush.php + addon/larpnet_fcm/.
- * No-op (nothing injected) if the addon isn't available or isn't configured.
+ * No-op (nothing injected) if the addon isn't available, isn't enabled in
+ * Admin -> Addons, or isn't configured. The enabled-check matters on its
+ * own: `larpnet_matrix_settings()` only looks at LARPNET_MATRIX_* env vars,
+ * which stay set even if an admin disables the addon -- without this check
+ * the bubble kept showing regardless of that toggle, since require_once-ing
+ * the addon file directly bypasses Friendica's normal enabled-addon hook
+ * dispatch entirely.
  */
 function larpnet_matrix_chat_widget_head(string &$b): void
 {
 	$addonFile = __DIR__ . '/../../../addon/larpnet_matrix/larpnet_matrix.php';
 	if (!file_exists($addonFile)) {
+		return;
+	}
+	if (!DI::addonHelper()->isAddonEnabled('larpnet_matrix')) {
 		return;
 	}
 	require_once $addonFile;
