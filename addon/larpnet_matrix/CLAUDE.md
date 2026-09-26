@@ -361,6 +361,23 @@ pusher table is the only place that mapping lives, which is also why a
 dead pushkey just gets returned in `rejected` rather than looked up or
 deleted anywhere here.
 
+**How a client learns this gateway's own URL**: `push_gateway_url` in
+`larpnet_matrix_identity()`'s response (so both `larpnet_matrix_content()`
+for web and `larpnet_matrix_post()` for native apps carry it, though only
+native apps register a pusher at all) -- computed by
+`larpnet_matrix_push_gateway_url()` as this site's own base URL plus
+`?key=<LARPNET_MATRIX_PUSH_SECRET>`, or null if the secret isn't
+configured. The secret is deliberately never handed to a client on its
+own: only this pre-built URL, since the client ships inside a public app
+binary and must never be able to reconstruct or leak the raw secret in
+isolation. Each native client's pusher registration sets
+`data.format = "event_id_only"` on the Matrix side too (`PushFormat.EVENT_ID_ONLY`
+in the Kotlin/Swift bindings) -- redundant with this gateway only ever
+forwarding `event_id`/`room_id` regardless, but it's the flag that makes
+Synapse itself omit full content from the `/push/v1/notify` call in the
+first place, so both layers agree on the same "never send content"
+guarantee independently.
+
 **Never leaks plaintext to Apple/Google.** For Android: only `event_id`/
 `room_id` go into the FCM message, and it's sent via
 `larpnet_fcm_send_data_message()` (data-only, no `notification` block) --
