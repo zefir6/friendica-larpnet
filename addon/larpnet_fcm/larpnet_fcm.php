@@ -279,6 +279,68 @@ function larpnet_fcm_send_to_tokens(array $tokens, string $title, string $body, 
 	return $dead;
 }
 
+/**
+ * Sends a data-only message (no 'notification' block) to a single FCM
+ * token -- used by larpnet_matrix's push gateway (see that addon's
+ * larpnet_matrix_push_notify()), where the payload must never carry
+ * plaintext message content the way larpnet_fcm_send_to_tokens()'s
+ * notification block does for classic Friendica notifications. The
+ * receiving app wakes up and decrypts the referenced Matrix event itself.
+ * All $data values are cast to strings -- FCM's data-message payload only
+ * accepts string values, unlike the 'notification' block.
+ *
+ * @return bool true if FCM reported the token itself as dead
+ *   (NOT_FOUND/UNREGISTERED/INVALID_ARGUMENT) -- the caller reports these
+ *   back to Synapse as "rejected" so it prunes the pusher. False covers
+ *   both success and a transient failure -- a transient failure must NOT
+ *   be reported as rejected, Synapse retries those on its own.
+ */
+function larpnet_fcm_send_data_message(string $token, array $data): bool
+{
+	$account = larpnet_fcm_get_service_account();
+	if (empty($account['project_id'])) {
+		return false;
+	}
+
+	$accessToken = larpnet_fcm_get_access_token($account);
+	if (empty($accessToken)) {
+		return false;
+	}
+
+	$url     = 'https://fcm.googleapis.com/v1/projects/' . $account['project_id'] . '/messages:send';
+	$headers = [
+		'Authorization' => 'Bearer ' . $accessToken,
+		'Content-Type'  => 'application/json',
+	];
+
+	$payload = [
+		'message' => [
+			'token'   => $token,
+			'data'    => array_map('strval', $data),
+			// High priority so FCM/the device doesn't defer delivery -- a
+			// data-only message defaults to normal priority otherwise,
+			// which can sit for minutes on a dozed device.
+			'android' => ['priority' => 'high'],
+		],
+	];
+
+	$response = DI::httpClient()->post($url, json_encode($payload), $headers);
+
+	if ($response->isSuccess()) {
+		return false;
+	}
+
+	$result = json_decode($response->getBodyString(), true);
+	$status = $result['error']['status'] ?? '';
+
+	DI::logger()->info('larpnet_fcm: data message send failed', [
+		'code'   => $response->getReturnCode(),
+		'status' => $status,
+	]);
+
+	return in_array($status, ['NOT_FOUND', 'UNREGISTERED', 'INVALID_ARGUMENT'], true);
+}
+
 function larpnet_fcm_get_service_account(): ?array
 {
 	$json = DI::config()->get('larpnet_notifications', 'fcm_service_account_json');
