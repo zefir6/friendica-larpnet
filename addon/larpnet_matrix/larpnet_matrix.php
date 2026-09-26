@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Name: LARPnet Matrix Chat
  * Description: Login bridge AND same-origin host for larpnet's own minimal Matrix
@@ -244,17 +245,36 @@ function larpnet_matrix_identity(int $uid, array $settings): ?array
 
 	$now = time();
 	return [
-		'user_id'     => '@' . $sub . ':' . $settings['server'],
-		'displayname' => $self['name'] ?? $sub,
-		'homeserver'  => $settings['url'],
-		'login_type'  => 'org.matrix.login.jwt',
-		'token'       => larpnet_matrix_jwt(['sub' => $sub, 'iss' => 'friendica', 'aud' => 'synapse', 'iat' => $now, 'exp' => $now + 60], $settings['secret']),
+		'user_id'          => '@' . $sub . ':' . $settings['server'],
+		'displayname'      => $self['name'] ?? $sub,
+		'homeserver'       => $settings['url'],
+		'login_type'       => 'org.matrix.login.jwt',
+		'token'            => larpnet_matrix_jwt(['sub' => $sub, 'iss' => 'friendica', 'aud' => 'synapse', 'iat' => $now, 'exp' => $now + 60], $settings['secret']),
+		'push_gateway_url' => larpnet_matrix_push_gateway_url(),
 	];
+}
+
+/**
+ * The URL a native client should register as its pusher's `data.url` (see
+ * larpnet_matrix_push_notify()) -- already includes the shared secret as a
+ * query param, since the client itself must never be handed
+ * LARPNET_MATRIX_PUSH_SECRET on its own (it ships inside app binaries,
+ * unlike this server process). Null (omit push registration client-side)
+ * if the push gateway isn't configured on this deployment yet -- same
+ * "safe no-op until configured" convention as the rest of this addon.
+ */
+function larpnet_matrix_push_gateway_url(): ?string
+{
+	$secret = getenv('LARPNET_MATRIX_PUSH_SECRET');
+	if (!$secret) {
+		return null;
+	}
+	return rtrim((string) DI::baseUrl(), '/') . '/larpnet_matrix/push?key=' . rawurlencode($secret);
 }
 
 function larpnet_matrix_jwt(array $claims, string $secret): string
 {
-	$b64   = fn(string $d): string => rtrim(strtr(base64_encode($d), '+/', '-_'), '=');
+	$b64   = fn (string $d): string => rtrim(strtr(base64_encode($d), '+/', '-_'), '=');
 	$input = $b64(json_encode(['alg' => 'HS256', 'typ' => 'JWT'])) . '.' . $b64(json_encode($claims));
 	return $input . '.' . $b64(hash_hmac('sha256', $input, $secret, true));
 }
@@ -302,7 +322,7 @@ function larpnet_matrix_contact_list(int $excludeUid): array
 		$out[] = ['nickname' => $p['nickname'], 'name' => $p['name'] ?: $p['nickname']];
 	}
 
-	usort($out, fn($a, $b) => strcasecmp($a['name'], $b['name']));
+	usort($out, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
 	return $out;
 }
 
@@ -375,7 +395,7 @@ function larpnet_matrix_sync_profile(int $uid, array $identity, array $settings)
 		if ($photo && $tag !== DI::pConfig()->get($uid, 'larpnet_matrix', 'avatar_tag', '')) {
 			$data = Photo::getImageDataForPhoto($photo);
 			if ($data) {
-				$upload  = DI::httpClient()->request('POST', $internal . '/_matrix/media/v3/upload', [
+				$upload = DI::httpClient()->request('POST', $internal . '/_matrix/media/v3/upload', [
 					'body'    => $data,
 					'headers' => [...$auth, 'Content-Type' => $photo['type']],
 				]);
@@ -441,7 +461,7 @@ function larpnet_matrix_serve_asset(array $segments): void
 {
 	// Note: '..' (and '.') match the character class below on their own --
 	// they must be rejected explicitly, not just by restricting characters.
-	$safe = array_filter($segments, fn($s) => $s !== '' && $s !== '.' && $s !== '..' && preg_match('/^[a-zA-Z0-9._-]+$/', $s));
+	$safe = array_filter($segments, fn ($s) => $s !== '' && $s !== '.' && $s !== '..' && preg_match('/^[a-zA-Z0-9._-]+$/', $s));
 	if (count($safe) !== count($segments)) {
 		http_response_code(404);
 		exit;
@@ -653,12 +673,12 @@ function larpnet_matrix_push_notify(): void
 
 	$data = [
 		'event_id' => $notification['event_id'] ?? '',
-		'room_id'  => $notification['room_id'] ?? '',
+		'room_id'  => $notification['room_id']  ?? '',
 	];
 
 	$rejected = [];
 	foreach ($devices as $device) {
-		$appId   = $device['app_id'] ?? null;
+		$appId   = $device['app_id']  ?? null;
 		$pushkey = $device['pushkey'] ?? null;
 		if (!$appId || !$pushkey) {
 			continue;
@@ -748,11 +768,11 @@ function larpnet_matrix_push_deliver(string $appId, string $pushkey, array $data
  */
 function larpnet_matrix_apns_send(string $deviceToken, array $data): bool
 {
-	$keyId    = getenv('LARPNET_MATRIX_APNS_KEY_ID');
-	$teamId   = getenv('LARPNET_MATRIX_APNS_TEAM_ID');
+	$keyId     = getenv('LARPNET_MATRIX_APNS_KEY_ID');
+	$teamId    = getenv('LARPNET_MATRIX_APNS_TEAM_ID');
 	$keyPemB64 = getenv('LARPNET_MATRIX_APNS_KEY_PEM_B64');
-	$topic    = getenv('LARPNET_MATRIX_APNS_TOPIC') ?: 'pl.larpnet.ios';
-	$sandbox  = filter_var(getenv('LARPNET_MATRIX_APNS_USE_SANDBOX') ?: '', FILTER_VALIDATE_BOOLEAN);
+	$topic     = getenv('LARPNET_MATRIX_APNS_TOPIC') ?: 'pl.larpnet.ios';
+	$sandbox   = filter_var(getenv('LARPNET_MATRIX_APNS_USE_SANDBOX') ?: '', FILTER_VALIDATE_BOOLEAN);
 	if (!$keyId || !$teamId || !$keyPemB64) {
 		return false;
 	}
@@ -777,7 +797,7 @@ function larpnet_matrix_apns_send(string $deviceToken, array $data): bool
 
 	$payload = json_encode([
 		'aps' => [
-			'alert'           => [
+			'alert' => [
 				'title' => 'Larpnet',
 				'body'  => DI::l10n()->t('New message'),
 			],
@@ -833,7 +853,7 @@ function larpnet_matrix_apns_send(string $deviceToken, array $data): bool
  */
 function larpnet_matrix_apns_jwt(string $keyId, string $teamId, string $keyPem): ?string
 {
-	$b64 = fn(string $d): string => rtrim(strtr(base64_encode($d), '+/', '-_'), '=');
+	$b64 = fn (string $d): string => rtrim(strtr(base64_encode($d), '+/', '-_'), '=');
 
 	$header       = ['alg' => 'ES256', 'kid' => $keyId];
 	$claims       = ['iss' => $teamId, 'iat' => time()];
@@ -930,7 +950,7 @@ function larpnet_matrix_der_ecdsa_to_raw(string $der, int $size): ?string
 	// DER strips leading zero bytes from the integer itself), or take the
 	// low $size bytes if somehow longer (shouldn't happen for a
 	// well-formed P-256 signature, but fail safe rather than throw).
-	$fit = fn(string $v): string => strlen($v) > $size ? substr($v, -$size) : str_pad($v, $size, "\x00", STR_PAD_LEFT);
+	$fit = fn (string $v): string => strlen($v) > $size ? substr($v, -$size) : str_pad($v, $size, "\x00", STR_PAD_LEFT);
 
 	return $fit($r) . $fit($s);
 }
