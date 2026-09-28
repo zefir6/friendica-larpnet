@@ -25,6 +25,7 @@ if [ -f /var/www/html/index.php ]; then
     src/Worker/NtfyPush.php \
     src/Worker/NtfyPushMail.php \
     src/Worker/FcmPush.php \
+    src/Worker/ApnsPush.php \
     src/Model/LarpnetPush.php \
     src/Model/Mail.php \
     src/Model/Subscription.php \
@@ -64,7 +65,7 @@ if [ -f /var/www/html/index.php ]; then
     fi
   done
 
-  for addon in larpnet_banner larpnet_calendar larpnet_wifi larpnet_fcm larpnet_matrix; do
+  for addon in larpnet_banner larpnet_calendar larpnet_wifi larpnet_fcm larpnet_apns larpnet_matrix; do
     cp -r "/usr/src/friendica/addon/${addon}" "/var/www/html/addon/"
   done
 
