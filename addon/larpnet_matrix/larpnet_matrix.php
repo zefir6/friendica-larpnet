@@ -768,6 +768,43 @@ function larpnet_matrix_push_deliver(string $appId, string $pushkey, array $data
  */
 function larpnet_matrix_apns_send(string $deviceToken, array $data): bool
 {
+	return larpnet_matrix_apns_deliver($deviceToken, [
+		'aps' => [
+			'alert' => [
+				'title' => 'Larpnet',
+				'body'  => DI::l10n()->t('New message'),
+			],
+			'mutable-content' => 1,
+			'sound'           => 'default',
+		],
+		...$data,
+	]);
+}
+
+/**
+ * Shared low-level "sign an Apple provider-auth JWT, POST $payload to APNs'
+ * HTTP/2 endpoint for $deviceToken" primitive. Extracted out of what used to
+ * be `larpnet_matrix_apns_send()`'s own body so `addon/larpnet_apns` (the
+ * iOS equivalent of `larpnet_fcm`, for classic Friendica notifications --
+ * see that addon's own doc comment) can reuse it via a cross-addon
+ * `require_once`, the same pattern `larpnet_fcm_send_data_message()` being
+ * reused by this addon already established. Both addons send to the exact
+ * same Apple Developer account/app (one Team ID, one Key ID, one topic), so
+ * there is exactly one JWT signer and one HTTP call site for all outbound
+ * APNs traffic in this codebase, not two independently-maintained ones.
+ *
+ * $payload is the full JSON body to send as-is (the caller builds its own
+ * `aps` alert -- a generic placeholder here, a real title/body in
+ * `larpnet_apns`) -- this function only owns the auth/transport, never the
+ * content.
+ *
+ * @return bool true if APNs reported $deviceToken itself as dead
+ *   (BadDeviceToken/Unregistered/DeviceTokenNotForTopic). False covers
+ *   both success and a transient failure -- see `larpnet_matrix_apns_send()`'s
+ *   own doc comment for why that distinction matters to callers.
+ */
+function larpnet_matrix_apns_deliver(string $deviceToken, array $payload): bool
+{
 	$keyId     = getenv('LARPNET_MATRIX_APNS_KEY_ID');
 	$teamId    = getenv('LARPNET_MATRIX_APNS_TEAM_ID');
 	$keyPemB64 = getenv('LARPNET_MATRIX_APNS_KEY_PEM_B64');
@@ -795,22 +832,10 @@ function larpnet_matrix_apns_send(string $deviceToken, array $data): bool
 		return false;
 	}
 
-	$payload = json_encode([
-		'aps' => [
-			'alert' => [
-				'title' => 'Larpnet',
-				'body'  => DI::l10n()->t('New message'),
-			],
-			'mutable-content' => 1,
-			'sound'           => 'default',
-		],
-		...$data,
-	]);
-
 	$host = $sandbox ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
 
 	$response = DI::httpClient()->request('POST', "https://$host/3/device/$deviceToken", [
-		'body'    => $payload,
+		'body'    => json_encode($payload),
 		'headers' => [
 			'authorization'  => 'bearer ' . $jwt,
 			'apns-topic'     => (string) $topic,

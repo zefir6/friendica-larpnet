@@ -56,6 +56,7 @@ COPY addon/larpnet_banner    /usr/src/friendica/addon/larpnet_banner
 COPY addon/larpnet_calendar  /usr/src/friendica/addon/larpnet_calendar
 COPY addon/larpnet_wifi      /usr/src/friendica/addon/larpnet_wifi
 COPY addon/larpnet_fcm       /usr/src/friendica/addon/larpnet_fcm
+COPY addon/larpnet_apns      /usr/src/friendica/addon/larpnet_apns
 COPY addon/larpnet_matrix    /usr/src/friendica/addon/larpnet_matrix
 COPY --from=matrix-client-builder /build/dist /usr/src/friendica/addon/larpnet_matrix/client/dist
 
@@ -67,6 +68,7 @@ COPY src/Core/ACL.php                             /usr/src/friendica/src/Core/AC
 COPY src/Worker/NtfyPush.php                      /usr/src/friendica/src/Worker/NtfyPush.php
 COPY src/Worker/NtfyPushMail.php                  /usr/src/friendica/src/Worker/NtfyPushMail.php
 COPY src/Worker/FcmPush.php                       /usr/src/friendica/src/Worker/FcmPush.php
+COPY src/Worker/ApnsPush.php                      /usr/src/friendica/src/Worker/ApnsPush.php
 COPY src/Model/LarpnetPush.php                    /usr/src/friendica/src/Model/LarpnetPush.php
 COPY src/Model/Mail.php                           /usr/src/friendica/src/Model/Mail.php
 COPY src/Model/Subscription.php                   /usr/src/friendica/src/Model/Subscription.php
