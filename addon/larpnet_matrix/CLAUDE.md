@@ -444,6 +444,7 @@ completely fine in code review.
 | `client/build.mjs` | esbuild bundling + the manual wasm-copy step -- see its own comments for why esbuild's `new URL(..., import.meta.url)` asset convention does **not** apply here (confirmed empirically: esbuild does not support that pattern, unlike Vite/Webpack) and what actually resolves the WASM path instead. |
 | `client/src/recovery.js` | Cross-device E2EE history recovery (recovery-key setup/restore/reset) -- see "Cross-device key recovery" above. |
 | `client/src/RoomInfoModal.jsx` | Per-conversation member list (add/remove) + rename (group rooms only) + leave. Plain Matrix Client-Server API wrappers (`client.invite`/`kick`/`leave`/`setRoomName`) -- no crypto involved, no UIA surprises like the recovery-key flows above. |
+| `client/src/RoomList.jsx` | The room list itself, plus a per-row delete ("×" button, low-opacity by default so it's discoverable on touch too, not hover-only) -- same `client.leave()` call `RoomInfoModal`'s "Opuść rozmowę" uses, just reachable without opening the room first. Both call `App.jsx`'s shared `handleRoomLeft(roomId)`, which only clears the open conversation if the room just left is the one currently selected (deleting some other room from the list must not kick you out of an unrelated open conversation). |
 | `client/src/SettingsModal.jsx` | Currently just the "reset recovery key" entry point (confirm-then-delegate to `recovery.js`'s `resetRecovery()`). |
 
 ## Making changes

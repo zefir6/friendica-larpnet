@@ -56,7 +56,7 @@ export function RoomInfoModal({ client, room, contacts, onClose, onLeft, onAddMe
     setError(null);
     try {
       await client.leave(room.roomId);
-      onLeft();
+      onLeft(room.roomId);
     } catch (e2) {
       setError('Nie udało się opuścić rozmowy.');
       setBusy(false);
