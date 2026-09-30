@@ -1,5 +1,11 @@
 import { useEffect, useState, useCallback } from 'preact/hooks';
-import { loginAndStart, dmTargetMxid, findOrCreateDirectRoom, roomDisplayName } from './matrix.js';
+import {
+  loginAndStart,
+  dmTargetMxid,
+  findOrCreateDirectRoom,
+  roomDisplayName,
+  consolidateDuplicateDirectRooms,
+} from './matrix.js';
 import { getRecoveryStatus, setUpRecovery, resetRecovery, restoreFromRecoveryKey } from './recovery.js';
 import { RoomList } from './RoomList.jsx';
 import { Conversation } from './Conversation.jsx';
@@ -64,6 +70,19 @@ export function App({ config }) {
         setClient(c);
         setRecoveryKeyCache(rkc);
         setStatus('ready');
+
+        // Runs once per session, after the initial sync `loginAndStart()`
+        // already waited for -- see its own doc comment for why leftover
+        // duplicate DM rooms exist at all, and consolidateDuplicateDirectRooms()'s
+        // for how it picks which one survives.
+        try {
+          await consolidateDuplicateDirectRooms(c);
+        } catch (e) {
+          console.error('larpnet chat: duplicate DM room consolidation failed', e);
+        }
+        if (cancelled) {
+          return;
+        }
 
         const recoveryStatus = await getRecoveryStatus(c);
         if (!cancelled && recoveryStatus === 'needs_setup') {
@@ -159,6 +178,19 @@ export function App({ config }) {
     setRecoveryPrompt('reset');
   };
 
+  // On-demand re-entry to the restore flow -- until this existed, a user who
+  // dismissed the auto-prompt (or whose session ended before completing it)
+  // had no way back in short of clearing site data and hoping it re-prompts:
+  // `getRecoveryStatus()` only ever runs once, in the mount effect above, so
+  // a dismissed 'needs_restore' prompt never reappears for the rest of that
+  // page load. Safe to open even when already unlocked -- restoreFromRecoveryKey
+  // is a plain SDK `recover()` call, a no-op re-verify in that case, not
+  // destructive.
+  const handleOpenRestore = () => {
+    setShowSettings(false);
+    setRecoveryPrompt('needs_restore');
+  };
+
   const handleRoomLeft = () => {
     setShowRoomInfo(false);
     setSelectedRoomId(null);
@@ -238,7 +270,13 @@ export function App({ config }) {
           }}
         />
       )}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onResetRecovery={handleOpenReset} />}
+      {showSettings && (
+        <SettingsModal
+          onClose={() => setShowSettings(false)}
+          onResetRecovery={handleOpenReset}
+          onRestoreRecovery={handleOpenRestore}
+        />
+      )}
       {(recoveryPrompt === 'needs_setup' || recoveryPrompt === 'reset') && (
         <RecoveryKeyModal
           mode={recoveryPrompt === 'reset' ? 'reset' : 'setup'}
