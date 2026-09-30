@@ -19,6 +19,34 @@ export function Conversation({ client, roomId, contacts }) {
     }
   });
 
+  // client.getRoom()'s live timeline only holds whatever's already cached locally -- for a
+  // conversation with no *recent* activity, that can be nothing at all, even once this
+  // session's decryption keys are in place (confirmed live: a real conversation with history
+  // on other clients showed "No messages yet" here, on an unlock-chat-history-completed
+  // session, until backward pagination was requested). matrix-js-sdk never backfills this on
+  // its own; a client has to explicitly call scrollback(). Bounded at 3 rounds (~90 events) as
+  // a sane first-open depth, stopping early once oldState.paginationToken is null (the actual
+  // start of the room's timeline). New events land via the room's own 'Room.timeline' event,
+  // already wired to a re-render in App.jsx -- no local state needed here.
+  useEffect(() => {
+    if (!roomId) {
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      let current = client.getRoom(roomId);
+      for (let i = 0; i < 3 && current && !cancelled; i++) {
+        if (current.oldState.paginationToken === null) {
+          break;
+        }
+        current = await client.scrollback(current, 30).catch(() => null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [client, roomId]);
+
   if (!roomId) {
     return <div class="lnc-conversation lnc-status">Wybierz rozmowę</div>;
   }
