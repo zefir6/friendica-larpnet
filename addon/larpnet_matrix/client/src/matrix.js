@@ -163,6 +163,28 @@ export function roomDisplayName(room, client, contacts) {
   return others[0]?.name || others[0]?.userId || 'Rozmowa';
 }
 
+// Locale-aware relative timestamp ("5 min temu" / "5 minutes ago" depending on browser locale),
+// via the standard Intl API rather than hand-rolling pl/en strings -- mirrors the iOS/Android
+// clients' own RelativeTime helpers.
+const RELATIVE_TIME_UNITS = [
+  ['year', 31536000],
+  ['month', 2592000],
+  ['day', 86400],
+  ['hour', 3600],
+  ['minute', 60],
+];
+const relativeTimeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+
+export function formatRelativeTime(timestampMs) {
+  const diffSeconds = (timestampMs - Date.now()) / 1000;
+  for (const [unit, secondsInUnit] of RELATIVE_TIME_UNITS) {
+    if (Math.abs(diffSeconds) >= secondsInUnit) {
+      return relativeTimeFormatter.format(Math.round(diffSeconds / secondsInUnit), unit);
+    }
+  }
+  return relativeTimeFormatter.format(Math.round(diffSeconds), 'second');
+}
+
 export function dmTargetMxid(cfg) {
   if (!cfg.dm) {
     return null;

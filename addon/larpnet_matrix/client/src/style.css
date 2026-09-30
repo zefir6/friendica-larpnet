@@ -275,6 +275,15 @@ body {
   border-bottom: 1px solid var(--lnc-border);
 }
 
+.lnc-settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
 .lnc-settings-restore {
   background: none;
   border: 1px solid var(--lnc-accent);
@@ -311,7 +320,10 @@ body {
 }
 
 .lnc-room-item {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
   width: 100%;
   text-align: left;
   padding: 12px 16px;
@@ -321,6 +333,18 @@ body {
   cursor: pointer;
   color: var(--lnc-text);
   font-size: 0.95em;
+}
+
+.lnc-room-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lnc-room-item-timestamp {
+  flex-shrink: 0;
+  font-size: 0.8em;
+  color: var(--lnc-text-secondary);
 }
 
 .lnc-room-item:hover {
