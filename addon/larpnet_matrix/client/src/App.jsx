@@ -53,6 +53,13 @@ export function App({ config }) {
   // just a re-render trigger, not a data store.
   const [tick, setTick] = useState(0);
   const bump = useCallback(() => setTick((t) => t + 1), []);
+  // Local-only display preference (Settings), not synced to the account --
+  // matches the iOS/Android clients' own "Show timestamps in chat list" toggle.
+  const [showTimestamps, setShowTimestamps] = useState(() => localStorage.getItem('lnc_show_timestamps') !== 'false');
+  const handleShowTimestampsChange = (value) => {
+    setShowTimestamps(value);
+    localStorage.setItem('lnc_show_timestamps', value ? 'true' : 'false');
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -247,6 +254,7 @@ export function App({ config }) {
           onNewChat={() => setPickerMode('new_chat')}
           collapsed={roomListCollapsed}
           contacts={config.contacts}
+          showTimestamps={showTimestamps}
         />
         <Conversation client={client} roomId={selectedRoomId} contacts={config.contacts} />
       </div>
@@ -275,6 +283,8 @@ export function App({ config }) {
           onClose={() => setShowSettings(false)}
           onResetRecovery={handleOpenReset}
           onRestoreRecovery={handleOpenRestore}
+          showTimestamps={showTimestamps}
+          onShowTimestampsChange={handleShowTimestampsChange}
         />
       )}
       {(recoveryPrompt === 'needs_setup' || recoveryPrompt === 'reset') && (
