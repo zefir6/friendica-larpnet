@@ -1,13 +1,20 @@
 import { useState } from 'preact/hooks';
 
 /**
- * Currently just the one destructive action -- reset recovery key. Kept as
- * its own small modal (rather than folding straight into RecoveryKeyModal)
- * so there's a deliberate "are you sure" step before the actual reset flow
- * opens; App.jsx's onResetRecovery closes this and opens
- * `RecoveryKeyModal` mode="reset" (see recovery.js's resetRecovery()).
+ * The destructive reset action, plus a non-destructive "restore" entry
+ * point -- App.jsx's `getRecoveryStatus()` check only ever runs once, on
+ * page load, so a user who dismissed that auto-prompt (or whose session
+ * ended before finishing it) had no way back to it for the rest of that
+ * page load short of reloading and hoping it re-prompts. `onRestoreRecovery`
+ * re-opens the exact same `RecoveryKeyModal` mode="restore" flow on demand;
+ * safe to run even when already unlocked (see recovery.js's
+ * restoreFromRecoveryKey()). Reset is kept as its own small modal (rather
+ * than folding straight into RecoveryKeyModal) so there's a deliberate "are
+ * you sure" step before the actual reset flow opens; App.jsx's
+ * onResetRecovery closes this and opens `RecoveryKeyModal` mode="reset"
+ * (see recovery.js's resetRecovery()).
  */
-export function SettingsModal({ onClose, onResetRecovery }) {
+export function SettingsModal({ onClose, onResetRecovery, onRestoreRecovery }) {
   const [confirming, setConfirming] = useState(false);
 
   return (
@@ -19,9 +26,14 @@ export function SettingsModal({ onClose, onResetRecovery }) {
         </div>
         <div class="lnc-room-info-body">
           {!confirming ? (
-            <button type="button" class="lnc-room-info-leave" onClick={() => setConfirming(true)}>
-              Resetuj klucz odzyskiwania
-            </button>
+            <>
+              <button type="button" class="lnc-settings-restore" onClick={onRestoreRecovery}>
+                Odblokuj historię czatu
+              </button>
+              <button type="button" class="lnc-room-info-leave" onClick={() => setConfirming(true)}>
+                Resetuj klucz odzyskiwania
+              </button>
+            </>
           ) : (
             <>
               <p class="lnc-recovery-text">

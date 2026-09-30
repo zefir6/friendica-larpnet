@@ -275,6 +275,21 @@ body {
   border-bottom: 1px solid var(--lnc-border);
 }
 
+.lnc-settings-restore {
+  background: none;
+  border: 1px solid var(--lnc-accent);
+  color: var(--lnc-accent);
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.lnc-settings-restore:hover {
+  background: var(--lnc-accent);
+  color: #ffffff;
+}
+
 .lnc-room-info-leave {
   background: none;
   border: 1px solid #c0392b;
