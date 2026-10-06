@@ -260,7 +260,7 @@ export function App({ config }) {
           </button>
         )}
         <button type="button" class="lnc-header-btn" title="Ustawienia" onClick={() => setShowSettings(true)}>
-          ⚙
+          <i class="ri ri-settings-3-line" aria-hidden="true"></i>
         </button>
       </div>
       <div class="lnc-body">
