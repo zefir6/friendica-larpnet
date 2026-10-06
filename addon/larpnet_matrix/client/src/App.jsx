@@ -67,6 +67,19 @@ export function App({ config }) {
         c.on('Room.name', bump);
         c.on('RoomMember.membership', bump);
         c.on('sync', bump);
+        // A new E2EE message arrives over /sync still encrypted
+        // ('m.room.encrypted') -- Room.timeline fires and bumps a
+        // re-render, but Conversation.jsx only shows events whose type
+        // has become 'm.room.message', which matrix-js-sdk only sets
+        // once decryption actually completes. The megolm room key often
+        // arrives via a separate to-device event a beat after the
+        // message itself, so decryption (and this event) can genuinely
+        // finish *after* that first Room.timeline-triggered render.
+        // Without listening here too, the message stays invisible until
+        // some unrelated event happens to trigger another re-render --
+        // the likely cause of "sender sends, it never shows up on the
+        // other side" reports.
+        c.on('Event.decrypted', bump);
         setClient(c);
         setRecoveryKeyCache(rkc);
         setStatus('ready');
