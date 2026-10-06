@@ -1,12 +1,20 @@
-/* Larpnet's own chat client -- colors match the site's own brand purple
-   (#833c89 topbar/buttons, #a54bad link accent), sampled live from
-   test.larpnet.pl, same values the old Element custom theme used. */
+/* Larpnet's own chat client -- design tokens matched to the site's own
+   actual theme defaults (view/theme/larpnet), not approximated: accent
+   purple is the real computed $nav_bg for the default purple/light scheme
+   (#a54bad darkened 10%), text/border colors are the site's real
+   $font_color_darker/$font_color_lighter/card-shadow-gray tokens, and
+   --lnc-danger consolidates what used to be three different untokenized
+   reds into the site's one actual semantic danger color. Static values,
+   not live-bound to the viewer's own scheme/accent/dark-mode choice --
+   see addon/larpnet_matrix/CLAUDE.md if that ever needs to become
+   dynamic. */
 :root {
   --lnc-accent: #833c89;
   --lnc-accent-light: #f5eef6;
-  --lnc-border: #e3d5e6;
-  --lnc-text: #2e2f32;
-  --lnc-text-secondary: #6b4a70;
+  --lnc-border: #dadada;
+  --lnc-text: #222222;
+  --lnc-text-secondary: #aaaaaa;
+  --lnc-danger: #d9534f;
 }
 
 * {
@@ -19,7 +27,13 @@ html, body, #app {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* Same self-hosted webfont the rest of the site uses (view/theme/larpnet/
+     font/open_sans/), so the chat reads as the same typeface as every other
+     page -- not a different system-font look. Full-screen mode (?full=1)
+     already loads it via the real theme <head>; the corner-bubble iframe
+     gets its own <link> to the same stylesheet, see larpnet_matrix_content()
+     in larpnet_matrix.php. */
+  font-family: "Open Sans", sans-serif;
   color: var(--lnc-text);
 }
 
@@ -34,7 +48,7 @@ body {
 }
 
 .lnc-status-error {
-  color: #b50404;
+  color: var(--lnc-danger);
 }
 
 .lnc-app {
@@ -64,7 +78,7 @@ body {
   border: none;
   color: #ffffff;
   padding: 4px 10px;
-  border-radius: 12px;
+  border-radius: 3px;
   font-size: 0.85em;
   cursor: pointer;
 }
@@ -92,7 +106,7 @@ body {
   border: 1px solid var(--lnc-border);
   color: var(--lnc-accent);
   padding: 4px 10px;
-  border-radius: 12px;
+  border-radius: 3px;
   font-size: 0.85em;
   cursor: pointer;
 }
@@ -158,16 +172,19 @@ body {
   z-index: 100;
 }
 
+/* Radius/shadow match the site's own elevated-panel weight (the
+   #topbar-second dropdown), not a heavier generic-modal look --
+   view/theme/larpnet/css/style.css's own card shadows never exceed this. */
 .lnc-picker {
   background: #ffffff;
-  border-radius: 8px;
+  border-radius: 4px;
   width: 90%;
   max-width: 320px;
   max-height: 70%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.1);
 }
 
 .lnc-picker-header {
@@ -193,7 +210,7 @@ body {
   margin: 10px;
   padding: 8px 10px;
   border: 1px solid var(--lnc-border);
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .lnc-picker-list {
@@ -236,7 +253,7 @@ body {
   display: block;
   background: var(--lnc-accent-light);
   border: 1px solid var(--lnc-border);
-  border-radius: 6px;
+  border-radius: 4px;
   padding: 12px;
   font-size: 15px;
   font-weight: 600;
@@ -247,7 +264,7 @@ body {
 }
 
 .lnc-recovery-error {
-  color: #c0392b;
+  color: var(--lnc-danger);
   font-size: 13px;
   margin: -4px 10px 10px;
 }
@@ -264,7 +281,7 @@ body {
   border: 1px solid var(--lnc-border);
   color: var(--lnc-text-secondary);
   padding: 4px 10px;
-  border-radius: 12px;
+  border-radius: 3px;
   font-size: 0.85em;
   cursor: pointer;
 }
@@ -323,7 +340,7 @@ body {
   background: none;
   border: 1px solid var(--lnc-accent);
   color: var(--lnc-accent);
-  border-radius: 6px;
+  border-radius: 3px;
   padding: 8px 12px;
   cursor: pointer;
   font-weight: 600;
@@ -336,16 +353,16 @@ body {
 
 .lnc-room-info-leave {
   background: none;
-  border: 1px solid #c0392b;
-  color: #c0392b;
-  border-radius: 6px;
+  border: 1px solid var(--lnc-danger);
+  color: var(--lnc-danger);
+  border-radius: 3px;
   padding: 8px 12px;
   cursor: pointer;
   font-weight: 600;
 }
 
 .lnc-room-info-leave:hover {
-  background: #c0392b;
+  background: var(--lnc-danger);
   color: #ffffff;
 }
 
@@ -428,10 +445,14 @@ body {
   margin-bottom: 2px;
 }
 
+/* 4px, matching the site's own card radius (.widget/.panel), not a
+   larger "generic messenger app" bubble radius -- seamless fit with the
+   surrounding page means using the same card language as everywhere
+   else on the site, not a distinct chat-bubble shape. */
 .lnc-message-body {
   display: inline-block;
   padding: 8px 12px;
-  border-radius: 12px;
+  border-radius: 4px;
   background: var(--lnc-accent-light);
   word-break: break-word;
 }
@@ -453,7 +474,7 @@ body {
 
 .lnc-composer-error {
   padding: 4px 12px;
-  color: #c0392b;
+  color: var(--lnc-danger);
   font-size: 0.8em;
 }
 
@@ -469,7 +490,7 @@ body {
   flex: 1;
   padding: 8px 12px;
   border: 1px solid var(--lnc-border);
-  border-radius: 20px;
+  border-radius: 4px;
   font-size: 0.95em;
 }
 
@@ -481,7 +502,7 @@ body {
 .lnc-composer button {
   padding: 8px 16px;
   border: none;
-  border-radius: 20px;
+  border-radius: 3px;
   background: var(--lnc-accent);
   color: #ffffff;
   cursor: pointer;
@@ -493,12 +514,16 @@ body {
   cursor: default;
 }
 
+/* Plain icon button -- no permanent filled circle (the site has no such
+   pattern anywhere; its own icon-only controls, e.g. the nav notification
+   bell, are borderless until hovered). Square-ish rounding matches the
+   site's own small-control radius instead of a circular chip. */
 .lnc-composer-icon-btn {
   padding: 6px 8px !important;
   background: none !important;
   color: inherit !important;
   font-size: 1.1em;
-  border-radius: 50% !important;
+  border-radius: 4px !important;
 }
 
 .lnc-composer-icon-btn:hover {
@@ -517,8 +542,8 @@ body {
   max-height: 260px;
   background: #ffffff;
   border: 1px solid var(--lnc-border);
-  border-radius: 10px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -562,7 +587,7 @@ body {
   font-size: 1.3em;
   line-height: 1;
   padding: 4px;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
 }
 
@@ -574,7 +599,7 @@ body {
   display: block;
   max-width: 240px;
   max-height: 240px;
-  border-radius: 10px;
+  border-radius: 4px;
   cursor: pointer;
 }
 
@@ -590,7 +615,7 @@ body {
   gap: 8px;
   background: #ffffff;
   border: 1px solid var(--lnc-border);
-  border-radius: 10px;
+  border-radius: 4px;
   padding: 8px 12px;
   cursor: pointer;
   max-width: 260px;
@@ -647,5 +672,5 @@ body {
 .lnc-lightbox img {
   max-width: 90%;
   max-height: 90%;
-  border-radius: 6px;
+  border-radius: 4px;
 }

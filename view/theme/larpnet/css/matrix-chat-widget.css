@@ -11,6 +11,11 @@
   height: 52px;
   min-width: 52px;
   padding: 0 20px 0 16px;
+  /* Circular launcher is kept -- a round chat-launcher button is a
+     common, legitimate pattern on its own (Messenger uses one too), not
+     part of what read as "foreign" here. Just the shadow weight below is
+     flattened to match the site's own (view/theme/larpnet/css/style.css's
+     own shadows never exceed 0 1px 10px). */
   border-radius: 26px;
   border: none;
   background: #833c89;
@@ -21,7 +26,7 @@
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.1);
   z-index: 1051;
   transition: transform 0.15s ease;
 }
@@ -44,8 +49,11 @@
   height: 600px;
   max-height: calc(100vh - 116px);
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  /* Matches the site's own card radius/shadow (.widget/.panel in
+     view/theme/larpnet/css/style.css) instead of a heavier, rounder,
+     generic-SPA-overlay look. */
+  border-radius: 4px;
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   z-index: 1050;
   transform: translateY(16px) scale(0.98);

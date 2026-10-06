@@ -586,6 +586,15 @@ function larpnet_matrix_content(): string
 	header('Content-Type: text/html; charset=utf-8');
 	echo '<!doctype html><html><head><meta charset="utf-8">'
 		. '<title>Czat</title>'
+		// This standalone document has no connection to the site's own
+		// head.tpl, so it never gets the site's own fonts unless we link
+		// them here ourselves -- the full-screen (?full=1) branch above
+		// gets both for free via the real theme chrome. Same self-hosted
+		// files head.tpl itself links (view/theme/larpnet/templates/
+		// head.tpl), so the chat renders in the same typeface/icon font as
+		// every other page instead of a generic system-font/emoji look.
+		. '<link rel="stylesheet" href="view/theme/larpnet/font/open_sans/open-sans.css">'
+		. '<link rel="stylesheet" href="view/asset/remixicon/fonts/remixicon.css">'
 		. '<link rel="stylesheet" href="larpnet_matrix/app.css">'
 		. '</head><body>' . $body . '</body></html>';
 	exit;

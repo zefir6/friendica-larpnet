@@ -70,7 +70,7 @@ export function Composer({ onSend, onSendFile, uploadLimitBytes }) {
           disabled={sending}
           onClick={openFilePicker}
         >
-          📎
+          <i class="ri ri-attachment-line" aria-hidden="true"></i>
         </button>
         <input ref={fileInputRef} type="file" class="lnc-hidden-file-input" onChange={handleFileChosen} />
         <button
@@ -80,7 +80,7 @@ export function Composer({ onSend, onSendFile, uploadLimitBytes }) {
           disabled={sending}
           onClick={() => setShowEmoji((v) => !v)}
         >
-          😊
+          <i class="ri ri-emotion-line" aria-hidden="true"></i>
         </button>
         <input
           type="text"
