@@ -115,17 +115,74 @@ body {
   background: var(--lnc-border);
 }
 
-/* Full-chrome mode (larpnet_matrix_content()'s ?full=1 branch): #app is no
-   longer a direct child of the html/body pair the rule above gives an
-   explicit height, it's nested inside the theme's own auto-height content
-   wrapper -- a plain `height: 100%` there resolves against "auto" and is
-   ignored, collapsing the app to its content height instead of filling
-   the window. Sized off the viewport instead, which doesn't depend on any
-   ancestor's height. Higher specificity than the `#app` rule above (one
-   extra class), so this wins regardless of source order. */
+/* Full-chrome mode (larpnet_matrix_content()'s ?full=1 branch): .lnc-page is
+   now also .generic-page-wrapper, the site's real card (see
+   view/theme/larpnet/css/style.css's `section > .generic-page-wrapper`
+   rule) -- but that rule only sets `min-height`, never an explicit
+   `height`. A percentage height on a descendant (the plain `height: 100%`
+   the html/body/#app rule above gives #app) only resolves against an
+   ancestor height that's explicitly specified -- min-height alone doesn't
+   count, so #app's height:100% still collapses to its content height
+   there, same bug a previous `height: 80vh` hack on #app was papering
+   over (and which hard-capped the chat well short of the page's actual
+   bottom, looking like a small floating box rather than "the page").
+   Flexbox sidesteps the percentage-height rule entirely: flex-grow
+   distributes a container's own *used* size -- whatever it resolved to,
+   min-height included -- to its flex items, so making .lnc-page the flex
+   container and #app a flex-growing child fills the real card's height
+   without needing #app's own height to be percentage-resolvable at all. */
+.lnc-page {
+  display: flex;
+  flex-direction: column;
+}
+
 .lnc-page #app {
-  height: 80vh;
+  height: auto;
+  flex: 1 1 auto;
   min-height: 480px;
+}
+
+/* Full-screen mode only (App.jsx adds this class once it reads
+   config.fullPage -- a component-owned concern, not something style.css
+   should sniff via a .lnc-page DOM ancestor). Drops the solid-purple
+   header entirely: the real site nav (#topbar-first) already sits
+   directly above it, and two stacked solid-purple bars is what reads as
+   "a separate embedded app" rather than part of the page. Restyled to
+   match the site's own established "light secondary bar under the purple
+   nav" look (#topbar-second in view/theme/larpnet/css/style.css: white
+   background, subtle border/shadow) instead of inventing a new treatment.
+   The corner-bubble widget is untouched -- its solid-purple header is
+   still correct there, it's a self-contained popup with no other page
+   chrome around it. */
+.lnc-app-fullpage .lnc-header {
+  background: #ffffff;
+  color: var(--lnc-text);
+  border-bottom: 1px solid var(--lnc-border);
+}
+
+/* .lnc-header-btn's translucent-white treatment only reads against a
+   dark/purple background -- reuse the footer button's existing
+   light-accent look instead of inventing a third button style. */
+.lnc-app-fullpage .lnc-header-btn {
+  background: var(--lnc-accent-light);
+  border: 1px solid var(--lnc-border);
+  color: var(--lnc-accent);
+}
+
+.lnc-app-fullpage .lnc-header-btn:hover {
+  background: var(--lnc-border);
+}
+
+.lnc-app-fullpage .lnc-header-title {
+  color: var(--lnc-text);
+}
+
+/* The room list's purple-tinted background also reads as its own
+   separate panel next to the white card -- flip to plain white so it
+   blends into the card instead of standing out. The border-right stays,
+   that's a real content divider (list vs. conversation), not chrome. */
+.lnc-app-fullpage .lnc-room-list {
+  background: #ffffff;
 }
 
 .lnc-room-list {

@@ -37,6 +37,13 @@ function openInNewTab() {
 }
 
 export function App({ config }) {
+  // Server-injected, one-shot, never changes during the component's
+  // lifetime (same as the rest of `config` -- see the mount effect's own
+  // comment below) -- the only signal this component has for "full-screen
+  // tab vs. corner-bubble iframe", used to drop chrome that only makes
+  // sense in one of the two (see render below and the .lnc-app-fullpage
+  // rules in style.css).
+  const isFullPage = !!config.fullPage;
   const [client, setClient] = useState(null);
   const [recoveryKeyCache, setRecoveryKeyCache] = useState(null);
   const [status, setStatus] = useState('loading'); // loading | ready | error
@@ -243,7 +250,7 @@ export function App({ config }) {
     : new Set();
 
   return (
-    <div class="lnc-app">
+    <div class={isFullPage ? 'lnc-app lnc-app-fullpage' : 'lnc-app'}>
       <div class="lnc-header">
         <button
           type="button"
@@ -276,11 +283,17 @@ export function App({ config }) {
         />
         <Conversation client={client} roomId={selectedRoomId} contacts={config.contacts} />
       </div>
-      <div class="lnc-footer">
-        <button type="button" class="lnc-footer-btn" title="Otwórz w nowej karcie" onClick={openInNewTab}>
-          Pełny ekran
-        </button>
-      </div>
+      {/* Pointless once already viewing the full-screen page -- it would
+          just open the same URL in yet another new tab. Corner-bubble mode
+          keeps it: that's the only place "open full screen" is a real,
+          useful action. */}
+      {!isFullPage && (
+        <div class="lnc-footer">
+          <button type="button" class="lnc-footer-btn" title="Otwórz w nowej karcie" onClick={openInNewTab}>
+            Pełny ekran
+          </button>
+        </div>
+      )}
       {pickerMode && (
         <ContactPicker
           contacts={(config.contacts || []).filter((c) => !existingMemberNicknames.has(c.nickname.toLowerCase()))}

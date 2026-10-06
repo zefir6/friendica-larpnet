@@ -540,6 +540,20 @@ function larpnet_matrix_content(): string
 		}
 	}
 
+	// client/src/App.jsx's "Pełny ekran" button opens this same URL with
+	// ?full=1 appended -- that's the only signal this side has for "a real
+	// top-level tab, not the corner-bubble iframe" (see
+	// js/matrix-chat-widget.js), and it's what decides which of the two
+	// branches below runs. Also threaded into $config as 'fullPage' below,
+	// so App.jsx can tell the two contexts apart client-side too (it
+	// otherwise has no awareness at all -- same component tree renders
+	// identically in both today) and adjust its own chrome: full-screen
+	// mode drops the redundant second purple header bar (the real site nav
+	// already sits directly above it) and the now-pointless "Pełny ekran"
+	// button, neither of which make sense once already viewing the
+	// full-screen page.
+	$full = !empty($_GET['full']);
+
 	$config = [
 		'homeserverUrl' => $settings['url'],
 		'serverName'    => $settings['server'],
@@ -547,14 +561,8 @@ function larpnet_matrix_content(): string
 		'dm'            => $dm,
 		'deviceName'    => 'larpnet web',
 		'contacts'      => larpnet_matrix_contact_list((int) $uid),
+		'fullPage'      => $full,
 	];
-
-	// client/src/App.jsx's "Pełny ekran" button opens this same URL with
-	// ?full=1 appended -- that's the only signal this side has for "a real
-	// top-level tab, not the corner-bubble iframe" (see
-	// js/matrix-chat-widget.js), and it's what decides which of the two
-	// branches below runs.
-	$full = !empty($_GET['full']);
 
 	// The module script tag works fine wherever it lands in the document
 	// (browsers fetch/execute a <script type="module"> anywhere), so this
@@ -569,14 +577,24 @@ function larpnet_matrix_content(): string
 		// and puts a registerStylesheet() link in <head> the proper way
 		// (cache-busted, same as any other theme/addon stylesheet) rather
 		// than the raw branch's own hand-written <head> below.
-		// .lnc-page in style.css gives #app an explicit viewport-relative
-		// height here: unlike the raw branch, #app is no longer a direct
-		// child of a height:100% html/body chain, and percentage heights
-		// don't resolve against the theme's own auto-height content
-		// wrapper.
+		//
+		// generic-page-wrapper is the site's own real card class (see
+		// view/theme/larpnet/css/style.css) -- every other full-width page
+		// (Directory, Contacts, Settings, the homepage) already opts into
+		// it for the same padding/background/shadow/border-radius and a
+		// min-height that fills down near the viewport bottom. Previously
+		// .lnc-page carried none of that (no background/shadow/radius of
+		// its own at all) and instead hard-capped #app at a fixed 80vh via
+		// its own one-off CSS rule, which is why the chat used to look like
+		// a small floating box with visible grey margin on every side
+		// rather than "the page" -- confirmed live. Its own selector is
+		// `section > .generic-page-wrapper`; this div is still that
+		// section's direct child (see php/default.php's col-lg-12 branch),
+		// so it matches. See client/src/style.css's .lnc-page rule for how
+		// #app now stretches to fill this card's height instead.
 		DI::page()->registerStylesheet('larpnet_matrix/app.css');
 		DI::page()['title'] = DI::l10n()->t('Chat');
-		return '<div class="lnc-page">' . $body . '</div>';
+		return '<div class="lnc-page generic-page-wrapper">' . $body . '</div>';
 	}
 
 	// Raw exit, not a normal module return: this is meant to be a clean
