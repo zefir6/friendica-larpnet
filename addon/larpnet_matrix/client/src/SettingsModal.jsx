@@ -14,7 +14,7 @@ import { useState } from 'preact/hooks';
  * onResetRecovery closes this and opens `RecoveryKeyModal` mode="reset"
  * (see recovery.js's resetRecovery()).
  */
-export function SettingsModal({ onClose, onResetRecovery, onRestoreRecovery }) {
+export function SettingsModal({ onClose, onResetRecovery, onRestoreRecovery, showTimestamps, onShowTimestampsChange }) {
   const [confirming, setConfirming] = useState(false);
 
   return (
@@ -22,11 +22,19 @@ export function SettingsModal({ onClose, onResetRecovery, onRestoreRecovery }) {
       <div class="lnc-picker" onClick={(e) => e.stopPropagation()}>
         <div class="lnc-picker-header">
           <span>Ustawienia</span>
-          <button type="button" class="lnc-picker-close" onClick={onClose}>&times;</button>
+          <button type="button" class="lnc-picker-close" onClick={onClose}><i class="ri ri-close-line" aria-hidden="true"></i></button>
         </div>
         <div class="lnc-room-info-body">
           {!confirming ? (
             <>
+              <label class="lnc-settings-toggle">
+                <span>Pokazuj godziny w liście czatów</span>
+                <input
+                  type="checkbox"
+                  checked={showTimestamps}
+                  onChange={(e) => onShowTimestampsChange(e.target.checked)}
+                />
+              </label>
               <button type="button" class="lnc-settings-restore" onClick={onRestoreRecovery}>
                 Odblokuj historię czatu
               </button>

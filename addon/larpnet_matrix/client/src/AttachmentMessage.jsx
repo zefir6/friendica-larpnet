@@ -76,7 +76,7 @@ export function FileMessage({ client, content }) {
 
   return (
     <button type="button" class="lnc-file-chip" onClick={download} disabled={state.loading}>
-      <span class="lnc-file-chip-icon">📄</span>
+      <span class="lnc-file-chip-icon"><i class="ri ri-file-line" aria-hidden="true"></i></span>
       <span class="lnc-file-chip-name">{content.body || 'plik'}</span>
       <span class="lnc-file-chip-size">{formatFileSize(content.info?.size)}</span>
       {state.loading && <span class="lnc-file-chip-status">…</span>}

@@ -11,7 +11,7 @@
 		<li>
 			<ul class="tabs flex-nav">
 				{{foreach $tabs as $tab}}
-					<li id="{{$tab.id}}" {{if $tab.sel}} class="{{$tab.sel}}" {{/if}}>
+					<li id="{{$tab.id}}" {{if $tab.sel}} class="{{$tab.sel}}" {{/if}} {{if $tab.group}}data-tab-group="{{$tab.group}}"{{/if}}>
 						<a role="menuitem" class="tabbar-wrapper__link" href="{{$tab.url}}"
 							{{if $tab.accesskey}}accesskey="{{$tab.accesskey}}" {{/if}} {{if $tab.title}}
 						title="{{$tab.title}}" {{/if}}>
@@ -42,7 +42,7 @@
 			<ul class="tabs" role="menu">
 				{{foreach $tabs as $tab}}
 					{{if $tab.sel}}
-						<li id="{{$tab.id}}-xs" {{if $tab.sel}} class="{{$tab.sel}}" {{/if}}>
+						<li id="{{$tab.id}}-xs" {{if $tab.sel}} class="{{$tab.sel}}" {{/if}} {{if $tab.group}}data-tab-group="{{$tab.group}}"{{/if}}>
 							<a role="menuitem" class="tabbar-wrapper__link" href="{{$tab.url}}" {{if $tab.title}} title="{{$tab.title}}" {{/if}}>
 								{{$tab.label}}
 							</a>
@@ -63,7 +63,7 @@
 					</button>
 					<ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenuTools">
 						{{foreach $exttabs as $tab}}
-							<li id="{{$tab.id}}-xs" {{if $tab.sel}} class="{{$tab.sel}}" {{/if}}>
+							<li id="{{$tab.id}}-xs" {{if $tab.sel}} class="{{$tab.sel}}" {{/if}} {{if $tab.group}}data-tab-group="{{$tab.group}}"{{/if}}>
 								<a role="menuitem" href="{{$tab.url}}" {{if $tab.title}} title="{{$tab.title}}" {{/if}}>
 									{{$tab.label}}
 								</a>

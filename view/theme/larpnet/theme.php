@@ -301,6 +301,19 @@ JS;
  */
 function larpnet_matrix_chat_widget_head(string &$b): void
 {
+	// Never inject the corner bubble while already on the chat module itself
+	// (the ?full=1 full-screen tab) -- a popup-to-open-chat affordance on top
+	// of chat itself is redundant. Same DI::args()->get(0) module-name check
+	// php/default.php's own profile-page branch already uses. This can only
+	// ever affect the ?full=1 branch in practice: the corner-bubble's own
+	// standalone document (larpnet_matrix_content()'s bare branch) calls
+	// exit() inside its own content() return, which terminates the request
+	// before initHead() -- and therefore this 'head' hook -- ever runs for
+	// that document at all.
+	if (DI::args()->get(0) === 'larpnet_matrix') {
+		return;
+	}
+
 	$addonFile = __DIR__ . '/../../../addon/larpnet_matrix/larpnet_matrix.php';
 	if (!file_exists($addonFile)) {
 		return;

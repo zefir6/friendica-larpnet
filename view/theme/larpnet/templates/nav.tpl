@@ -97,7 +97,7 @@
 							<li class="nav-segment hidden-xs">
 								<a accesskey="e" id="nav-calendar-link" href="{{$nav.calendar.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
 									aria-label="{{$nav.calendar.1}}" title="{{$nav.calendar.1}}" class="nav-menu"><span class="nav-icon"><i
-										class="ri ri-lg ri-calendar-2-line ri-fw"></i></span></a>
+										class="ri ri-lg ri-calendar-2-line ri-fw"></i></span><span class="nav-menu-label hidden-xs hidden-sm hidden-md">{{$nav.calendar.1}}</span></a>
 							</li>
 						{{/if}}
 
@@ -105,9 +105,9 @@
 							<li class="nav-segment hidden-xs">
 								<a accesskey="m" id="nav-messages-link" href="{{$nav.messages.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
 									aria-label="{{$nav.messages.1}}" title="{{$nav.messages.1}}"
-									class="nav-menu {{$sel.messages}}"><span class="nav-icon"><i class="ri ri-mail-line ri-lg ri-fw"
+									class="nav-menu nav-legacy-link {{$sel.messages}}"><span class="nav-icon"><i class="ri ri-mail-line ri-lg ri-fw"
 										aria-hidden="true"></i><span id="mail-update"
-										class="nav-mail-badge badge nav-notification"></span></span></a>
+										class="nav-mail-badge badge nav-notification"></span></span><span class="nav-menu-label hidden-xs hidden-sm hidden-md">{{$nav.messages.1}}</span></a>
 							</li>
 						{{/if}}
 
@@ -116,7 +116,7 @@
 								<a accesskey="k" id="nav-contacts-link" href="{{$nav.contacts.0}}" data-toggle="tooltip" data-viewport="#topbar-first"
 									aria-label="{{$nav.contacts.1}}" title="{{$nav.contacts.1}}"
 									class="nav-menu {{$sel.contacts}} {{$nav.contacts.2}}"><span class="nav-icon"><i
-										class="ri ri-contacts-line ri-lg ri-fw"></i></span></a>
+										class="ri ri-contacts-line ri-lg ri-fw"></i></span><span class="nav-menu-label hidden-xs hidden-sm hidden-md">{{$nav.contacts.1}}</span></a>
 							</li>
 						{{/if}}
 
@@ -205,6 +205,9 @@
 											<li class="divider"><hr></li>
 										{{/if}}
 									{{/if}}
+									{{if $nav.usermenu}}
+										<li class="dropdown-header">Skróty</li>
+									{{/if}}
 									{{foreach $nav.usermenu as $usermenu}}
 										<li>
 											<a role="menuitem" class="{{$usermenu.2}}" href="{{$usermenu.0}}"
@@ -215,6 +218,9 @@
 										</li>
 									{{/foreach}}
 									<li class="divider"><hr></li>
+									{{if $nav.notifications || $nav.messages}}
+										<li class="dropdown-header">Wiadomości</li>
+									{{/if}}
 									{{if $nav.notifications}}
 										<li>
 											<a role="menuitem" href="{{$nav.notifications.all.0}}" title="{{$nav.notifications.1}}">
@@ -226,15 +232,17 @@
 									{{if $nav.messages}}
 										<li>
 											<a role="menuitem"
-												class="nav-commlink {{$nav.messages.2}} {{$sel.messages}}"
+												class="nav-commlink nav-legacy-link {{$nav.messages.2}} {{$sel.messages}}"
 												href="{{$nav.messages.0}}" title="{{$nav.messages.3}}">
 												<i class="ri ri-mail-line ri-fw" aria-hidden="true"></i>
 												{{$nav.messages.1}} <span id="mail-update-li"
 													class="nav-mail-badge badge nav-notification"></span>
+												<span class="badge nav-legacy-badge">klasyczne</span>
 											</a>
 										</li>
 									{{/if}}
 									<li class="divider"><hr></li>
+									<li class="dropdown-header">Kontakty</li>
 									{{if $nav.contacts}}
 										<li>
 											<a role="menuitem" id="nav-menu-contacts-link"
@@ -262,6 +270,7 @@
 									</li>
 									<li class="divider"><hr></li>
 									{{if $nav.apps}}
+										<li class="dropdown-header">Aplikacje</li>
 										<li>
 											<a role="menuitem" id="nav-apps-link" class="nav-link {{$nav.apps.2}}"
 												href="{{$nav.apps.0}}" title="{{$nav.apps.3}}">
@@ -269,6 +278,9 @@
 											</a>
 										</li>
 										<li class="divider"><hr></li>
+									{{/if}}
+									{{if $nav.help || $nav.settings}}
+										<li class="dropdown-header">Ustawienia</li>
 									{{/if}}
 									{{if $nav.help}}
 										<li>
@@ -285,6 +297,9 @@
 												<i class="ri ri-settings-3-line ri-fw" aria-hidden="true"></i> {{$nav.settings.1}}
 											</a>
 										</li>
+									{{/if}}
+									{{if $nav.admin || $nav.moderation}}
+										<li class="dropdown-header">Administracja</li>
 									{{/if}}
 									{{if $nav.admin}}
 										<li>
@@ -305,6 +320,7 @@
 										</li>
 									{{/if}}
 									<li class="divider"><hr></li>
+									<li class="dropdown-header">Informacje</li>
 									<li>
 										<a role="menuitem" id="nav-about-link" class="nav-link {{$nav.about.2}}"
 											href="{{$nav.about.0}}" title="{{$nav.about.3}}">
@@ -363,6 +379,9 @@
 									style="max-width:15px; max-height:15px; min-width:15px; min-height:15px; width:15px; height:15px;">&nbsp;
 								{{$userinfo.name}}{{if $nav.remote}} ({{$nav.remote}}){{/if}}
 							</li>
+							{{if $nav.usermenu}}
+								<li class="dropdown-header">Skróty</li>
+							{{/if}}
 							{{foreach $nav.usermenu as $usermenu}}
 								<li class="list-group-item">
 									<a role="menuitem" class="{{$usermenu.2}}"
@@ -374,6 +393,7 @@
 							{{/foreach}}
 							{{if $nav.notifications || $nav.contacts || $nav.messages || $nav.delegation}}
 								<li class="divider"><hr></li>
+								<li class="dropdown-header">Wiadomości i kontakty</li>
 							{{/if}}
 							{{if $nav.notifications}}
 								<li class="list-group-item">
@@ -395,9 +415,10 @@
 							{{if $nav.messages}}
 								<li class="list-group-item">
 									<a role="menuitem"
-										class="nav-link {{$nav.messages.2}} {{$sel.messages}}" href="{{$nav.messages.0}}"
+										class="nav-link nav-legacy-link {{$nav.messages.2}} {{$sel.messages}}" href="{{$nav.messages.0}}"
 										title="{{$nav.messages.3}}"><i class="ri ri-mail-line ri-fw" aria-hidden="true"></i>
 										{{$nav.messages.1}}
+										<span class="badge nav-legacy-badge">klasyczne</span>
 									</a>
 								</li>
 							{{/if}}
@@ -412,6 +433,7 @@
 							{{/if}}
 							{{if $nav.settings || $nav.admin || $nav.logout}}
 								<li class="divider"><hr></li>
+								<li class="dropdown-header">Ustawienia</li>
 							{{/if}}
 							{{if $nav.settings}}
 								<li class="list-group-item">
@@ -440,6 +462,7 @@
 								</li>
 							{{/if}}
 							<li class="divider"><hr></li>
+						<li class="dropdown-header">Informacje</li>
 						<li class="list-group-item">
 							<a role="menuitem" class="nav-link {{$nav.about.2}}"
 								href="{{$nav.about.0}}" title="{{$nav.about.3}}">

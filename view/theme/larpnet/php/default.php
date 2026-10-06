@@ -122,9 +122,17 @@ if (!$minimal && DI::config()->get('larpnet', 'profile_banner', 1) && DI::args()
 		$bannerStyle = $profileBannerUrl
 			? ' style="background-image: url(\'' . htmlspecialchars((string) $profileBannerUrl) . '\')"'
 			: '';
-		$editBtn = $isOwnProfile
-			? '<a href="/settings/addons" id="change-profile-banner" target="_top" title="Zmień baner profilu"><i class="fa fa-picture-o"></i></a>'
-			: '';
+		if ($isOwnProfile && !$profileBannerUrl) {
+			// First-time, no banner set yet -- an inviting prompt instead of
+			// a bare edit icon on blank space. A Facebook migrant expects a
+			// cover photo to already be there; an empty one reads as broken
+			// unless we explain why and offer the one click to fix it.
+			$editBtn = '<a href="/settings/addons" id="change-profile-banner" class="prompt" target="_top" title="Dodaj zdjęcie w tle profilu"><i class="fa fa-picture-o"></i> Dodaj zdjęcie w tle profilu</a>';
+		} elseif ($isOwnProfile) {
+			$editBtn = '<a href="/settings/addons" id="change-profile-banner" target="_top" title="Zmień baner profilu"><i class="fa fa-picture-o"></i></a>';
+		} else {
+			$editBtn = '';
+		}
 		$profileBannerHtml = '<div id="profile-page-banner"' . $bannerStyle . '>' . $editBtn . '</div>';
 	}
 }
@@ -148,7 +156,21 @@ if ($minimal) {
 			<div class="container">
 				<div class="row">
 <?php
-					if ((empty($_REQUEST['pagename']) || $_REQUEST['pagename'] != "lostpass") && ($_SERVER['REQUEST_URI'] != $basepath)) {
+					// larpnet_matrix's own full-screen chat page (?full=1,
+					// see addon/larpnet_matrix/CLAUDE.md) has no use for the
+					// contacts/suggestions aside -- same no-aside, full-width
+					// treatment as the homepage/lostpass below, so the chat
+					// isn't squeezed into the narrow col-lg-7 reading column.
+					// trim(): nginx's rewrite sets pagename to the full
+					// request path INCLUDING its leading slash (e.g.
+					// "/larpnet_matrix", not "larpnet_matrix") -- see
+					// src/App/Arguments.php's own "maybe a nginx problem"
+					// comment and matching trim('/\\') call. A bare
+					// in_array() against "larpnet_matrix" never matched
+					// because of this (confirmed live: still col-lg-7 after
+					// deploying, not just a watchtower delay).
+					$larpnet_matrix_pagename = trim((string) ($_REQUEST['pagename'] ?? ''), '/\\');
+					if ((empty($larpnet_matrix_pagename) || !in_array($larpnet_matrix_pagename, ['lostpass', 'larpnet_matrix'], true)) && ($_SERVER['REQUEST_URI'] != $basepath)) {
 						echo '
 					<aside class="col-lg-3 col-md-3 offcanvas-sm offcanvas-xs">';
 
