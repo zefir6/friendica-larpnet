@@ -163,6 +163,28 @@ export function roomDisplayName(room, client, contacts) {
   return others[0]?.name || others[0]?.userId || 'Rozmowa';
 }
 
+// Locale-aware relative timestamp ("5 min temu" / "5 minutes ago" depending on browser locale),
+// via the standard Intl API rather than hand-rolling pl/en strings -- mirrors the iOS/Android
+// clients' own RelativeTime helpers.
+const RELATIVE_TIME_UNITS = [
+  ['year', 31536000],
+  ['month', 2592000],
+  ['day', 86400],
+  ['hour', 3600],
+  ['minute', 60],
+];
+const relativeTimeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+
+export function formatRelativeTime(timestampMs) {
+  const diffSeconds = (timestampMs - Date.now()) / 1000;
+  for (const [unit, secondsInUnit] of RELATIVE_TIME_UNITS) {
+    if (Math.abs(diffSeconds) >= secondsInUnit) {
+      return relativeTimeFormatter.format(Math.round(diffSeconds / secondsInUnit), unit);
+    }
+  }
+  return relativeTimeFormatter.format(Math.round(diffSeconds), 'second');
+}
+
 export function dmTargetMxid(cfg) {
   if (!cfg.dm) {
     return null;
@@ -232,4 +254,101 @@ export async function findOrCreateDirectRoom(client, targetMxid) {
   });
   await addDirectRoomAccountData(client, targetMxid, room_id);
   return room_id;
+}
+
+// Cleans up the leftover duplicate DM rooms from before findOrCreateDirectRoom()
+// read/wrote m.direct (see its doc comment) -- those old rooms are real,
+// separate rooms on the server, not just a display glitch, so fixing the
+// lookup going forward doesn't remove the ones that already exist. Confirmed
+// live on a real account: the same contact ("oczko") had 4+ separate DM
+// rooms, and which one a given client happened to open depended on lookup
+// order -- explaining reports like "this conversation is empty" on one
+// client while another shows real history for what looks like the same
+// person.
+//
+// Run once per session, after sync. For every 1:1-shaped room (exactly 2
+// members, matching findOrCreateDirectRoom's own heuristic) grouped by the
+// other participant:
+// - if more than one room has real messages, this is ambiguous (possibly
+//   two genuinely separate historical conversations) -- leave all of them
+//   alone, just repoint m.direct at whichever was most recently active so
+//   new chats go to the right place;
+// - otherwise, the room with a message (or, if none have one, the oldest
+//   by room-creation time -- the duplicate is always the one created later
+//   by a client that failed to find the original) is canonical: point
+//   m.direct at it and leave the empty duplicates, since a room with zero
+//   messages has nothing to lose by leaving it (the same action the room
+//   list's own "Delete this conversation" swipe already performs on
+//   purpose).
+export async function consolidateDuplicateDirectRooms(client) {
+  const ownUserId = client.getUserId();
+  const rooms = client
+    .getRooms()
+    .filter((r) => r.getMyMembership() === 'join' || r.getMyMembership() === 'invite');
+
+  const byTarget = new Map();
+  for (const room of rooms) {
+    const members = room.getMembersWithMembership('join').concat(room.getMembersWithMembership('invite'));
+    if (members.length !== 2) {
+      continue;
+    }
+    const other = members.find((m) => m.userId !== ownUserId);
+    if (!other) {
+      continue;
+    }
+    const list = byTarget.get(other.userId) || [];
+    list.push(room);
+    byTarget.set(other.userId, list);
+  }
+
+  // Checks for a message-shaped event whether or not it's currently
+  // decryptable -- this device may not have unlocked chat history yet (see
+  // the "Unlock chat history" flow), in which case a room with real history
+  // still shows its messages as the raw 'm.room.encrypted' wire type until
+  // decrypted. Treating only 'm.room.message' as "has content" would
+  // misclassify that room as empty and risk leaving it instead of the
+  // actually-empty duplicate.
+  const hasMessage = (room) =>
+    room
+      .getLiveTimeline()
+      .getEvents()
+      .some((ev) => ev.getType() === 'm.room.message' || ev.getType() === 'm.room.encrypted');
+  const createdAt = (room) => room.currentState.getStateEvents('m.room.create', '')?.getTs() ?? Infinity;
+
+  for (const [targetMxid, roomsForTarget] of byTarget) {
+    if (roomsForTarget.length < 2) {
+      continue;
+    }
+
+    const withMessages = roomsForTarget.filter(hasMessage);
+    let canonical;
+    let duplicatesToLeave;
+    if (withMessages.length > 1) {
+      canonical = [...withMessages].sort(
+        (a, b) => (b.getLastActiveTimestamp() || 0) - (a.getLastActiveTimestamp() || 0),
+      )[0];
+      duplicatesToLeave = [];
+    } else if (withMessages.length === 1) {
+      canonical = withMessages[0];
+      duplicatesToLeave = roomsForTarget.filter((r) => r !== canonical);
+    } else {
+      const sortedByAge = [...roomsForTarget].sort((a, b) => createdAt(a) - createdAt(b));
+      canonical = sortedByAge[0];
+      duplicatesToLeave = sortedByAge.slice(1);
+    }
+
+    const direct = client.getAccountData('m.direct')?.getContent() || {};
+    const existingIds = direct[targetMxid] || [];
+    if (existingIds.length !== 1 || existingIds[0] !== canonical.roomId) {
+      await client.setAccountData('m.direct', { ...direct, [targetMxid]: [canonical.roomId] });
+    }
+
+    for (const dup of duplicatesToLeave) {
+      try {
+        await client.leave(dup.roomId);
+      } catch (e) {
+        console.error('larpnet chat: failed to leave duplicate DM room', dup.roomId, e);
+      }
+    }
+  }
 }

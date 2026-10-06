@@ -1,5 +1,11 @@
 import { useEffect, useState, useCallback } from 'preact/hooks';
-import { loginAndStart, dmTargetMxid, findOrCreateDirectRoom, roomDisplayName } from './matrix.js';
+import {
+  loginAndStart,
+  dmTargetMxid,
+  findOrCreateDirectRoom,
+  roomDisplayName,
+  consolidateDuplicateDirectRooms,
+} from './matrix.js';
 import { getRecoveryStatus, setUpRecovery, resetRecovery, restoreFromRecoveryKey } from './recovery.js';
 import { RoomList } from './RoomList.jsx';
 import { Conversation } from './Conversation.jsx';
@@ -18,11 +24,26 @@ import { SettingsModal } from './SettingsModal.jsx';
 // screen". Works the same whether this is running inside the widget's
 // iframe overlay or already as its own top-level tab (opening a second tab
 // of yourself in that case is harmless, if a little redundant).
+//
+// Appends ?full=1 -- larpnet_matrix_content() reads that server-side to
+// decide whether to wrap the client in the site's normal page chrome (nav
+// bar included) instead of the bare document the corner-bubble iframe
+// gets. Using URL/searchParams rather than string concatenation so this
+// doesn't double up if the current page is already a `full` tab itself.
 function openInNewTab() {
-  window.open(window.location.href, '_blank', 'noopener');
+  const url = new URL(window.location.href);
+  url.searchParams.set('full', '1');
+  window.open(url.toString(), '_blank', 'noopener');
 }
 
 export function App({ config }) {
+  // Server-injected, one-shot, never changes during the component's
+  // lifetime (same as the rest of `config` -- see the mount effect's own
+  // comment below) -- the only signal this component has for "full-screen
+  // tab vs. corner-bubble iframe", used to drop chrome that only makes
+  // sense in one of the two (see render below and the .lnc-app-fullpage
+  // rules in style.css).
+  const isFullPage = !!config.fullPage;
   const [client, setClient] = useState(null);
   const [recoveryKeyCache, setRecoveryKeyCache] = useState(null);
   const [status, setStatus] = useState('loading'); // loading | ready | error
@@ -47,6 +68,13 @@ export function App({ config }) {
   // just a re-render trigger, not a data store.
   const [tick, setTick] = useState(0);
   const bump = useCallback(() => setTick((t) => t + 1), []);
+  // Local-only display preference (Settings), not synced to the account --
+  // matches the iOS/Android clients' own "Show timestamps in chat list" toggle.
+  const [showTimestamps, setShowTimestamps] = useState(() => localStorage.getItem('lnc_show_timestamps') !== 'false');
+  const handleShowTimestampsChange = (value) => {
+    setShowTimestamps(value);
+    localStorage.setItem('lnc_show_timestamps', value ? 'true' : 'false');
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -61,9 +89,35 @@ export function App({ config }) {
         c.on('Room.name', bump);
         c.on('RoomMember.membership', bump);
         c.on('sync', bump);
+        // A new E2EE message arrives over /sync still encrypted
+        // ('m.room.encrypted') -- Room.timeline fires and bumps a
+        // re-render, but Conversation.jsx only shows events whose type
+        // has become 'm.room.message', which matrix-js-sdk only sets
+        // once decryption actually completes. The megolm room key often
+        // arrives via a separate to-device event a beat after the
+        // message itself, so decryption (and this event) can genuinely
+        // finish *after* that first Room.timeline-triggered render.
+        // Without listening here too, the message stays invisible until
+        // some unrelated event happens to trigger another re-render --
+        // the likely cause of "sender sends, it never shows up on the
+        // other side" reports.
+        c.on('Event.decrypted', bump);
         setClient(c);
         setRecoveryKeyCache(rkc);
         setStatus('ready');
+
+        // Runs once per session, after the initial sync `loginAndStart()`
+        // already waited for -- see its own doc comment for why leftover
+        // duplicate DM rooms exist at all, and consolidateDuplicateDirectRooms()'s
+        // for how it picks which one survives.
+        try {
+          await consolidateDuplicateDirectRooms(c);
+        } catch (e) {
+          console.error('larpnet chat: duplicate DM room consolidation failed', e);
+        }
+        if (cancelled) {
+          return;
+        }
 
         const recoveryStatus = await getRecoveryStatus(c);
         if (!cancelled && recoveryStatus === 'needs_setup') {
@@ -159,6 +213,19 @@ export function App({ config }) {
     setRecoveryPrompt('reset');
   };
 
+  // On-demand re-entry to the restore flow -- until this existed, a user who
+  // dismissed the auto-prompt (or whose session ended before completing it)
+  // had no way back in short of clearing site data and hoping it re-prompts:
+  // `getRecoveryStatus()` only ever runs once, in the mount effect above, so
+  // a dismissed 'needs_restore' prompt never reappears for the rest of that
+  // page load. Safe to open even when already unlocked -- restoreFromRecoveryKey
+  // is a plain SDK `recover()` call, a no-op re-verify in that case, not
+  // destructive.
+  const handleOpenRestore = () => {
+    setShowSettings(false);
+    setRecoveryPrompt('needs_restore');
+  };
+
   // Shared by RoomInfoModal's "Opuść rozmowę" (always the currently open
   // room) and RoomList's per-row delete (any room, not necessarily the
   // open one) -- only reset the open conversation if the room that was
@@ -190,7 +257,7 @@ export function App({ config }) {
     : new Set();
 
   return (
-    <div class="lnc-app">
+    <div class={isFullPage ? 'lnc-app lnc-app-fullpage' : 'lnc-app'}>
       <div class="lnc-header">
         <button
           type="button"
@@ -207,10 +274,7 @@ export function App({ config }) {
           </button>
         )}
         <button type="button" class="lnc-header-btn" title="Ustawienia" onClick={() => setShowSettings(true)}>
-          ⚙
-        </button>
-        <button type="button" class="lnc-header-btn" title="Otwórz w nowej karcie" onClick={openInNewTab}>
-          Pełny ekran
+          <i class="ri ri-settings-3-line" aria-hidden="true"></i>
         </button>
       </div>
       <div class="lnc-body">
@@ -223,9 +287,21 @@ export function App({ config }) {
           collapsed={roomListCollapsed}
           contacts={config.contacts}
           onLeft={handleRoomLeft}
+          showTimestamps={showTimestamps}
         />
         <Conversation client={client} roomId={selectedRoomId} contacts={config.contacts} />
       </div>
+      {/* Pointless once already viewing the full-screen page -- it would
+          just open the same URL in yet another new tab. Corner-bubble mode
+          keeps it: that's the only place "open full screen" is a real,
+          useful action. */}
+      {!isFullPage && (
+        <div class="lnc-footer">
+          <button type="button" class="lnc-footer-btn" title="Otwórz w nowej karcie" onClick={openInNewTab}>
+            Pełny ekran
+          </button>
+        </div>
+      )}
       {pickerMode && (
         <ContactPicker
           contacts={(config.contacts || []).filter((c) => !existingMemberNicknames.has(c.nickname.toLowerCase()))}
@@ -246,7 +322,15 @@ export function App({ config }) {
           }}
         />
       )}
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onResetRecovery={handleOpenReset} />}
+      {showSettings && (
+        <SettingsModal
+          onClose={() => setShowSettings(false)}
+          onResetRecovery={handleOpenReset}
+          onRestoreRecovery={handleOpenRestore}
+          showTimestamps={showTimestamps}
+          onShowTimestampsChange={handleShowTimestampsChange}
+        />
+      )}
       {(recoveryPrompt === 'needs_setup' || recoveryPrompt === 'reset') && (
         <RecoveryKeyModal
           mode={recoveryPrompt === 'reset' ? 'reset' : 'setup'}

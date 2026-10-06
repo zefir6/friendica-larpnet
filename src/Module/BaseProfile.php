@@ -89,6 +89,12 @@ class BaseProfile extends BaseModule
 		}
 
 		if ($is_owner) {
+			// 'group' => 'owner' (larpnet): lets common_tabs.tpl set these
+			// visually apart from the public tabs next to them -- a visitor
+			// never gets these tabs at all (this whole block is already
+			// gated on $is_owner), this is purely about how the owner's own
+			// tab bar reads ("these are just for you" vs "everyone sees
+			// these").
 			$tabs[] = [
 				'label'     => DI::l10n()->t('Personal notes'),
 				'url'       => DI::baseUrl() . '/notes',
@@ -96,6 +102,7 @@ class BaseProfile extends BaseModule
 				'title'     => DI::l10n()->t('Only you can see these'),
 				'id'        => 'notes-tab',
 				'accesskey' => 't',
+				'group'     => 'owner',
 			];
 			$tabs[] = [
 				'label'     => DI::l10n()->t('Scheduled posts'),
@@ -104,6 +111,7 @@ class BaseProfile extends BaseModule
 				'title'     => DI::l10n()->t('Posts that are scheduled for publishing'),
 				'id'        => 'schedule-tab',
 				'accesskey' => 'o',
+				'group'     => 'owner',
 			];
 		}
 

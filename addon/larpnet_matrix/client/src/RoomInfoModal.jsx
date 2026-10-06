@@ -68,7 +68,7 @@ export function RoomInfoModal({ client, room, contacts, onClose, onLeft, onAddMe
       <div class="lnc-picker" onClick={(e) => e.stopPropagation()}>
         <div class="lnc-picker-header">
           <span>Informacje o rozmowie</span>
-          <button type="button" class="lnc-picker-close" onClick={onClose}>&times;</button>
+          <button type="button" class="lnc-picker-close" onClick={onClose}><i class="ri ri-close-line" aria-hidden="true"></i></button>
         </div>
         <div class="lnc-room-info-body">
           {isGroup && (

@@ -635,7 +635,10 @@ class Contact extends BaseModule
 			'url'               => $url,
 			'img_hover'         => DI::l10n()->t('Visit %s\'s profile [%s]', $contact['name'], $contact['url']),
 			'photo_menu'        => $photoMenu,
-			'thumb'             => Model\Contact::getThumb($contact, true),
+			// getPhoto() (SIZE_SMALL, 320px) rather than getThumb() (SIZE_THUMB,
+			// 80px) -- contact/entry.tpl renders this at a larger on-screen size
+			// than it used to, and upscaling an 80px source there looked soft.
+			'thumb'             => Model\Contact::getPhoto($contact, true),
 			'alt_text'          => $alt_text,
 			'name'              => $contact['name'],
 			'nick'              => $contact['nick'],

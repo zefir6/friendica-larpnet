@@ -52,32 +52,32 @@
 			{{* The contact actions like private mail, delete contact, edit contact and so on *}}
 			<div class="btn-group contact-actions pull-right nav-pills preferences hidden-xs" role="group">
 				{{if $contact.photo_menu.pm}}
-				<button type="button" class="contact-action-link btn btn-default" onclick="addToModal('{{$contact.photo_menu.pm.1}}'); return false;" data-toggle="tooltip" title="{{$contact.photo_menu.pm.0}}">
+				<button type="button" class="contact-action-link btn btn-default" onclick="addToModal('{{$contact.photo_menu.pm.1}}'); return false;" data-toggle="tooltip" title="{{$contact.photo_menu.pm.0}}" aria-label="{{$contact.photo_menu.pm.0}}">
 					<i class="ri ri-mail-line" aria-hidden="true"></i>
 				</button>
 				{{/if}}
 				{{if $contact.photo_menu.network}}
-				<a class="contact-action-link btn btn-default" href="{{$contact.photo_menu.network.1}}" data-toggle="tooltip" title="{{$contact.photo_menu.network.0}}">
+				<a class="contact-action-link btn btn-default" href="{{$contact.photo_menu.network.1}}" data-toggle="tooltip" title="{{$contact.photo_menu.network.0}}" aria-label="{{$contact.photo_menu.network.0}}">
 					<i class="ri ri-cloud-line" aria-hidden="true"></i>
 				</a>
 				{{/if}}
 				{{if $contact.photo_menu.follow}}
-				<a class="contact-action-link btn btn-default" href="{{$contact.photo_menu.follow.1}}" data-toggle="tooltip" title="{{$contact.photo_menu.follow.0}}">
+				<a class="contact-action-link btn btn-default" href="{{$contact.photo_menu.follow.1}}" data-toggle="tooltip" title="{{$contact.photo_menu.follow.0}}" aria-label="{{$contact.photo_menu.follow.0}}">
 					<i class="ri ri-user-add-line" aria-hidden="true"></i>
 				</a>
 				{{/if}}
 				{{if $contact.photo_menu.unfollow}}
-				<a class="contact-action-link btn btn-default" href="{{$contact.photo_menu.unfollow.1}}" data-toggle="tooltip" title="{{$contact.photo_menu.unfollow.0}}">
+				<a class="contact-action-link btn btn-default" href="{{$contact.photo_menu.unfollow.1}}" data-toggle="tooltip" title="{{$contact.photo_menu.unfollow.0}}" aria-label="{{$contact.photo_menu.unfollow.0}}">
 					<i class="ri ri-user-unfollow-line" aria-hidden="true"></i>
 				</a>
 				{{/if}}
 				{{if $contact.photo_menu.chat}}
-				<a class="contact-action-link btn btn-default" href="{{$contact.photo_menu.chat.1}}" onclick="if (window.openMatrixChat) { event.preventDefault(); openMatrixChat('{{$contact.nick}}'); }" data-toggle="tooltip" title="{{$contact.photo_menu.chat.0}}">
+				<a class="contact-action-link btn btn-default" href="{{$contact.photo_menu.chat.1}}" onclick="if (window.openMatrixChat) { event.preventDefault(); openMatrixChat('{{$contact.nick}}'); }" data-toggle="tooltip" title="{{$contact.photo_menu.chat.0}}" aria-label="{{$contact.photo_menu.chat.0}}">
 					<i class="ri ri-message-3-line" aria-hidden="true"></i>
 				</a>
 				{{/if}}
 				{{if $contact.photo_menu.hide}}
-				<a class="contact-action-link btn btn-default" href="{{$contact.photo_menu.hide.1}}" data-toggle="tooltip" title="{{$contact.photo_menu.hide.0}}">
+				<a class="contact-action-link btn btn-default" href="{{$contact.photo_menu.hide.1}}" data-toggle="tooltip" title="{{$contact.photo_menu.hide.0}}" aria-label="{{$contact.photo_menu.hide.0}}">
 					<i class="ri ri-close-line" aria-hidden="true"></i>
 				</a>
 				{{/if}}
@@ -111,6 +111,7 @@
 				{{if $contact.tags}}<div class="contact-entry-details" id="contact-entry-tags-{{$contact.id}}">{{$contact.tags}}</div>{{/if}}
 				{{if $contact.details}}<div class="contact-entry-details contact-entry-tags" id="contact-entry-details-{{$contact.id}}">{{$contact.details}}</div>{{/if}}
 				{{if $contact.network}}<div class="contact-entry-details contact-entry-network" id="contact-entry-network-{{$contact.id}}">{{$contact.network}}</div>{{/if}}
+				{{if $contact.about && !$compact}}<div class="contact-entry-about" id="contact-entry-about-{{$contact.id}}">{{$contact.about|truncate:140}}</div>{{/if}}
 			</div>
 
 			{{* The checkbox to perform batch actions to these contacts (for batch actions have a look at contacts-template.tpl) *}}
