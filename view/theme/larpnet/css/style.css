@@ -2864,6 +2864,14 @@ ul.viewcontact_wrapper > li {
 .contact-wrapper .contact-photo-image-wrapper img.contact-photo.xl {
 	height: 120px;
 	width: 120px;
+	/* view/global.css's .contact-entry-photo img rule caps every contact
+	   photo at max-width/max-height: 80px -- max-width/max-height always
+	   win over width/height regardless of selector specificity or source
+	   order, so without this override the 120px above is silently clamped
+	   back down to 80px (confirmed live: computed width stayed 80px until
+	   this was added). */
+	max-width: 120px;
+	max-height: 120px;
 }
 .contact-wrapper .contact-photo-image-wrapper img.contact-photo-xs {
 	height: 48px;
