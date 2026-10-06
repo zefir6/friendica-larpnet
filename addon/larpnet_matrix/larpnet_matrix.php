@@ -53,10 +53,10 @@
  */
 
 use Friendica\Core\Hook;
+use Friendica\Database\DBA;
 use Friendica\DI;
 use Friendica\Model\Contact;
 use Friendica\Model\Photo;
-use Friendica\Model\Profile;
 use Friendica\Model\User;
 use Friendica\Module\BaseApi;
 
@@ -304,16 +304,23 @@ function larpnet_matrix_dm_localpart(): ?string
 
 /**
  * The picker list for the client's own "start a new chat" button --
- * everyone else Profile::searchProfiles() would list (same population, same
- * privacy semantics, as the existing Site Directory: verified, not
- * blocked/removed, and opted into `publish` unless the site publishes all
- * profiles) with a valid Matrix localpart. Reuses that method rather than
- * inventing a separate "who's chattable" population, so this list can't
- * drift from what the Directory already shows as publicly listed.
+ * everyone else the existing Site Directory's local listing
+ * (`Module\Api\Mastodon\Directory` with `local=true`) would show, with a
+ * valid Matrix localpart. Deliberately queries `owner-view` on `net-publish`
+ * directly, the same condition Directory's local branch uses, rather than
+ * `Profile::searchProfiles()` -- those are two different flags
+ * (`searchProfiles()`'s default, no-search path checks the classic
+ * `publish` setting, not `net-publish`; see its own source), so reusing it silently excluded
+ * anyone discoverable in Directory but not also opted into the older
+ * `publish` setting from ever getting their real name resolved in chat
+ * (room names and per-message sender names both fell back to their bare
+ * mxid localpart for them). Querying the same table/condition Directory
+ * itself uses keeps this list from drifting the way reusing the wrong
+ * shared method did.
  */
 function larpnet_matrix_contact_list(int $excludeUid): array
 {
-	$profiles = Profile::searchProfiles(0, 500)['entries'];
+	$profiles = DBA::selectToArray('owner-view', ['uid', 'nickname', 'name'], ['net-publish' => true]);
 
 	$out = [];
 	foreach ($profiles as $p) {

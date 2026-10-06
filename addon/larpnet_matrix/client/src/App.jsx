@@ -226,10 +226,17 @@ export function App({ config }) {
     setRecoveryPrompt('needs_restore');
   };
 
-  const handleRoomLeft = () => {
+  // Shared by RoomInfoModal's "Opuść rozmowę" (always the currently open
+  // room) and RoomList's per-row delete (any room, not necessarily the
+  // open one) -- only reset the open conversation if the room that was
+  // just left is the one currently showing, so deleting some other room
+  // from the list doesn't kick you out of an unrelated open conversation.
+  const handleRoomLeft = (roomId) => {
     setShowRoomInfo(false);
-    setSelectedRoomId(null);
-    setRoomListCollapsed(false);
+    if (roomId === selectedRoomId) {
+      setSelectedRoomId(null);
+      setRoomListCollapsed(false);
+    }
   };
 
   // The header shows who you're talking TO, never your own name (own name
@@ -279,6 +286,7 @@ export function App({ config }) {
           onNewChat={() => setPickerMode('new_chat')}
           collapsed={roomListCollapsed}
           contacts={config.contacts}
+          onLeft={handleRoomLeft}
           showTimestamps={showTimestamps}
         />
         <Conversation client={client} roomId={selectedRoomId} contacts={config.contacts} />
