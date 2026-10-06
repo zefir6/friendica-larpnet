@@ -122,9 +122,17 @@ if (!$minimal && DI::config()->get('larpnet', 'profile_banner', 1) && DI::args()
 		$bannerStyle = $profileBannerUrl
 			? ' style="background-image: url(\'' . htmlspecialchars((string) $profileBannerUrl) . '\')"'
 			: '';
-		$editBtn = $isOwnProfile
-			? '<a href="/settings/addons" id="change-profile-banner" target="_top" title="Zmień baner profilu"><i class="fa fa-picture-o"></i></a>'
-			: '';
+		if ($isOwnProfile && !$profileBannerUrl) {
+			// First-time, no banner set yet -- an inviting prompt instead of
+			// a bare edit icon on blank space. A Facebook migrant expects a
+			// cover photo to already be there; an empty one reads as broken
+			// unless we explain why and offer the one click to fix it.
+			$editBtn = '<a href="/settings/addons" id="change-profile-banner" class="prompt" target="_top" title="Dodaj zdjęcie w tle profilu"><i class="fa fa-picture-o"></i> Dodaj zdjęcie w tle profilu</a>';
+		} elseif ($isOwnProfile) {
+			$editBtn = '<a href="/settings/addons" id="change-profile-banner" target="_top" title="Zmień baner profilu"><i class="fa fa-picture-o"></i></a>';
+		} else {
+			$editBtn = '';
+		}
 		$profileBannerHtml = '<div id="profile-page-banner"' . $bannerStyle . '>' . $editBtn . '</div>';
 	}
 }
