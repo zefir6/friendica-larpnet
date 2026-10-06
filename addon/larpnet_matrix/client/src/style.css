@@ -397,6 +397,18 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* Caps the whole column (timeline + composer together, so they stay the
+     same width as each other) at a normal chat-app reading width and
+     centers it in the leftover space next to the room list. Without this,
+     the full-screen layout's much wider panel (added when ?full=1 started
+     showing the site's own nav chrome, see larpnet_matrix_content()) just
+     stretched this flex:1 column edge-to-edge -- a couple of short
+     messages at up to 75% of ~950px+ ended up as oddly wide bubbles
+     floating in a lot of empty space instead of a normal-looking
+     conversation. */
+  max-width: 820px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .lnc-timeline {
