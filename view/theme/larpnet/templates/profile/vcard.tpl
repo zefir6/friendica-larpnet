@@ -41,6 +41,16 @@
 			{{if $account_type}}<div class="account-type">({{$account_type}})</div>{{/if}}
 		</div>
 
+		{{* Moved up here (was at the very bottom of the card) so the friend
+		    count is one of the first things seen on a profile -- Facebook
+		    surfaces this prominently near the top, this card used to bury
+		    it below everything else. *}}
+		{{if $contact_block}}
+			<nav class="widget" id="widget-contacts">
+				{{$contact_block nofilter}}
+			</nav>
+		{{/if}}
+
 		{{if $follow_link || $unfollow_link || $wallmessage_link || $matrix_chat_link}}
 			<div id="profile-extra-links">
 				{{if $follow_link || $unfollow_link}}
@@ -154,9 +164,3 @@
 		{{include file="diaspora_vcard.tpl"}}
 	</div>
 </div>
-
-{{if $contact_block}}
-	<nav class="widget" id="widget-contacts">
-		{{$contact_block nofilter}}
-	</nav>
-{{/if}}

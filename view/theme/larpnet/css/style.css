@@ -1334,6 +1334,25 @@ aside > .help-aside-wrapper h2 {
 	background: rgba(0, 0, 0, 0.7);
 	color: #fff;
 }
+/* The "no banner yet" prompt -- a wider, centered invitation instead of
+   the small top-right icon used once a banner already exists. */
+#change-profile-banner.prompt {
+	top: 0;
+	right: 0;
+	left: 0;
+	bottom: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	font-size: 16px;
+	font-weight: 600;
+	background: rgba(0, 0, 0, 0.12);
+	border-radius: 0;
+}
+#change-profile-banner.prompt:hover {
+	background: rgba(0, 0, 0, 0.22);
+}
 /* When banner is present: content paints over banner */
 #profile-page-banner ~ main {
 	position: relative;
@@ -1384,7 +1403,9 @@ aside .vcard .fn {
 	text-align: center;
 }
 aside .vcard .p-addr {
-	font-style: italic;
+	font-size: 13px;
+	color: $font_color_darker;
+	opacity: 0.7;
 	padding-bottom: 2px;
 	text-align: center;
 	word-wrap: break-word;
@@ -1558,6 +1579,17 @@ aside #circle-sidebar li .circle-edit-tool:first-child {
 }
 .contact-block-h4 {
 	display: inline-block;
+	font-size: 16px;
+	font-weight: bold;
+}
+/* Moved up under the profile header (see profile/vcard.tpl) so the
+   friend count is one of the first things seen on a profile, not buried
+   at the bottom of the sidebar card. */
+aside .vcard #widget-contacts {
+	text-align: center;
+	padding: 10px 0 15px;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+	margin-bottom: 10px;
 }
 
 /* Tag cloud widget */
@@ -2501,6 +2533,14 @@ moved it to the nav through js */
 .tabbar-wrapper__link {
 	padding-right: 10px;
 	padding-left: 10px;
+}
+/* Owner-only profile tabs (Personal notes, Scheduled posts) read as
+   "just for you", set apart from the public tabs next to them -- a
+   visitor never sees these tabs at all (BaseProfile::getTabsHTML()
+   omits them entirely), this is purely about the owner's own tab bar. */
+.tabbar-wrapper li[data-tab-group="owner"] {
+	border-left: 2px solid rgba(0, 0, 0, 0.15);
+	margin-left: 4px;
 }
 #tabmenu,
 .tabbar-wrapper,
