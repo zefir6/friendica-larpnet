@@ -75,6 +75,7 @@ COPY src/Model/Subscription.php                   /usr/src/friendica/src/Model/S
 COPY src/Model/Item.php                           /usr/src/friendica/src/Model/Item.php
 COPY src/Model/Profile.php                        /usr/src/friendica/src/Model/Profile.php
 COPY src/Module/Contact.php                       /usr/src/friendica/src/Module/Contact.php
+COPY src/Module/BaseProfile.php                   /usr/src/friendica/src/Module/BaseProfile.php
 COPY src/Content/Conversation/PostTemplateBuilder.php /usr/src/friendica/src/Content/Conversation/PostTemplateBuilder.php
 COPY src/Module/Item/Compose.php                  /usr/src/friendica/src/Module/Item/Compose.php
 COPY src/Module/Item/Display.php                  /usr/src/friendica/src/Module/Item/Display.php
