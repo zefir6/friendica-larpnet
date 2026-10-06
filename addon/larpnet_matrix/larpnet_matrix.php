@@ -18,6 +18,11 @@
  *   builds this) -- the target's localpart is injected into the client's config
  *   and it resolves/creates the DM room itself on load.
  *
+ *   GET /larpnet_matrix?full=1 (set by the client's own "Pełny ekran"
+ *   button) renders the same client wrapped in the current theme's normal
+ *   page chrome (nav bar included) instead of the bare standalone document
+ *   the corner-bubble iframe gets -- see larpnet_matrix_content().
+ *
  *   On each (throttled) page load, also pushes the user's larpnet display
  *   name + avatar to their Matrix profile via a server-side login against
  *   LARPNET_MATRIX_INTERNAL_URL -- see larpnet_matrix_sync_profile(). The
@@ -544,18 +549,45 @@ function larpnet_matrix_content(): string
 		'contacts'      => larpnet_matrix_contact_list((int) $uid),
 	];
 
+	// client/src/App.jsx's "Pełny ekran" button opens this same URL with
+	// ?full=1 appended -- that's the only signal this side has for "a real
+	// top-level tab, not the corner-bubble iframe" (see
+	// js/matrix-chat-widget.js), and it's what decides which of the two
+	// branches below runs.
+	$full = !empty($_GET['full']);
+
+	// The module script tag works fine wherever it lands in the document
+	// (browsers fetch/execute a <script type="module"> anywhere), so this
+	// part of the body is shared between both branches below.
+	$body = '<div id="app"></div>'
+		. '<script>window.LARPNET_CHAT_CONFIG = ' . json_encode($config) . ';</script>'
+		. '<script type="module" src="larpnet_matrix/app.js"></script>';
+
+	if ($full) {
+		// A normal module return: Friendica wraps this in the current
+		// theme's page chrome (nav bar included) same as any other page,
+		// and puts a registerStylesheet() link in <head> the proper way
+		// (cache-busted, same as any other theme/addon stylesheet) rather
+		// than the raw branch's own hand-written <head> below.
+		// .lnc-page in style.css gives #app an explicit viewport-relative
+		// height here: unlike the raw branch, #app is no longer a direct
+		// child of a height:100% html/body chain, and percentage heights
+		// don't resolve against the theme's own auto-height content
+		// wrapper.
+		DI::page()->registerStylesheet('larpnet_matrix/app.css');
+		DI::page()['title'] = DI::l10n()->t('Chat');
+		return '<div class="lnc-page">' . $body . '</div>';
+	}
+
 	// Raw exit, not a normal module return: this is meant to be a clean
-	// standalone document (its own popup window, see
+	// standalone document (the corner-bubble iframe, see
 	// js/matrix-chat-widget.js), not wrapped in Friendica's own page chrome
 	// (nav bar, sidebar) the way a plain _content() string return would be.
 	header('Content-Type: text/html; charset=utf-8');
 	echo '<!doctype html><html><head><meta charset="utf-8">'
 		. '<title>Czat</title>'
 		. '<link rel="stylesheet" href="larpnet_matrix/app.css">'
-		. '</head><body><div id="app"></div>'
-		. '<script>window.LARPNET_CHAT_CONFIG = ' . json_encode($config) . ';</script>'
-		. '<script type="module" src="larpnet_matrix/app.js"></script>'
-		. '</body></html>';
+		. '</head><body>' . $body . '</body></html>';
 	exit;
 }
 
