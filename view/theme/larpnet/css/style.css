@@ -745,6 +745,21 @@ nav.navbar .nav > li > button:focus {
 #topbar-first #intro-update {
 	cursor: pointer;
 }
+/* Classic Messages inbox de-emphasis -- the Czat widget (bottom-right
+   bubble) is the primary messaging surface now; Messages stays reachable
+   but visually muted, both in the top-bar icon and the avatar dropdown
+   (desktop #nav-user-menu and mobile #offcanvasUsermenu). */
+.nav-legacy-link {
+	opacity: .6;
+}
+.nav-legacy-badge {
+	background-color: #999;
+	opacity: 1;
+	margin-left: 4px;
+	font-size: 0.75em;
+	font-weight: normal;
+	vertical-align: middle;
+}
 /*
  * #nav-notification (the bell) lives in .topbar-actions now, not the
  * wrap-prone icon row - these rules key off its stable id instead of the
