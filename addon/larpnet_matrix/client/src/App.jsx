@@ -24,8 +24,16 @@ import { SettingsModal } from './SettingsModal.jsx';
 // screen". Works the same whether this is running inside the widget's
 // iframe overlay or already as its own top-level tab (opening a second tab
 // of yourself in that case is harmless, if a little redundant).
+//
+// Appends ?full=1 -- larpnet_matrix_content() reads that server-side to
+// decide whether to wrap the client in the site's normal page chrome (nav
+// bar included) instead of the bare document the corner-bubble iframe
+// gets. Using URL/searchParams rather than string concatenation so this
+// doesn't double up if the current page is already a `full` tab itself.
 function openInNewTab() {
-  window.open(window.location.href, '_blank', 'noopener');
+  const url = new URL(window.location.href);
+  url.searchParams.set('full', '1');
+  window.open(url.toString(), '_blank', 'noopener');
 }
 
 export function App({ config }) {
@@ -247,9 +255,6 @@ export function App({ config }) {
         <button type="button" class="lnc-header-btn" title="Ustawienia" onClick={() => setShowSettings(true)}>
           ⚙
         </button>
-        <button type="button" class="lnc-header-btn" title="Otwórz w nowej karcie" onClick={openInNewTab}>
-          Pełny ekran
-        </button>
       </div>
       <div class="lnc-body">
         <RoomList
@@ -262,6 +267,11 @@ export function App({ config }) {
           contacts={config.contacts}
         />
         <Conversation client={client} roomId={selectedRoomId} contacts={config.contacts} />
+      </div>
+      <div class="lnc-footer">
+        <button type="button" class="lnc-footer-btn" title="Otwórz w nowej karcie" onClick={openInNewTab}>
+          Pełny ekran
+        </button>
       </div>
       {pickerMode && (
         <ContactPicker

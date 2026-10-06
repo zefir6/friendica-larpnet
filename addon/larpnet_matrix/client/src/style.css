@@ -79,6 +79,41 @@ body {
   min-height: 0;
 }
 
+.lnc-footer {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding: 6px 12px;
+  border-top: 1px solid var(--lnc-border);
+}
+
+.lnc-footer-btn {
+  background: var(--lnc-accent-light);
+  border: 1px solid var(--lnc-border);
+  color: var(--lnc-accent);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.lnc-footer-btn:hover {
+  background: var(--lnc-border);
+}
+
+/* Full-chrome mode (larpnet_matrix_content()'s ?full=1 branch): #app is no
+   longer a direct child of the html/body pair the rule above gives an
+   explicit height, it's nested inside the theme's own auto-height content
+   wrapper -- a plain `height: 100%` there resolves against "auto" and is
+   ignored, collapsing the app to its content height instead of filling
+   the window. Sized off the viewport instead, which doesn't depend on any
+   ancestor's height. Higher specificity than the `#app` rule above (one
+   extra class), so this wins regardless of source order. */
+.lnc-page #app {
+  height: 80vh;
+  min-height: 480px;
+}
+
 .lnc-room-list {
   width: 220px;
   flex-shrink: 0;
