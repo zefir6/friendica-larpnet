@@ -12,12 +12,12 @@
 
 		{{* The contacts who are already members of the contact circle *}}
 		{{foreach $circle_editor.members as $contact}}
-			<li class="members active">{{include file="contact/entry.tpl"}}</li>
+			<li class="members active">{{include file="contact/entry.tpl" compact=true}}</li>
 		{{/foreach}}
 
 		{{* The contacts who are not members of the contact circle *}}
 		{{foreach $circle_editor.contacts as $contact}}
-			<li class="contacts">{{include file="contact/entry.tpl"}}</li>
+			<li class="contacts">{{include file="contact/entry.tpl" compact=true}}</li>
 		{{/foreach}}
 
 	</ul>
