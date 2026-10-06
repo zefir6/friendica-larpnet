@@ -153,7 +153,16 @@ if ($minimal) {
 					// contacts/suggestions aside -- same no-aside, full-width
 					// treatment as the homepage/lostpass below, so the chat
 					// isn't squeezed into the narrow col-lg-7 reading column.
-					if ((empty($_REQUEST['pagename']) || !in_array($_REQUEST['pagename'], ['lostpass', 'larpnet_matrix'], true)) && ($_SERVER['REQUEST_URI'] != $basepath)) {
+					// trim(): nginx's rewrite sets pagename to the full
+					// request path INCLUDING its leading slash (e.g.
+					// "/larpnet_matrix", not "larpnet_matrix") -- see
+					// src/App/Arguments.php's own "maybe a nginx problem"
+					// comment and matching trim('/\\') call. A bare
+					// in_array() against "larpnet_matrix" never matched
+					// because of this (confirmed live: still col-lg-7 after
+					// deploying, not just a watchtower delay).
+					$larpnet_matrix_pagename = trim((string) ($_REQUEST['pagename'] ?? ''), '/\\');
+					if ((empty($larpnet_matrix_pagename) || !in_array($larpnet_matrix_pagename, ['lostpass', 'larpnet_matrix'], true)) && ($_SERVER['REQUEST_URI'] != $basepath)) {
 						echo '
 					<aside class="col-lg-3 col-md-3 offcanvas-sm offcanvas-xs">';
 
