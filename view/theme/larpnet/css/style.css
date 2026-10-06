@@ -2807,8 +2807,8 @@ ul.viewcontact_wrapper > li {
 	clear: both;
 }
 .contact-wrapper .contact-photo-image-wrapper img.contact-photo.xl {
-	height: 80px;
-	width: 80px;
+	height: 120px;
+	width: 120px;
 }
 .contact-wrapper .contact-photo-image-wrapper img.contact-photo-xs {
 	height: 48px;
@@ -2823,6 +2823,22 @@ ul.viewcontact_wrapper > li {
 
 .contact-entry-desc {
 	color: $font_color_darker;
+}
+/* De-emphasize the fediverse handle (nick@domain) -- it reads too much
+   like a leaked email address at full-strength text. */
+.contact-entry-url {
+	font-size: 12px;
+	opacity: 0.6;
+}
+/* The raw network/protocol name ("DFRN", "Diaspora", ...) is jargon with
+   no meaning to someone who isn't a fediverse admin -- hidden by default. */
+.contact-entry-network {
+	display: none;
+}
+.contact-entry-about {
+	font-size: 13px;
+	color: $font_color_darker;
+	margin-top: 4px;
 }
 .contact-entry-checkbox {
 	margin-top: -20px;
