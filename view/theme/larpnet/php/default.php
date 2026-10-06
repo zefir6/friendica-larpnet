@@ -148,7 +148,12 @@ if ($minimal) {
 			<div class="container">
 				<div class="row">
 <?php
-					if ((empty($_REQUEST['pagename']) || $_REQUEST['pagename'] != "lostpass") && ($_SERVER['REQUEST_URI'] != $basepath)) {
+					// larpnet_matrix's own full-screen chat page (?full=1,
+					// see addon/larpnet_matrix/CLAUDE.md) has no use for the
+					// contacts/suggestions aside -- same no-aside, full-width
+					// treatment as the homepage/lostpass below, so the chat
+					// isn't squeezed into the narrow col-lg-7 reading column.
+					if ((empty($_REQUEST['pagename']) || !in_array($_REQUEST['pagename'], ['lostpass', 'larpnet_matrix'], true)) && ($_SERVER['REQUEST_URI'] != $basepath)) {
 						echo '
 					<aside class="col-lg-3 col-md-3 offcanvas-sm offcanvas-xs">';
 
