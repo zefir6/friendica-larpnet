@@ -107,7 +107,11 @@ function larpnet_matrix_addon_settings(array &$data)
 		return;
 	}
 
-	$private = larpnet_matrix_escrow_get((int) $uid)['mode'] === LARPNET_MATRIX_MODE_PRIVATE;
+	$mode = larpnet_matrix_escrow_get((int) $uid)['mode'];
+	if ($mode === LARPNET_MATRIX_MODE_UNAVAILABLE) {
+		return;
+	}
+	$private = $mode === LARPNET_MATRIX_MODE_PRIVATE;
 	$html    = '<p><strong>Tryb: ' . ($private ? 'Prywatny' : 'Standardowy') . '</strong></p>'
 		. ($private
 			? '<p class="help-block">Tylko Ty znasz klucz odzyskiwania czatu. Administratorzy Larpnetu nie mają dostępu do Twoich wiadomości, ale na każdym nowym urządzeniu musisz wpisać swój klucz, a jego utrata oznacza utratę historii czatu.</p>'
@@ -118,6 +122,9 @@ function larpnet_matrix_addon_settings(array &$data)
 		'addon' => 'larpnet_matrix',
 		'title' => 'Szyfrowanie czatu',
 		'html'  => $html,
+		// Read-only panel: an empty string (not absent -- Settings\Addons
+		// falls back to a generic "Save Settings" button on null) hides it.
+		'submit' => '',
 	];
 }
 
@@ -441,6 +448,9 @@ function larpnet_matrix_escrow_get(int $uid): array
 		$row = DBA::selectFirst('larpnet-matrix-escrow', ['mode', 'state', 'passphrase-enc'], ['uid' => $uid]);
 	}
 	if (!$row) {
+		// Most likely the larpnet-matrix-escrow table doesn't exist yet
+		// (bin/dbstructure-auto-update.sh didn't run or failed on this start).
+		DI::logger()->error('larpnet_matrix: could not create escrow row -- is the larpnet-matrix-escrow table missing?', ['uid' => $uid]);
 		return ['mode' => LARPNET_MATRIX_MODE_UNAVAILABLE, 'state' => LARPNET_MATRIX_STATE_ACTIVE, 'passphrase' => null];
 	}
 
