@@ -1649,6 +1649,19 @@ return [
 			"uid"     => ["uid"],
 		],
 	],
+	"larpnet-matrix-escrow" => [
+		"comment" => "larpnet: per-user chat (Matrix) encryption mode, plus the server-held recovery passphrase in Standard mode -- see addon/larpnet_matrix/CLAUDE.md 'Encryption modes'",
+		"fields"  => [
+			"uid"            => ["type" => "mediumint unsigned", "not null" => "1", "primary" => "1", "foreign" => ["user" => "uid"], "comment" => "Owner User id"],
+			"mode"           => ["type" => "varchar(16)", "not null" => "1", "default" => "standard", "comment" => "standard (server holds the recovery passphrase) or private (only the user does)"],
+			"state"          => ["type" => "varchar(16)", "not null" => "1", "default" => "pending", "comment" => "pending (passphrase issued, no client has applied it to the account yet) or active"],
+			"passphrase-enc" => ["type" => "text", "comment" => "Recovery passphrase, secretbox-encrypted with LARPNET_MATRIX_ESCROW_KEY; NULL in private mode"],
+			"updated"        => ["type" => "datetime", "not null" => "1", "default" => DBA::NULL_DATETIME, "comment" => "Last change"],
+		],
+		"indexes" => [
+			"PRIMARY" => ["uid"],
+		],
+	],
 	"post-searchindex" => [
 		"comment" => "Content for all posts",
 		"fields"  => [

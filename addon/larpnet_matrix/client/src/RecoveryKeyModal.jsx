@@ -13,7 +13,14 @@ import { useState } from 'preact/hooks';
  * - 'restore': secret storage/key backup already exist elsewhere -- let
  *   the user enter their saved recovery key *or* the phrase they set it up
  *   with, or skip (this device just won't be able to decrypt old history
- *   until they enter it some other time).
+ *   until they enter it some other time). `legacy` = the account is being
+ *   moved to standard mode but still has the user's own old key, and this
+ *   device needs it once to migrate cleanly (see ensureEncryption()).
+ * - 'private': same choose-then-show flow again, for switching from
+ *   standard (server-held passphrase) to private encryption mode -- see
+ *   encryption.js's switchToPrivate(). Cancellable before choosing.
+ * - 'show_phrase': just displays `recoveryKey` (the server-held passphrase
+ *   in standard mode) for export to another Matrix client.
  *
  * `recoveryKey` starts null in 'setup'/'reset' mode -- while it's null,
  * this shows the choose-your-own-phrase-or-random form; once the parent's
@@ -22,7 +29,7 @@ import { useState } from 'preact/hooks';
  * (rather than two App.jsx-level states) so the transition is a plain prop
  * change, not a route change.
  */
-export function RecoveryKeyModal({ mode, recoveryKey, onChoose, onConfirmSetup, onSubmitRestore, onSkip }) {
+export function RecoveryKeyModal({ mode, recoveryKey, legacy, onChoose, onConfirmSetup, onSubmitRestore, onSkip }) {
   const [input, setInput] = useState('');
   const [passphrase, setPassphrase] = useState('');
   const [error, setError] = useState(false);
@@ -39,11 +46,19 @@ export function RecoveryKeyModal({ mode, recoveryKey, onChoose, onConfirmSetup, 
     }
   };
 
-  const handleChooseRandom = async () => {
+  const choose = async (value) => {
     setSubmitting(true);
-    await onChoose(undefined);
+    setError(false);
+    try {
+      await onChoose(value);
+    } catch (e) {
+      console.error('larpnet chat: recovery key change failed', e);
+      setError(true);
+    }
     setSubmitting(false);
   };
+
+  const handleChooseRandom = () => choose(undefined);
 
   const handleChoosePassphrase = async (e) => {
     e.preventDefault();
@@ -51,22 +66,44 @@ export function RecoveryKeyModal({ mode, recoveryKey, onChoose, onConfirmSetup, 
     if (!trimmed) {
       return;
     }
-    setSubmitting(true);
-    await onChoose(trimmed);
-    setSubmitting(false);
+    await choose(trimmed);
   };
 
-  if (mode === 'setup' || mode === 'reset') {
+  if (mode === 'show_phrase') {
+    return (
+      <div class="lnc-picker-overlay">
+        <div class="lnc-picker lnc-recovery-modal" onClick={(e) => e.stopPropagation()}>
+          <div class="lnc-picker-header">
+            <span>Twoja fraza odzyskiwania</span>
+          </div>
+          <p class="lnc-recovery-text">
+            Larpnet używa jej automatycznie na wszystkich Twoich urządzeniach -- nie musisz jej
+            nigdzie wpisywać. Przyda się tylko, jeśli chcesz używać innej aplikacji Matrix (np.
+            Element, jako „Security Phrase”). Nie udostępniaj jej nikomu.
+          </p>
+          <code class="lnc-recovery-key">{recoveryKey}</code>
+          <button type="button" class="lnc-new-chat-btn" onClick={onConfirmSetup}>
+            Zamknij
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === 'setup' || mode === 'reset' || mode === 'private') {
     if (!recoveryKey) {
       const isReset = mode === 'reset';
+      const isPrivate = mode === 'private';
       return (
         <div class="lnc-picker-overlay">
           <div class="lnc-picker lnc-recovery-modal" onClick={(e) => e.stopPropagation()}>
             <div class="lnc-picker-header">
-              <span>{isReset ? 'Resetuj klucz odzyskiwania' : 'Ustaw klucz odzyskiwania'}</span>
+              <span>{isPrivate ? 'Włącz tryb prywatny' : isReset ? 'Resetuj klucz odzyskiwania' : 'Ustaw klucz odzyskiwania'}</span>
             </div>
             <p class="lnc-recovery-text">
-              {isReset
+              {isPrivate
+                ? 'Larpnet przestanie przechowywać klucz do Twojej historii czatu -- administratorzy nie będą mieli dostępu do Twoich nowych wiadomości. Na każdym nowym urządzeniu trzeba będzie wpisać klucz lub frazę, którą teraz wybierzesz, a jej utrata oznacza utratę historii. Wybierz losowy klucz albo własną frazę.'
+                : isReset
                 ? 'Stary klucz przestanie działać, a wiadomości wysłane przed resetem nie będą już do odczytania na nowych urządzeniach. Wybierz nowy klucz -- losowy albo własną frazę.'
                 : 'Ten klucz pozwala odczytać historię czatu na nowym urządzeniu lub w innej przeglądarce. Możesz wygenerować losowy klucz albo ustawić własną, łatwą do zapamiętania frazę.'}
             </p>
@@ -82,11 +119,17 @@ export function RecoveryKeyModal({ mode, recoveryKey, onChoose, onConfirmSetup, 
                 onInput={(e) => setPassphrase(e.currentTarget.value)}
               />
               <div class="lnc-recovery-actions">
+                {isPrivate && (
+                  <button type="button" class="lnc-btn-secondary" onClick={onSkip} disabled={submitting}>
+                    Anuluj
+                  </button>
+                )}
                 <button type="submit" class="lnc-new-chat-btn" disabled={submitting || !passphrase.trim()}>
                   {submitting ? 'Ustawianie…' : 'Ustaw frazę'}
                 </button>
               </div>
             </form>
+            {error && <div class="lnc-recovery-error">Nie udało się zmienić klucza. Odśwież stronę i spróbuj ponownie.</div>}
           </div>
         </div>
       );
@@ -130,9 +173,9 @@ export function RecoveryKeyModal({ mode, recoveryKey, onChoose, onConfirmSetup, 
             <span>Odblokuj historię czatu</span>
           </div>
           <p class="lnc-recovery-text">
-            To nowe urządzenie/przeglądarka -- wpisz swój klucz odzyskiwania (albo frazę,
-            jeśli taką ustawiłeś/-aś), aby odczytać wcześniejsze wiadomości. Możesz to
-            zrobić później -- nowe wiadomości będą działać już teraz.
+            {legacy
+              ? 'Larpnet od teraz sam pamięta klucz do historii czatu, więc nie trzeba go będzie więcej wpisywać. Żeby przenieść Twoją dotychczasową historię, wpisz jeszcze tylko raz swój stary klucz odzyskiwania (albo frazę). Możesz to też zrobić później lub na innym urządzeniu, na którym czat jest już odblokowany.'
+              : 'To nowe urządzenie/przeglądarka -- wpisz swój klucz odzyskiwania (albo frazę, jeśli taką ustawiłeś/-aś), aby odczytać wcześniejsze wiadomości. Możesz to zrobić później -- nowe wiadomości będą działać już teraz.'}
           </p>
           <input
             type="text"

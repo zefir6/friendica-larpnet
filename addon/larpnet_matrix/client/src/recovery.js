@@ -6,11 +6,11 @@ import { deriveRecoveryKeyFromPassphrase } from 'matrix-js-sdk/lib/crypto-api/ke
 // new device can never decrypt messages from before it existed. The fix is
 // a client-side-generated recovery key (Element calls it a "Security
 // Phrase"): shown to the user once, used to encrypt a backup of room keys.
-// Any device that has it can unlock old history. The key is generated in
-// the browser and never touches the server or this addon's PHP side --
-// deliberately, per addon/larpnet_matrix/CLAUDE.md's "Why there's no
-// device-verification UI": the operator must never be able to derive or
-// know a user's recovery key.
+// Any device that has it can unlock old history. In private encryption
+// mode the key is generated in the browser and never touches the server;
+// in standard mode (the default) encryption.js instead feeds these same
+// functions a passphrase the server holds for the user -- see
+// addon/larpnet_matrix/CLAUDE.md "Encryption modes".
 //
 // See CLAUDE.md's "Cross-device key recovery" section for the empirically-
 // confirmed constraints this module works within (most importantly: never
