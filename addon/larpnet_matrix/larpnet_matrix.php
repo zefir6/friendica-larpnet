@@ -122,6 +122,9 @@ function larpnet_matrix_addon_settings(array &$data)
 		'addon' => 'larpnet_matrix',
 		'title' => 'Szyfrowanie czatu',
 		'html'  => $html,
+		// Read-only panel: an empty string (not absent -- Settings\Addons
+		// falls back to a generic "Save Settings" button on null) hides it.
+		'submit' => '',
 	];
 }
 
