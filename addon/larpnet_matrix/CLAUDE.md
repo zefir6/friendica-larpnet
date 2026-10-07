@@ -40,16 +40,9 @@ it's a member of without that -- interactive verification establishes
 different feature from cross-device history recovery (see below, which
 this client *does* now implement).
 
-**Do not "fix" this by having this addon mint or derive a secret-storage/
-recovery key itself** (e.g. from the same JWT secret used for login). That
-was tried in the old Element-embedding design (a
-`larpnet_matrix_recovery_key()` function, since removed) and is a bad idea
-independent of whether it works: if the operator can compute a user's
-secret-storage recovery key, the operator can decrypt that user's backed-up
-message history, which defeats E2EE's confidentiality guarantee against us
-specifically. The recovery key `client/src/recovery.js` generates is always
-client-side (`crypto.createRecoveryKeyFromPassphrase()`), shown to the user
-once, and never sent to or knowable by this addon's PHP side.
+Recovery-key handling is covered by "Encryption modes" below -- the
+server *does* hold a per-user recovery passphrase now, in standard mode,
+by deliberate product decision.
 
 ## `initRustCrypto()` needs a per-(account, device) `cryptoDatabasePrefix`
 
@@ -85,6 +78,65 @@ independent database, so no login can ever be blocked by, or corrupt, any
 other account's or device's store -- this isn't a workaround, it's the
 actual fix; the bug was never about "a stray tab," it was about not
 namespacing the store at all.
+
+## Encryption modes (standard vs. private)
+
+The original design kept the recovery key strictly user-held ("the
+operator must never know it"). In practice that was too cumbersome: users
+skipped the prompt, lost keys, and saw empty conversations on new devices
+(see the larpnet-android/iOS "Unlock chat history" history). As of
+2026-10 there are two modes, per user, stored in the `larpnet-matrix-escrow`
+table (declared in `static/dbstructure.config.php`):
+
+- **standard (default for everyone, including pre-existing accounts):**
+  `larpnet_matrix_escrow_get()` lazily generates a random 256-bit
+  passphrase, stores it secretbox-encrypted with `LARPNET_MATRIX_ESCROW_KEY`
+  (per-deployment env var -- without it escrow is off and every client
+  behaves like private mode), and hands it to the user's own authenticated
+  clients: native apps get it as `encryption` in `POST /larpnet_matrix`,
+  the web client fetches it from `POST /larpnet_matrix/encryption`
+  (session + `X-CSRF-Token`, never inlined into the page HTML). Clients use
+  it as an ordinary Matrix recovery *passphrase*, so the existing
+  setUp/reset/restore code on every platform works unchanged. **Threat
+  model: the operator (anyone with the DB and the env key) can decrypt the
+  user's backed-up history.** That is the accepted trade-off of this mode.
+- **private (opt-in from chat settings on any client):** the client
+  rotates secret storage + key backup to a key only the user knows
+  (`resetRecovery()`), and only *then* calls `set_private`, which deletes
+  our copy. Protects messages from then on. Backups encrypted under the old
+  escrowed key are deleted by the reset, but an operator could have copied
+  them before -- the UI only promises "no access to new messages".
+  Switching back (`prepare_standard` -> reset -> `confirm`) issues a brand-new
+  passphrase.
+
+`state` = `pending` (passphrase issued, not yet applied to the Matrix
+account) or `active`. The client decision tree lives in
+`client/src/encryption.js`'s `ensureEncryption()` and is mirrored in the
+native clients -- keep them in step:
+
+| server state | device status | action |
+|---|---|---|
+| pending | needs_setup | `setUpRecovery(passphrase)`, confirm |
+| pending | ready | `resetRecovery(passphrase)`, confirm (force-migrates a legacy user-chosen key; this device's keys get re-uploaded) |
+| pending | needs_restore | try restore with passphrase (another device may have applied it); else prompt for the OLD key once ("legacy" prompt), then migrate |
+| active | needs_restore | restore with passphrase; on failure fall back to the manual prompt -- **never reset** |
+| active | needs_setup | `setUpRecovery(passphrase)` |
+
+**Why a locked device never force-resets:** `bootstrapSecretStorage()`
+only exports cross-signing private keys it holds locally, so a reset from a
+device that was never unlocked would create secret storage *without* them,
+and re-creating cross-signing needs a UIA stage these JWT-only accounts
+don't have (see below). So a legacy account migrates from whichever of the
+user's devices is (or gets) unlocked first. Users who have lost their old
+key and have no unlocked device are currently stuck with the manual
+prompt. A clean fix for them would need a full cross-signing identity
+reset, which needs Synapse's admin
+`_allow_cross_signing_replacement_without_uia` window first -- not built,
+pending a decision on giving this addon a Synapse admin token.
+
+Admin support: the passphrase for a user can be recovered with the DB row
+and the env key (`sodium_crypto_secretbox_open` over base64-decoded
+`passphrase-enc`, nonce = first 24 bytes, key = `sha256(LARPNET_MATRIX_ESCROW_KEY)`).
 
 ## Cross-device key recovery (`client/src/recovery.js`)
 
@@ -445,7 +497,8 @@ completely fine in code review.
 | `client/src/recovery.js` | Cross-device E2EE history recovery (recovery-key setup/restore/reset) -- see "Cross-device key recovery" above. |
 | `client/src/RoomInfoModal.jsx` | Per-conversation member list (add/remove) + rename (group rooms only) + leave. Plain Matrix Client-Server API wrappers (`client.invite`/`kick`/`leave`/`setRoomName`) -- no crypto involved, no UIA surprises like the recovery-key flows above. |
 | `client/src/RoomList.jsx` | The room list itself, plus a per-row delete ("×" button, low-opacity by default so it's discoverable on touch too, not hover-only) -- same `client.leave()` call `RoomInfoModal`'s "Opuść rozmowę" uses, just reachable without opening the room first. Both call `App.jsx`'s shared `handleRoomLeft(roomId)`, which only clears the open conversation if the room just left is the one currently selected (deleting some other room from the list must not kick you out of an unrelated open conversation). |
-| `client/src/SettingsModal.jsx` | Currently just the "reset recovery key" entry point (confirm-then-delegate to `recovery.js`'s `resetRecovery()`). |
+| `client/src/encryption.js` | Standard/private encryption modes: the `/larpnet_matrix/encryption` client, `ensureEncryption()` (run once per session) and the mode switches -- see "Encryption modes" above. |
+| `client/src/SettingsModal.jsx` | Encryption mode + switch, "show my phrase" (standard), restore/reset entry points (private), timestamps toggle. |
 
 ## Making changes
 
