@@ -5,6 +5,7 @@ import {
   findOrCreateDirectRoom,
   roomDisplayName,
   consolidateDuplicateDirectRooms,
+  autoJoinLocalInvites,
 } from './matrix.js';
 import { setUpRecovery, resetRecovery, restoreFromRecoveryKey } from './recovery.js';
 import { encryptionApi, ensureEncryption, switchToPrivate, switchToStandard, DeviceLockedError } from './encryption.js';
@@ -111,6 +112,17 @@ export function App({ config }) {
         setClient(c);
         setRecoveryKeyCache(rkc);
         setStatus('ready');
+
+        // Before consolidation: a pending invite only becomes a real (joined)
+        // room once accepted, and consolidation should see it as one.
+        try {
+          await autoJoinLocalInvites(c);
+        } catch (e) {
+          console.error('larpnet chat: auto-joining invites failed', e);
+        }
+        if (cancelled) {
+          return;
+        }
 
         // Runs once per session, after the initial sync `loginAndStart()`
         // already waited for -- see its own doc comment for why leftover
