@@ -37,9 +37,13 @@
  *   this client doesn't model. An earlier version of the previous
  *   (Element-embedding) design tried silently bootstrapping cross-signing
  *   with a separately-versioned matrix-js-sdk and broke Element's own session
- *   restore instead -- moot now that this addon owns the whole client, but
- *   the underlying lesson (don't derive/hold secret-storage keys ourselves)
- *   still applies, see CLAUDE.md.
+ *   restore instead -- moot now that this addon owns the whole client.
+ *
+ *   POST /larpnet_matrix/encryption + the `encryption` field of POST
+ *   /larpnet_matrix implement the standard/private chat encryption modes:
+ *   by default this server holds each user's recovery passphrase so clients
+ *   unlock history silently; users can opt into private mode from chat
+ *   settings. See CLAUDE.md "Encryption modes".
  *
  *   POST /larpnet_matrix/push implements the Matrix Push Gateway API
  *   (https://spec.matrix.org/latest/push-gateway-api/) for the native
@@ -52,19 +56,69 @@
  * Author: larpnet admin
  */
 
+use Friendica\BaseModule;
 use Friendica\Core\Hook;
+use Friendica\Database\Database;
 use Friendica\Database\DBA;
 use Friendica\DI;
 use Friendica\Model\Contact;
 use Friendica\Model\Photo;
 use Friendica\Model\User;
 use Friendica\Module\BaseApi;
+use Friendica\Util\DateTimeFormat;
 
 function larpnet_matrix_install()
 {
 	Hook::register('app_menu', __FILE__, 'larpnet_matrix_app_menu');
 	Hook::register('cron', __FILE__, 'larpnet_matrix_cron');
+	Hook::register('addon_settings', __FILE__, 'larpnet_matrix_addon_settings');
 	DI::logger()->info('installed addon larpnet_matrix');
+}
+
+/**
+ * Hooks added after this addon was first enabled. Friendica only re-runs
+ * larpnet_matrix_install() on a daily cron reload or an admin clicking
+ * "Reload addons" (see root CLAUDE.md, src/Module/BaseProfile.php's entry)
+ * -- and the test stack has no cron at all -- so a plain redeploy would
+ * never pick them up. Called from larpnet_matrix_app_menu() (every page);
+ * the config check keeps it at zero DB queries once done.
+ */
+const LARPNET_MATRIX_HOOKS_VERSION = 2;
+
+function larpnet_matrix_ensure_hooks(): void
+{
+	if ((int) DI::config()->get('larpnet_matrix', 'hooks_version') >= LARPNET_MATRIX_HOOKS_VERSION) {
+		return;
+	}
+	Hook::register('addon_settings', __FILE__, 'larpnet_matrix_addon_settings');
+	DI::config()->set('larpnet_matrix', 'hooks_version', LARPNET_MATRIX_HOOKS_VERSION);
+}
+
+/**
+ * Read-only "Szyfrowanie czatu" panel in /settings/addons. Switching modes
+ * needs a client that is logged into Matrix (it has to rotate secret
+ * storage itself, see CLAUDE.md "Encryption modes"), so this only explains
+ * the current mode and links to the chat's own settings.
+ */
+function larpnet_matrix_addon_settings(array &$data)
+{
+	$uid = DI::userSession()->getLocalUserId();
+	if (!$uid || !larpnet_matrix_settings() || !larpnet_matrix_escrow_key()) {
+		return;
+	}
+
+	$private = larpnet_matrix_escrow_get((int) $uid)['mode'] === LARPNET_MATRIX_MODE_PRIVATE;
+	$html    = '<p><strong>Tryb: ' . ($private ? 'Prywatny' : 'Standardowy') . '</strong></p>'
+		. ($private
+			? '<p class="help-block">Tylko Ty znasz klucz odzyskiwania czatu. Administratorzy Larpnetu nie mają dostępu do Twoich wiadomości, ale na każdym nowym urządzeniu musisz wpisać swój klucz, a jego utrata oznacza utratę historii czatu.</p>'
+			: '<p class="help-block">Larpnet przechowuje klucz odzyskiwania czatu za Ciebie, więc historia wiadomości działa automatycznie na każdym urządzeniu. Administratorzy serwera mogą technicznie uzyskać do niej dostęp. Jeśli chcesz tego uniknąć, włącz tryb prywatny.</p>')
+		. '<p><a class="btn btn-default" href="larpnet_matrix?full=1">Zmień w ustawieniach czatu (⚙)</a></p>';
+
+	$data = [
+		'addon' => 'larpnet_matrix',
+		'title' => 'Szyfrowanie czatu',
+		'html'  => $html,
+	];
 }
 
 /**
@@ -115,6 +169,7 @@ function larpnet_matrix_module() {}
 
 function larpnet_matrix_app_menu(array &$data)
 {
+	larpnet_matrix_ensure_hooks();
 	if (larpnet_matrix_settings()) {
 		$data['app_menu'][] = '<a href="larpnet_matrix">' . DI::l10n()->t('Chat') . '</a>';
 	}
@@ -282,6 +337,224 @@ function larpnet_matrix_jwt(array $claims, string $secret): string
 	$b64   = fn (string $d): string => rtrim(strtr(base64_encode($d), '+/', '-_'), '=');
 	$input = $b64(json_encode(['alg' => 'HS256', 'typ' => 'JWT'])) . '.' . $b64(json_encode($claims));
 	return $input . '.' . $b64(hash_hmac('sha256', $input, $secret, true));
+}
+
+/**
+ * Chat encryption modes -- see CLAUDE.md "Encryption modes" for the full
+ * model and threat model. In short:
+ *
+ * - 'standard' (default): this server generates and holds a per-user
+ *   recovery *passphrase* (encrypted at rest with LARPNET_MATRIX_ESCROW_KEY)
+ *   and hands it to the user's own authenticated clients, which use it to
+ *   silently set up / unlock Matrix secret storage + key backup. The user
+ *   never types anything. The operator CAN recover it.
+ * - 'private': the user rotated secret storage to a key only they know,
+ *   from a client, and the server dropped its copy.
+ *
+ * 'state' tracks whether the current passphrase has actually been applied
+ * to the Matrix account yet: 'pending' tells a client to (re)create secret
+ * storage with it (first setup, force-migrating a legacy user-chosen key,
+ * or switching back from private), 'active' tells it to only ever *restore*
+ * with it -- never reset -- so a transient failure can't wipe history.
+ */
+const LARPNET_MATRIX_MODE_STANDARD = 'standard';
+const LARPNET_MATRIX_MODE_PRIVATE  = 'private';
+// Escrow not configured on this deployment (no LARPNET_MATRIX_ESCROW_KEY):
+// old user-held-key behaviour, no mode switching offered.
+const LARPNET_MATRIX_MODE_UNAVAILABLE = 'unavailable';
+const LARPNET_MATRIX_STATE_PENDING = 'pending';
+const LARPNET_MATRIX_STATE_ACTIVE  = 'active';
+
+/**
+ * 32-byte secretbox key derived from LARPNET_MATRIX_ESCROW_KEY, or null if
+ * unset -- escrow is then off and every client falls back to the old
+ * user-held-key prompts, same "inert until configured" convention as the
+ * rest of this addon. Per-stack env var, never a DB config row, for the
+ * same reason as LARPNET_MATRIX_JWT_SECRET (test's DB is a copy of prod's).
+ */
+function larpnet_matrix_escrow_key(): ?string
+{
+	$raw = getenv('LARPNET_MATRIX_ESCROW_KEY');
+	return $raw ? hash('sha256', $raw, true) : null;
+}
+
+function larpnet_matrix_escrow_seal(string $passphrase, string $key): string
+{
+	$nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+	return base64_encode($nonce . sodium_crypto_secretbox($passphrase, $nonce, $key));
+}
+
+function larpnet_matrix_escrow_open(?string $sealed, string $key): ?string
+{
+	$bin = $sealed ? base64_decode($sealed, true) : false;
+	if ($bin === false || strlen($bin) <= SODIUM_CRYPTO_SECRETBOX_NONCEBYTES) {
+		return null;
+	}
+	$plain = sodium_crypto_secretbox_open(
+		substr($bin, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES),
+		substr($bin, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES),
+		$key
+	);
+	return $plain === false ? null : $plain;
+}
+
+/**
+ * 256 bits, base64url -- clients feed this straight into the Matrix SDKs'
+ * passphrase-based recovery (enableRecovery(passphrase:) / recover() on the
+ * Rust SDK, createRecoveryKeyFromPassphrase() on matrix-js-sdk), so no
+ * platform needs any new crypto code to support it.
+ */
+function larpnet_matrix_escrow_new_passphrase(): string
+{
+	return rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+}
+
+/**
+ * What a client needs to know: {mode, state, passphrase}. 'passphrase' is
+ * null in private mode, when escrow isn't configured, or when the stored
+ * value can't be decrypted (e.g. a prod DB copy on the test stack, which has
+ * its own escrow key) -- every client treats null as "fall back to manual
+ * prompts", never as "reset". Lazily creates a standard/pending row on first
+ * call, so every user (new or pre-existing) starts out in standard mode.
+ */
+function larpnet_matrix_escrow_get(int $uid): array
+{
+	$key = larpnet_matrix_escrow_key();
+	if (!$key) {
+		// Not 'private': clients must not offer "switch back to standard" here,
+		// there's nothing to switch to.
+		return ['mode' => LARPNET_MATRIX_MODE_UNAVAILABLE, 'state' => LARPNET_MATRIX_STATE_ACTIVE, 'passphrase' => null];
+	}
+
+	$row = DBA::selectFirst('larpnet-matrix-escrow', ['mode', 'state', 'passphrase-enc'], ['uid' => $uid]);
+	if (!$row) {
+		// INSERT IGNORE + re-read: two clients racing on a user's very first
+		// contact both end up with the one passphrase that won, so they can't
+		// set up secret storage under two different secrets.
+		DBA::insert('larpnet-matrix-escrow', [
+			'uid'            => $uid,
+			'mode'           => LARPNET_MATRIX_MODE_STANDARD,
+			'state'          => LARPNET_MATRIX_STATE_PENDING,
+			'passphrase-enc' => larpnet_matrix_escrow_seal(larpnet_matrix_escrow_new_passphrase(), $key),
+			'updated'        => DateTimeFormat::utcNow(),
+		], Database::INSERT_IGNORE);
+		$row = DBA::selectFirst('larpnet-matrix-escrow', ['mode', 'state', 'passphrase-enc'], ['uid' => $uid]);
+	}
+	if (!$row) {
+		return ['mode' => LARPNET_MATRIX_MODE_UNAVAILABLE, 'state' => LARPNET_MATRIX_STATE_ACTIVE, 'passphrase' => null];
+	}
+
+	$passphrase = null;
+	if ($row['mode'] === LARPNET_MATRIX_MODE_STANDARD) {
+		$passphrase = larpnet_matrix_escrow_open($row['passphrase-enc'], $key);
+		if ($passphrase === null) {
+			DI::logger()->warning('larpnet_matrix: escrowed passphrase could not be decrypted (wrong LARPNET_MATRIX_ESCROW_KEY?)', ['uid' => $uid]);
+		}
+	}
+
+	return ['mode' => $row['mode'], 'state' => $row['state'], 'passphrase' => $passphrase];
+}
+
+/**
+ * A client applied the current passphrase to the account (setup or reset
+ * succeeded): from now on clients only ever restore with it.
+ */
+function larpnet_matrix_escrow_confirm(int $uid): void
+{
+	DBA::update('larpnet-matrix-escrow', ['state' => LARPNET_MATRIX_STATE_ACTIVE, 'updated' => DateTimeFormat::utcNow()], ['uid' => $uid, 'mode' => LARPNET_MATRIX_MODE_STANDARD]);
+}
+
+/**
+ * Only ever called by a client AFTER it rotated secret storage to the
+ * user's own key -- dropping our copy first and then failing the rotation
+ * would leave the account locked behind a passphrase nobody has.
+ */
+function larpnet_matrix_escrow_set_private(int $uid): void
+{
+	DBA::update('larpnet-matrix-escrow', [
+		'mode'           => LARPNET_MATRIX_MODE_PRIVATE,
+		'state'          => LARPNET_MATRIX_STATE_ACTIVE,
+		'passphrase-enc' => null,
+		'updated'        => DateTimeFormat::utcNow(),
+	], ['uid' => $uid]);
+}
+
+/**
+ * Switching back from private: a fresh passphrase, 'pending' until the
+ * client confirms it reset secret storage with it. A brand-new one rather
+ * than whatever was escrowed before, so the operator never regains access
+ * to anything from the private period through an old copy.
+ */
+function larpnet_matrix_escrow_prepare_standard(int $uid): array
+{
+	$key = larpnet_matrix_escrow_key();
+	if (!$key) {
+		return larpnet_matrix_escrow_get($uid);
+	}
+	$passphrase = larpnet_matrix_escrow_new_passphrase();
+	DBA::update('larpnet-matrix-escrow', [
+		'mode'           => LARPNET_MATRIX_MODE_STANDARD,
+		'state'          => LARPNET_MATRIX_STATE_PENDING,
+		'passphrase-enc' => larpnet_matrix_escrow_seal($passphrase, $key),
+		'updated'        => DateTimeFormat::utcNow(),
+	], ['uid' => $uid], true);
+	return ['mode' => LARPNET_MATRIX_MODE_STANDARD, 'state' => LARPNET_MATRIX_STATE_PENDING, 'passphrase' => $passphrase];
+}
+
+/**
+ * POST /larpnet_matrix/encryption -- action=get|confirm|set_private|
+ * prepare_standard, answers with larpnet_matrix_escrow_get()'s shape.
+ * Authenticated either as an OAuth app (native clients) or as the
+ * logged-in web session + X-CSRF-Token (the same-origin web client, which
+ * gets the token via LARPNET_CHAT_CONFIG.csrfToken). Deliberately its own
+ * endpoint rather than inlined into the chat page HTML: a long-lived
+ * secret has no business sitting in a rendered (and potentially cached)
+ * document.
+ */
+function larpnet_matrix_encryption_endpoint(): void
+{
+	header('Content-Type: application/json');
+	header('Cache-Control: no-store');
+
+	$uid = BaseApi::getCurrentUserID();
+	if (empty($uid) || empty(BaseApi::getCurrentApplication())) {
+		$uid = (int) DI::userSession()->getLocalUserId();
+		if (!$uid || !BaseModule::checkFormSecurityToken('larpnet_matrix_encryption')) {
+			http_response_code(401);
+			echo json_encode(['error' => 'unauthorized']);
+			exit;
+		}
+	}
+
+	$action = $_POST['action'] ?? $_GET['action'] ?? 'get';
+	if (!$action || $action === 'get') {
+		$body = json_decode((string) file_get_contents('php://input'), true);
+		$action = is_array($body) ? ($body['action'] ?? 'get') : 'get';
+	}
+
+	switch ($action) {
+		case 'confirm':
+			larpnet_matrix_escrow_confirm($uid);
+			$result = larpnet_matrix_escrow_get($uid);
+			break;
+		case 'set_private':
+			larpnet_matrix_escrow_set_private($uid);
+			$result = larpnet_matrix_escrow_get($uid);
+			break;
+		case 'prepare_standard':
+			$result = larpnet_matrix_escrow_prepare_standard($uid);
+			break;
+		case 'get':
+			$result = larpnet_matrix_escrow_get($uid);
+			break;
+		default:
+			http_response_code(400);
+			echo json_encode(['error' => 'unknown_action']);
+			exit;
+	}
+
+	echo json_encode($result);
+	exit;
 }
 
 /**
@@ -569,6 +842,10 @@ function larpnet_matrix_content(): string
 		'deviceName'    => 'larpnet web',
 		'contacts'      => larpnet_matrix_contact_list((int) $uid),
 		'fullPage'      => $full,
+		// For POST /larpnet_matrix/encryption (client/src/encryption.js) --
+		// the escrowed passphrase itself is deliberately fetched rather than
+		// inlined here, see larpnet_matrix_encryption_endpoint().
+		'csrfToken'     => BaseModule::getFormSecurityToken('larpnet_matrix_encryption'),
 	];
 
 	// The module script tag works fine wherever it lands in the document
@@ -643,6 +920,9 @@ function larpnet_matrix_post()
 	if (($argv[1] ?? null) === 'push') {
 		larpnet_matrix_push_notify();
 	}
+	if (($argv[1] ?? null) === 'encryption') {
+		larpnet_matrix_encryption_endpoint();
+	}
 
 	header('Content-Type: application/json');
 
@@ -675,6 +955,12 @@ function larpnet_matrix_post()
 	// themselves and so has no Matrix displayname yet.
 	$identity['contacts'] = larpnet_matrix_contact_list((int) $uid);
 
+	// {mode, state, passphrase} -- see larpnet_matrix_escrow_get(). Saves
+	// native clients a round trip on every launch; older app builds simply
+	// ignore the unknown field.
+	$identity['encryption'] = larpnet_matrix_escrow_get((int) $uid);
+
+	header('Cache-Control: no-store');
 	echo json_encode($identity);
 	exit;
 }

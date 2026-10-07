@@ -6,7 +6,8 @@ import {
   roomDisplayName,
   consolidateDuplicateDirectRooms,
 } from './matrix.js';
-import { getRecoveryStatus, setUpRecovery, resetRecovery, restoreFromRecoveryKey } from './recovery.js';
+import { setUpRecovery, resetRecovery, restoreFromRecoveryKey } from './recovery.js';
+import { encryptionApi, ensureEncryption, switchToPrivate, switchToStandard, DeviceLockedError } from './encryption.js';
 import { RoomList } from './RoomList.jsx';
 import { Conversation } from './Conversation.jsx';
 import { ContactPicker } from './ContactPicker.jsx';
@@ -57,10 +58,15 @@ export function App({ config }) {
   const [roomListCollapsed, setRoomListCollapsed] = useState(false);
   const [showRoomInfo, setShowRoomInfo] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  // null once resolved to 'ready' (nothing to show); 'needs_setup' or
-  // 'needs_restore' render RecoveryKeyModal -- see recovery.js. 'reset' is
-  // the same setup flow, triggered from Settings instead of first login.
+  // null once resolved (nothing to show); 'needs_setup', 'needs_restore' or
+  // 'needs_restore_legacy' render RecoveryKeyModal -- see encryption.js's
+  // ensureEncryption() for when each happens. 'reset' is the setup flow
+  // triggered from Settings (private mode only), 'private' the
+  // standard->private switch, 'show_phrase' shows the escrowed passphrase.
   const [recoveryPrompt, setRecoveryPrompt] = useState(null);
+  // {mode, state, passphrase} from POST /larpnet_matrix/encryption, or null
+  // if that failed (then everything behaves like private mode).
+  const [encryption, setEncryption] = useState(null);
   const [recoveryKeyToShow, setRecoveryKeyToShow] = useState(null);
   // Bumped on any client event that could change what's on screen (new
   // room, new message, membership change...) -- components re-read live
@@ -119,13 +125,28 @@ export function App({ config }) {
           return;
         }
 
-        const recoveryStatus = await getRecoveryStatus(c);
-        if (!cancelled && recoveryStatus === 'needs_setup') {
-          // Key generation is deferred until the user picks random-vs-phrase
-          // in the modal itself -- see handleChooseSetup below.
-          setRecoveryPrompt('needs_setup');
-        } else if (!cancelled && recoveryStatus === 'needs_restore') {
-          setRecoveryPrompt('needs_restore');
+        // Standard mode: silently sets up / unlocks with the server-held
+        // passphrase, no prompt. Private mode (or no escrow on this
+        // deployment): returns the old manual prompt kind -- key generation
+        // is then deferred until the user picks random-vs-phrase in the
+        // modal itself, see handleChooseSetup below.
+        let enc = null;
+        try {
+          enc = await encryptionApi(config, 'get');
+        } catch (e) {
+          console.error('larpnet chat: could not fetch encryption mode', e);
+        }
+        if (cancelled) {
+          return;
+        }
+        setEncryption(enc);
+        try {
+          const prompt = await ensureEncryption(c, rkc, config, enc);
+          if (!cancelled && prompt) {
+            setRecoveryPrompt(prompt);
+          }
+        } catch (e) {
+          console.error('larpnet chat: automatic encryption setup failed', e);
         }
 
         const targetMxid = dmTargetMxid(config);
@@ -202,8 +223,48 @@ export function App({ config }) {
     const ok = await restoreFromRecoveryKey(client, recoveryKeyCache, text);
     if (ok) {
       setRecoveryPrompt(null);
+      // A legacy user-chosen key just unlocked this device -- now it can
+      // migrate to standard mode cleanly (see ensureEncryption()).
+      if (recoveryPrompt === 'needs_restore_legacy') {
+        try {
+          await ensureEncryption(client, recoveryKeyCache, config, encryption);
+          setEncryption(await encryptionApi(config, 'get'));
+        } catch (e) {
+          console.error('larpnet chat: migration to standard encryption failed', e);
+        }
+      }
     }
     return ok;
+  };
+
+  const handleChoosePrivate = async (passphrase) => {
+    const key = await switchToPrivate(client, config, passphrase);
+    setEncryption(await encryptionApi(config, 'get'));
+    setRecoveryKeyToShow(key);
+  };
+
+  // Returns an error message for SettingsModal to show, or null on success.
+  const handleSwitchToStandard = async () => {
+    try {
+      setEncryption(await switchToStandard(client, config));
+      return null;
+    } catch (e) {
+      console.error('larpnet chat: switch to standard encryption failed', e);
+      if (e instanceof DeviceLockedError) {
+        return 'Najpierw odblokuj historię czatu na tym urządzeniu (przycisk powyżej).';
+      }
+      return 'Nie udało się zmienić trybu. Odśwież stronę i spróbuj ponownie.';
+    }
+  };
+
+  const handleOpenPrivate = () => {
+    setShowSettings(false);
+    setRecoveryPrompt('private');
+  };
+
+  const handleShowPhrase = () => {
+    setShowSettings(false);
+    setRecoveryPrompt('show_phrase');
   };
 
   const handleSkipRecoveryRestore = () => setRecoveryPrompt(null);
@@ -327,23 +388,36 @@ export function App({ config }) {
           onClose={() => setShowSettings(false)}
           onResetRecovery={handleOpenReset}
           onRestoreRecovery={handleOpenRestore}
+          encryption={encryption}
+          onSwitchToPrivate={handleOpenPrivate}
+          onSwitchToStandard={handleSwitchToStandard}
+          onShowPhrase={handleShowPhrase}
           showTimestamps={showTimestamps}
           onShowTimestampsChange={handleShowTimestampsChange}
         />
       )}
-      {(recoveryPrompt === 'needs_setup' || recoveryPrompt === 'reset') && (
+      {(recoveryPrompt === 'needs_setup' || recoveryPrompt === 'reset' || recoveryPrompt === 'private') && (
         <RecoveryKeyModal
-          mode={recoveryPrompt === 'reset' ? 'reset' : 'setup'}
+          mode={recoveryPrompt === 'needs_setup' ? 'setup' : recoveryPrompt}
           recoveryKey={recoveryKeyToShow}
-          onChoose={recoveryPrompt === 'reset' ? handleChooseReset : handleChooseSetup}
+          onChoose={{ reset: handleChooseReset, private: handleChoosePrivate }[recoveryPrompt] || handleChooseSetup}
           onConfirmSetup={handleConfirmRecoverySetup}
+          onSkip={recoveryPrompt === 'private' ? handleSkipRecoveryRestore : undefined}
         />
       )}
-      {recoveryPrompt === 'needs_restore' && (
+      {(recoveryPrompt === 'needs_restore' || recoveryPrompt === 'needs_restore_legacy') && (
         <RecoveryKeyModal
           mode="restore"
+          legacy={recoveryPrompt === 'needs_restore_legacy'}
           onSubmitRestore={handleSubmitRecoveryRestore}
           onSkip={handleSkipRecoveryRestore}
+        />
+      )}
+      {recoveryPrompt === 'show_phrase' && encryption?.passphrase && (
+        <RecoveryKeyModal
+          mode="show_phrase"
+          recoveryKey={encryption.passphrase}
+          onConfirmSetup={handleConfirmRecoverySetup}
         />
       )}
     </div>
