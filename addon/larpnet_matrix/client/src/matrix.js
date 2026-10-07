@@ -206,6 +206,55 @@ async function addDirectRoomAccountData(client, targetMxid, roomId) {
   await client.setAccountData('m.direct', { ...direct, [targetMxid]: [...existingIds, roomId] });
 }
 
+// Auto-accepts room invites from other users on THIS homeserver -- the
+// actual reason "messages never arrive": starting a chat creates an
+// encrypted room and only *invites* the other person, and no client of ours
+// ever joined an invited room. An invited user sees none of a room's
+// timeline (Matrix only shows events to joined members), so the recipient's
+// side stayed empty forever, even after reload, while the sender saw their
+// own messages fine. Invites from other servers are left alone (prod
+// federates; auto-joining arbitrary remote invites would be a spam vector).
+//
+// Runs over existing invites once at startup (backlog from before this
+// fix) and then on every new invite. A joined DM is also added to our own
+// m.direct (the inviter only wrote theirs), so findOrCreateDirectRoom() on
+// this side resolves to the same room instead of creating a duplicate.
+export function autoJoinLocalInvites(client) {
+  const ownUserId = client.getUserId();
+  const serverOf = (mxid) => mxid.slice(mxid.indexOf(':') + 1);
+  const ownServer = serverOf(ownUserId);
+  const inFlight = new Set();
+
+  const tryJoin = async (room) => {
+    if (room.getMyMembership() !== 'invite' || inFlight.has(room.roomId)) {
+      return;
+    }
+    const inviteEvent = room.getMember(ownUserId)?.events?.member;
+    const inviter = inviteEvent?.getSender() || room.getDMInviter?.();
+    if (!inviter || serverOf(inviter) !== ownServer) {
+      return;
+    }
+    inFlight.add(room.roomId);
+    try {
+      await client.joinRoom(room.roomId);
+      if (inviteEvent?.getContent()?.is_direct) {
+        await addDirectRoomAccountData(client, inviter, room.roomId);
+      }
+    } catch (e) {
+      console.error('larpnet chat: auto-joining invite failed', room.roomId, e);
+    } finally {
+      inFlight.delete(room.roomId);
+    }
+  };
+
+  client.on('Room.myMembership', (room, membership) => {
+    if (membership === 'invite') {
+      tryJoin(room);
+    }
+  });
+  return Promise.all(client.getRooms().map(tryJoin));
+}
+
 // Finds an existing 1:1 room with this other member, or creates one.
 //
 // Primary lookup is the m.direct account-data event ({ [userId]: [roomId,
