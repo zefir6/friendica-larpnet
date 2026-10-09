@@ -2,20 +2,12 @@ import { createClient } from 'matrix-js-sdk';
 import { createRecoveryKeyCache } from './recovery.js';
 
 const DEVICE_ID_KEY = 'larpnet_chat_device_id';
+const SESSION_KEY = 'larpnet_chat_session';
 
 // A stable (but non-secret) per-browser device id, so repeat logins reuse
 // the same Matrix device instead of registering a new one every time the
 // chat popup is opened -- Synapse's /login re-issues a fresh access token
-// for an existing device_id rather than creating a new device. Unlike the
-// old Element-embedding bridge, this client never persists the access
-// token itself; every popup open does a real, fresh JWT login. That's the
-// fix for the "Unable to restore session" bug: that bug came from skipping
-// the real login and hand-seeding a previous session's tokens into
-// localStorage, which left Element's crypto engine to cold-boot-restore a
-// session it never actually logged into itself. Always logging in for
-// real, every time, means we only ever exercise the one well-tested code
-// path (login -> initRustCrypto -> startClient), never a hand-rolled
-// shortcut around it.
+// for an existing device_id rather than creating a new device.
 function getOrCreateDeviceId() {
   let id = localStorage.getItem(DEVICE_ID_KEY);
   if (!id) {
@@ -25,8 +17,54 @@ function getOrCreateDeviceId() {
   return id;
 }
 
-export async function loginAndStart(cfg) {
-  const deviceId = getOrCreateDeviceId();
+// The mxid the server-minted JWT is for (its `sub` claim is the localpart)
+// -- used only to decide whether a saved session belongs to the user who
+// is logged into Friendica right now. Null if it can't be read.
+function expectedUserId(cfg) {
+  try {
+    const payload = cfg.jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return '@' + JSON.parse(atob(payload)).sub + ':' + cfg.serverName;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Reuses this browser's own saved Matrix session when it's still valid,
+// otherwise does a fresh JWT login (and saves that session).
+//
+// This client used to do a fresh JWT login on EVERY load, and the chat
+// widget reloads on every Friendica navigation -- so an active user did
+// dozens of logins an hour and Synapse's login rate limit (rc_login,
+// default burst 5 then ~1 per 5.5 minutes) locked chat out with 429
+// M_LIMIT_EXCEEDED ("Nie udało się zalogować do czatu"), confirmed live on
+// test.larpnet.pl. Persisting the access token was originally avoided
+// because of the old Element-embedding bridge's "Unable to restore
+// session" bug -- but that came from *Element* cold-starting a session a
+// *different* SDK had created and seeded into its storage. Here it's this
+// same client resuming its own session, for the same device_id, against
+// the same per-(account, device) crypto store (cryptoDatabasePrefix below)
+// -- the ordinary matrix-js-sdk restore path every Matrix web client uses.
+//
+// Only reused when it is for the same user (checked against the JWT's
+// `sub`, so switching Friendica accounts in one browser never picks up the
+// previous account's session) and the same device, and when /whoami still
+// accepts the token. Anything else -- expired/revoked token, unreadable
+// storage, a network blip -- falls back to the fresh login, so the worst
+// case is exactly the old behaviour.
+async function obtainSession(cfg, deviceId) {
+  const expected = expectedUserId(cfg);
+  try {
+    const saved = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+    if (expected && saved?.access_token && saved.user_id === expected && saved.device_id === deviceId) {
+      const probe = createClient({ baseUrl: cfg.homeserverUrl, accessToken: saved.access_token, userId: saved.user_id });
+      const who = await probe.whoami();
+      if (who.user_id === saved.user_id && (!who.device_id || who.device_id === deviceId)) {
+        return saved;
+      }
+    }
+  } catch (e) {
+    // Fall through to a fresh login.
+  }
 
   const loginClient = createClient({ baseUrl: cfg.homeserverUrl });
   const res = await loginClient.login('org.matrix.login.jwt', {
@@ -34,6 +72,20 @@ export async function loginAndStart(cfg) {
     device_id: deviceId,
     initial_device_display_name: cfg.deviceName || 'larpnet web',
   });
+  try {
+    localStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({ user_id: res.user_id, device_id: res.device_id, access_token: res.access_token }),
+    );
+  } catch (e) {
+    // Storage unavailable (private mode etc.) -- next load just logs in again.
+  }
+  return res;
+}
+
+export async function loginAndStart(cfg) {
+  const deviceId = getOrCreateDeviceId();
+  const res = await obtainSession(cfg, deviceId);
 
   // recoveryKeyCache backs cryptoCallbacks.getSecretStorageKey -- the crypto
   // stack calls into it whenever it needs the recovery key (e.g. to restore
