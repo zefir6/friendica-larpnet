@@ -18,10 +18,14 @@ crypto-store corruption bug. The **confirmed** root cause: the old bridge
 page's `?jwt=` handoff skipped a real login and hand-seeded a previous
 session's tokens into `localStorage` whenever one already existed, leaving
 Element's crypto engine to cold-boot-restore a session it never itself
-logged into. This client (`client/src/matrix.js`) never does that -- every
-boot does one real, fresh JWT login (persisting only a stable, non-secret
-`device_id`), so the only code path ever exercised is the well-tested
-login -> initRustCrypto -> startClient sequence, never a shortcut around it.
+logged into. This client (`client/src/matrix.js`) never does that: it
+only ever resumes a session *it* created, for the same `device_id`,
+against the same per-(account, device) crypto store. It originally did a
+fresh JWT login on every boot instead, but with the widget reloading on
+every Friendica navigation that tripped Synapse's login rate limit (429
+`M_LIMIT_EXCEEDED`, confirmed live 2026-10-09). So `obtainSession()` now
+reuses its own saved session after checking it with `/whoami`, and falls
+back to a fresh JWT login on any doubt -- see its doc comment.
 That fix alone is embedding-independent (iframe or popup window, it holds
 either way) -- see `js/matrix-chat-widget.js`'s own docblock for a second,
 separately-suspected-but-never-fully-confirmed failure mode (destroying and
