@@ -562,6 +562,20 @@ header #banner #logo-img,
 	font-weight: 300;
 	color: $font_color_darker;
 }
+/* The account menu (#nav-user-menu) sits on $nav_bg, unlike the white
+   dropdowns the rule above is meant for -- $font_color_darker headers were
+   near-black on purple there. Match its items' $nav_icon_color instead,
+   toned down so the section labels read as labels, not links. */
+#nav-user-menu .dropdown-header {
+	color: $nav_icon_color;
+	opacity: 0.7;
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin-bottom: 4px;
+	padding-top: 8px;
+}
 #nav-notifications-menu {
 	margin-top: 0;
 	padding: 0;
