@@ -45,7 +45,8 @@
   position: fixed;
   right: 24px;
   bottom: 92px;
-  width: 380px;
+  width: 420px;
+  max-width: calc(100vw - 48px);
   height: 600px;
   max-height: calc(100vh - 116px);
   background: #fff;
@@ -62,6 +63,13 @@
   transition:
     transform 0.15s ease,
     opacity 0.15s ease;
+}
+
+/* The chat's "list beside conversation" setting (lnc_popup_layout = 'side',
+ * see js/matrix-chat-widget.js) -- room for the 220px list plus a normal
+ * conversation column. */
+#larpnet-chat-panel.wide {
+  width: 680px;
 }
 
 #larpnet-chat-panel.open {
@@ -88,12 +96,14 @@
     bottom: 16px;
   }
 
-  #larpnet-chat-panel {
+  #larpnet-chat-panel,
+  #larpnet-chat-panel.wide {
     right: 0;
     left: 0;
     bottom: 0;
     top: 0;
     width: 100%;
+    max-width: 100%;
     height: 100%;
     max-height: 100%;
     border-radius: 0;

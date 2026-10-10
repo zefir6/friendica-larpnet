@@ -53,7 +53,31 @@
 
     document.body.appendChild(bubble);
     document.body.appendChild(panel);
+
+    // The chat's own "list beside conversation" setting (Settings in the
+    // client, App.jsx's popupLayout) needs a wider panel. Same origin as the
+    // iframe, so the same localStorage key is readable here on page load;
+    // a live change arrives via the postMessage handler below.
+    try {
+      setWide(localStorage.getItem('lnc_popup_layout') === 'side');
+    } catch (e) {
+      // Storage blocked: keep the default (narrow) panel.
+    }
   }
+
+  function setWide(wide) {
+    panel.classList.toggle('wide', !!wide);
+  }
+
+  window.addEventListener('message', function (e) {
+    var iframe = panel && panel.querySelector('iframe');
+    if (e.origin !== window.location.origin || !iframe || e.source !== iframe.contentWindow) {
+      return;
+    }
+    if (e.data && e.data.type === 'larpnet-chat-layout') {
+      setWide(e.data.layout === 'side');
+    }
+  });
 
   function ensureIframe(dm) {
     if (loaded && dm === currentDm) {
