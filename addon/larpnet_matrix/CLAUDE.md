@@ -322,6 +322,25 @@ injects it). If this regresses, check that the header is deriving its title
 from `client.getRoom(selectedRoomId)` + `roomDisplayName()`, not from
 anything describing the logged-in user.
 
+## Popup layout and timeline scrolling
+
+- **Popup layout setting** (`lnc_popup_layout` in localStorage, Settings ->
+  "Lista rozmów obok czatu"): `'switch'` (default) shows the room list *or*
+  the conversation in the corner popup, full width, with a "←" back button;
+  `'side'` keeps them side by side and widens the popup (420px -> 680px).
+  The panel width lives in the *parent* page (`view/theme/larpnet/css/matrix-chat-widget.css`),
+  so the client tells `js/matrix-chat-widget.js` via
+  `postMessage({type: 'larpnet-chat-layout', layout})` (same-origin + iframe
+  source checked), and the widget also reads the same localStorage key on
+  page load. Full-page mode ignores the setting. Narrow iframes (<= 600px,
+  e.g. phones) always use single-pane.
+- **Timeline scrolling needs `min-height: 0`** on `.lnc-conversation` and
+  `.lnc-timeline` (flex items default to content height, so without it the
+  conversation grew and pushed the composer off-screen instead of scrolling),
+  and full-page `.lnc-page` needs a real `height`, not just min-height.
+  `Conversation.jsx` "sticks to bottom" only while the user is near the
+  bottom; a ResizeObserver re-scrolls after async image decrypts/backfill.
+
 ## Matrix displayname sync -- why it matters for names shown to *other* users
 
 Matrix's own displayname for an account is only ever set by that account
