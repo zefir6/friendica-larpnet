@@ -138,6 +138,17 @@ reset, which needs Synapse's admin
 `_allow_cross_signing_replacement_without_uia` window first -- not built,
 pending a decision on giving this addon a Synapse admin token.
 
+**Old app builds are rejected at chat login.** Android < 0.23.0 and iOS <
+1.31 predate standard mode: on an account with no secret storage they make
+the user create their *own* recovery key, which leaves every other client
+(web included) asking for it -- seen live on prod 2026-10-10, right after a
+`reset-chat-e2ee.sh` wipe. `POST /larpnet_matrix` now answers those builds
+(identified by their `larpnet-android/<ver>` / `larpnet-ios/<ver>`
+User-Agent; anything else passes) with `426 app_update_required` --
+`larpnet_matrix_outdated_app_min_version()`. Raise the floor per deployment
+with `LARPNET_MATRIX_MIN_ANDROID_VERSION` / `LARPNET_MATRIX_MIN_IOS_VERSION`.
+Not 401/403: larpnet-ios force-logs-out on those.
+
 Admin support: the passphrase for a user can be recovered with the DB row
 and the env key (`sodium_crypto_secretbox_open` over base64-decoded
 `passphrase-enc`, nonce = first 24 bytes, key = `sha256(LARPNET_MATRIX_ESCROW_KEY)`).
