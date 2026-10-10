@@ -943,6 +943,19 @@ function larpnet_matrix_post()
 		exit;
 	}
 
+	$minVersion = larpnet_matrix_outdated_app_min_version($_SERVER['HTTP_USER_AGENT'] ?? '');
+	if ($minVersion !== null) {
+		// 426, not 401/403: larpnet-ios treats those as "session dead" and
+		// force-logs the user out of the whole app.
+		http_response_code(426);
+		echo json_encode([
+			'error'       => 'app_update_required',
+			'message'     => 'Zaktualizuj aplikację Larpnet do wersji ' . $minVersion . ' lub nowszej, aby korzystać z czatu.',
+			'min_version' => $minVersion,
+		]);
+		exit;
+	}
+
 	$settings = larpnet_matrix_settings();
 	if (!$settings) {
 		http_response_code(503);
@@ -973,6 +986,36 @@ function larpnet_matrix_post()
 	header('Cache-Control: no-store');
 	echo json_encode($identity);
 	exit;
+}
+
+/**
+ * Minimum native app versions allowed to log into chat, from the User-Agent
+ * both apps already send (`larpnet-android/<versionName>`,
+ * `larpnet-ios/<CFBundleShortVersionString>`). Builds older than these predate
+ * standard encryption mode and, on an account with no secret storage, make the
+ * user create their OWN recovery key -- which then leaves every other client
+ * (web included) stuck asking for that key, undoing reset-chat-e2ee.sh. Seen
+ * live on prod 2026-10-10. Overridable per deployment so a later client-side
+ * fix can be enforced without a code change.
+ */
+const LARPNET_MATRIX_MIN_ANDROID_VERSION = '0.23.0';
+const LARPNET_MATRIX_MIN_IOS_VERSION     = '1.31';
+
+/**
+ * The minimum version the caller must update to, or null if it may proceed.
+ * Anything that isn't one of our apps' User-Agents (web, the iOS Notification
+ * Service Extension's default one, scripts) is let through -- only a
+ * positively identified outdated app build is rejected.
+ */
+function larpnet_matrix_outdated_app_min_version(string $userAgent): ?string
+{
+	if (!preg_match('#^larpnet-(android|ios)/(\d+(?:\.\d+)*)#', $userAgent, $m)) {
+		return null;
+	}
+	$min = $m[1] === 'android'
+		? (getenv('LARPNET_MATRIX_MIN_ANDROID_VERSION') ?: LARPNET_MATRIX_MIN_ANDROID_VERSION)
+		: (getenv('LARPNET_MATRIX_MIN_IOS_VERSION') ?: LARPNET_MATRIX_MIN_IOS_VERSION);
+	return version_compare($m[2], $min, '<') ? $min : null;
 }
 
 /**
