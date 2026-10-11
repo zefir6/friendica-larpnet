@@ -754,7 +754,10 @@ body {
   background: var(--lnc-accent-light) !important;
 }
 
-.lnc-hidden-file-input {
+/* input.-qualified: the full-page view loads the site's Bootstrap, whose
+   input[type="file"] { display: block } otherwise out-specifies a bare
+   class and shows the native "Choose file" control in the composer. */
+input.lnc-hidden-file-input {
   display: none;
 }
 
