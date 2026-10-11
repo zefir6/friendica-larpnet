@@ -192,7 +192,10 @@ export function App({ config }) {
           const roomId = await findOrCreateDirectRoom(c, targetMxid);
           if (!cancelled) {
             setSelectedRoomId(roomId);
-            setRoomListCollapsed(true);
+            // Same rule as selectRoom() below -- full page keeps the list
+            // docked. (singlePane is this first render's value; the mount
+            // effect only runs once, and isFullPage never changes.)
+            setRoomListCollapsed(singlePane);
           }
         }
       } catch (e) {
@@ -223,10 +226,11 @@ export function App({ config }) {
     .filter((r) => r.getMyMembership() === 'join' || r.getMyMembership() === 'invite')
     .sort((a, b) => (b.getLastActiveTimestamp() || 0) - (a.getLastActiveTimestamp() || 0));
 
-  // Selecting a conversation switches the single-pane popup from the list
-  // to the conversation ("←" brings the list back). Side-by-side layouts
-  // (full page, or the widened popup) keep the list visible -- that's
-  // their whole point; it can still be hidden via the "Rozmowy" toggle.
+  // Selecting a conversation (here, or via ?dm= on load) switches the
+  // single-pane popup from the list to the conversation ("←" brings the
+  // list back). Side-by-side layouts (full page, or the widened popup)
+  // keep the list docked -- that's their whole point; it only hides when
+  // the user presses the "Rozmowy" toggle, never on its own.
   const selectRoom = (roomId) => {
     setSelectedRoomId(roomId);
     setRoomListCollapsed(singlePane);
