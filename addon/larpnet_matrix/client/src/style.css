@@ -183,18 +183,36 @@ body {
 
 /* The room list's purple-tinted background also reads as its own
    separate panel next to the white card -- flip to plain white so it
-   blends into the card instead of standing out. The border-right stays,
-   that's a real content divider (list vs. conversation), not chrome. */
+   blends into the card instead of standing out. The divider (.lnc-resizer)
+   stays: that's a real content divider (list vs. conversation), not chrome. */
 .lnc-app-fullpage .lnc-room-list {
   background: #ffffff;
 }
 
 .lnc-room-list {
-  width: 220px;
+  width: 280px;
   flex-shrink: 0;
   overflow-y: auto;
   background: var(--lnc-accent-light);
-  border-right: 1px solid var(--lnc-border);
+}
+
+/* Drag handle between the room list and the conversation in side-by-side
+   layouts (App.jsx sets the list's width inline while dragging). Its own
+   1px line replaces the list's old border-right as the content divider. */
+.lnc-resizer {
+  flex: 0 0 6px;
+  margin-left: -3px;
+  margin-right: -3px;
+  position: relative;
+  z-index: 1;
+  cursor: col-resize;
+  touch-action: none;
+  background: linear-gradient(to right, transparent 2.5px, var(--lnc-border) 2.5px, var(--lnc-border) 3.5px, transparent 3.5px);
+}
+
+.lnc-resizer:hover,
+.lnc-resizer:active {
+  background: linear-gradient(to right, transparent 1.5px, var(--lnc-accent) 1.5px, var(--lnc-accent) 4.5px, transparent 4.5px);
 }
 
 /* Popup "list or conversation" layout (App.jsx's singlePane): the list is
@@ -393,6 +411,29 @@ body {
   gap: 8px;
   padding: 6px 0;
   border-bottom: 1px solid var(--lnc-border);
+}
+
+.lnc-settings-mxid {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--lnc-border);
+}
+
+.lnc-settings-mxid-label {
+  display: block;
+  font-size: 0.85em;
+  color: var(--lnc-text-secondary);
+  margin-bottom: 4px;
+}
+
+.lnc-settings-mxid-row {
+  display: flex;
+  gap: 8px;
+}
+
+.lnc-settings-mxid-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
 }
 
 .lnc-settings-toggle {
@@ -612,6 +653,39 @@ body {
   text-align: right;
 }
 
+/* Bubble + optional per-message time (Settings), the time always on the
+   outer side: right of incoming bubbles, left of your own. */
+.lnc-message-line {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.lnc-message-mine .lnc-message-line {
+  flex-direction: row-reverse;
+}
+
+.lnc-message-line .lnc-message-body {
+  min-width: 0;
+}
+
+.lnc-message-time {
+  flex-shrink: 0;
+  font-size: 0.75em;
+  color: var(--lnc-text-secondary);
+  white-space: nowrap;
+  padding-bottom: 2px;
+}
+
+.lnc-profile-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.lnc-profile-link:hover {
+  text-decoration: underline;
+}
+
 .lnc-message-mine .lnc-message-body {
   background: var(--lnc-accent);
   color: #ffffff;
@@ -680,7 +754,10 @@ body {
   background: var(--lnc-accent-light) !important;
 }
 
-.lnc-hidden-file-input {
+/* input.-qualified: the full-page view loads the site's Bootstrap, whose
+   input[type="file"] { display: block } otherwise out-specifies a bare
+   class and shows the native "Choose file" control in the composer. */
+input.lnc-hidden-file-input {
   display: none;
 }
 
@@ -743,6 +820,45 @@ body {
 
 .lnc-emoji-item:hover {
   background: var(--lnc-accent-light);
+}
+
+.lnc-emoji-suggest {
+  position: absolute;
+  bottom: 100%;
+  left: 12px;
+  width: 260px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid var(--lnc-border);
+  border-radius: 4px;
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.1);
+  padding: 4px 0;
+  z-index: 50;
+}
+
+.lnc-emoji-suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 10px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 0.9em;
+  color: var(--lnc-text);
+  cursor: pointer;
+}
+
+.lnc-emoji-suggest-item-active,
+.lnc-emoji-suggest-item:hover {
+  background: var(--lnc-accent-light);
+}
+
+.lnc-emoji-suggest-emoji {
+  font-size: 1.3em;
+  line-height: 1;
 }
 
 .lnc-image-attachment {

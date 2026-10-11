@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks';
-import { resolveDisplayName } from './matrix.js';
+import { resolveDisplayName, profileUrlForUserId } from './matrix.js';
 
 /**
  * "Room info" overlay for the currently open conversation -- rename (group
@@ -13,7 +13,7 @@ import { resolveDisplayName } from './matrix.js';
  * would silently have no visible effect and just confuse whoever tries it.
  * It only ever matters once a room has more than one other member.
  */
-export function RoomInfoModal({ client, room, contacts, onClose, onLeft, onAddMember }) {
+export function RoomInfoModal({ client, room, contacts, serverName, linkTarget, onClose, onLeft, onAddMember }) {
   const [nameInput, setNameInput] = useState(room.name || '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -90,14 +90,24 @@ export function RoomInfoModal({ client, room, contacts, onClose, onLeft, onAddMe
             </form>
           )}
           <div class="lnc-room-info-members">
-            {others.map((m) => (
-              <div key={m.userId} class="lnc-room-info-member">
-                <span>{resolveDisplayName(m.userId, contacts) || m.name || m.userId}</span>
-                <button type="button" class="lnc-btn-secondary" onClick={() => handleRemove(m.userId)} disabled={busy}>
-                  Usuń
-                </button>
-              </div>
-            ))}
+            {others.map((m) => {
+              const name = resolveDisplayName(m.userId, contacts) || m.name || m.userId;
+              const profileUrl = profileUrlForUserId(m.userId, serverName, contacts);
+              return (
+                <div key={m.userId} class="lnc-room-info-member">
+                  {profileUrl ? (
+                    <a class="lnc-profile-link" href={profileUrl} target={linkTarget} rel="noopener" title="Otwórz profil">
+                      {name}
+                    </a>
+                  ) : (
+                    <span>{name}</span>
+                  )}
+                  <button type="button" class="lnc-btn-secondary" onClick={() => handleRemove(m.userId)} disabled={busy}>
+                    Usuń
+                  </button>
+                </div>
+              );
+            })}
           </div>
           <button type="button" class="lnc-new-chat-btn" onClick={onAddMember} disabled={busy}>
             + Dodaj osobę

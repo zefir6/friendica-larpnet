@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'preact/hooks';
+import { useEffect, useRef, useState, useCallback } from 'preact/hooks';
 import {
   loginAndStart,
   dmTargetMxid,
@@ -37,6 +37,11 @@ function openInNewTab() {
   url.searchParams.set('full', '1');
   window.open(url.toString(), '_blank', 'noopener');
 }
+
+const ROOM_LIST_DEFAULT_WIDTH = 280;
+const ROOM_LIST_MIN_WIDTH = 180;
+const ROOM_LIST_MAX_WIDTH = 480;
+const CONVERSATION_MIN_WIDTH = 280;
 
 export function App({ config }) {
   // Server-injected, one-shot, never changes during the component's
@@ -82,9 +87,48 @@ export function App({ config }) {
     setShowTimestamps(value);
     localStorage.setItem('lnc_show_timestamps', value ? 'true' : 'false');
   };
+  // Same, for an absolute time next to every message (off by default).
+  const [showMessageTimes, setShowMessageTimes] = useState(() => localStorage.getItem('lnc_show_message_times') === 'true');
+  const handleShowMessageTimesChange = (value) => {
+    setShowMessageTimes(value);
+    localStorage.setItem('lnc_show_message_times', value ? 'true' : 'false');
+  };
+  // Room list width in side-by-side layouts, dragged via the divider next
+  // to it (double-click resets). Local-only, like the settings above.
+  const [roomListWidth, setRoomListWidth] = useState(() => {
+    const saved = parseInt(localStorage.getItem('lnc_room_list_width'), 10);
+    return saved >= ROOM_LIST_MIN_WIDTH && saved <= ROOM_LIST_MAX_WIDTH ? saved : ROOM_LIST_DEFAULT_WIDTH;
+  });
+  const bodyRef = useRef(null);
+  const resizingRef = useRef(false);
+  const handleResizeStart = (e) => {
+    resizingRef.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  };
+  const handleResizeMove = (e) => {
+    if (!resizingRef.current || !bodyRef.current) {
+      return;
+    }
+    const rect = bodyRef.current.getBoundingClientRect();
+    // Always leave the conversation at least CONVERSATION_MIN_WIDTH.
+    const max = Math.max(ROOM_LIST_MIN_WIDTH, Math.min(ROOM_LIST_MAX_WIDTH, rect.width - CONVERSATION_MIN_WIDTH));
+    setRoomListWidth(Math.round(Math.min(max, Math.max(ROOM_LIST_MIN_WIDTH, e.clientX - rect.left))));
+  };
+  const handleResizeEnd = () => {
+    if (!resizingRef.current) {
+      return;
+    }
+    resizingRef.current = false;
+    localStorage.setItem('lnc_room_list_width', String(roomListWidth));
+  };
+  const handleResizeReset = () => {
+    setRoomListWidth(ROOM_LIST_DEFAULT_WIDTH);
+    localStorage.removeItem('lnc_room_list_width');
+  };
   // Corner-bubble popup only, also local-only: 'switch' (default) shows
   // either the room list or the open conversation, full width, never both
-  // -- the popup is too narrow for a 220px list beside a conversation.
+  // -- the popup is too narrow for the room list beside a conversation.
   // 'side' keeps them side by side, and has js/matrix-chat-widget.js widen
   // the popup to fit (it reads the same localStorage key on page load,
   // and the postMessage below applies a change live).
@@ -192,7 +236,10 @@ export function App({ config }) {
           const roomId = await findOrCreateDirectRoom(c, targetMxid);
           if (!cancelled) {
             setSelectedRoomId(roomId);
-            setRoomListCollapsed(true);
+            // Same rule as selectRoom() below -- full page keeps the list
+            // docked. (singlePane is this first render's value; the mount
+            // effect only runs once, and isFullPage never changes.)
+            setRoomListCollapsed(singlePane);
           }
         }
       } catch (e) {
@@ -223,10 +270,11 @@ export function App({ config }) {
     .filter((r) => r.getMyMembership() === 'join' || r.getMyMembership() === 'invite')
     .sort((a, b) => (b.getLastActiveTimestamp() || 0) - (a.getLastActiveTimestamp() || 0));
 
-  // Selecting a conversation switches the single-pane popup from the list
-  // to the conversation ("←" brings the list back). Side-by-side layouts
-  // (full page, or the widened popup) keep the list visible -- that's
-  // their whole point; it can still be hidden via the "Rozmowy" toggle.
+  // Selecting a conversation (here, or via ?dm= on load) switches the
+  // single-pane popup from the list to the conversation ("←" brings the
+  // list back). Side-by-side layouts (full page, or the widened popup)
+  // keep the list docked -- that's their whole point; it only hides when
+  // the user presses the "Rozmowy" toggle, never on its own.
   const selectRoom = (roomId) => {
     setSelectedRoomId(roomId);
     setRoomListCollapsed(singlePane);
@@ -390,7 +438,7 @@ export function App({ config }) {
           <i class="ri ri-settings-3-line" aria-hidden="true"></i>
         </button>
       </div>
-      <div class="lnc-body">
+      <div class="lnc-body" ref={bodyRef}>
         <RoomList
           rooms={rooms}
           selectedRoomId={selectedRoomId}
@@ -401,8 +449,31 @@ export function App({ config }) {
           contacts={config.contacts}
           onLeft={handleRoomLeft}
           showTimestamps={showTimestamps}
+          width={singlePane ? undefined : roomListWidth}
         />
-        {showingConversation && <Conversation client={client} roomId={selectedRoomId} contacts={config.contacts} />}
+        {!singlePane && !roomListCollapsed && (
+          <div
+            class="lnc-resizer"
+            role="separator"
+            aria-orientation="vertical"
+            title="Przeciągnij, aby zmienić szerokość (dwuklik przywraca)"
+            onPointerDown={handleResizeStart}
+            onPointerMove={handleResizeMove}
+            onPointerUp={handleResizeEnd}
+            onPointerCancel={handleResizeEnd}
+            onDblClick={handleResizeReset}
+          />
+        )}
+        {showingConversation && (
+          <Conversation
+            client={client}
+            roomId={selectedRoomId}
+            contacts={config.contacts}
+            serverName={config.serverName}
+            linkTarget={isFullPage ? '_blank' : '_top'}
+            showMessageTimes={showMessageTimes}
+          />
+        )}
       </div>
       {/* Pointless once already viewing the full-screen page -- it would
           just open the same URL in yet another new tab. Corner-bubble mode
@@ -427,6 +498,8 @@ export function App({ config }) {
           client={client}
           room={selectedRoom}
           contacts={config.contacts}
+          serverName={config.serverName}
+          linkTarget={isFullPage ? '_blank' : '_top'}
           onClose={() => setShowRoomInfo(false)}
           onLeft={handleRoomLeft}
           onAddMember={() => {
@@ -446,6 +519,9 @@ export function App({ config }) {
           onShowPhrase={handleShowPhrase}
           showTimestamps={showTimestamps}
           onShowTimestampsChange={handleShowTimestampsChange}
+          showMessageTimes={showMessageTimes}
+          onShowMessageTimesChange={handleShowMessageTimesChange}
+          userId={client.getUserId()}
           popupLayout={popupLayout}
           onPopupLayoutChange={isFullPage ? undefined : handlePopupLayoutChange}
         />

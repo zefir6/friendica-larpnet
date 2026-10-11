@@ -66,8 +66,8 @@
 }
 
 /* The chat's "list beside conversation" setting (lnc_popup_layout = 'side',
- * see js/matrix-chat-widget.js) -- room for the 220px list plus a normal
- * conversation column. */
+ * see js/matrix-chat-widget.js) -- room for the room list (default 280px,
+ * resizable) plus a normal conversation column. */
 #larpnet-chat-panel.wide {
   width: 680px;
 }

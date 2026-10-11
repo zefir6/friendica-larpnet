@@ -341,6 +341,28 @@ anything describing the logged-in user.
   `Conversation.jsx` "sticks to bottom" only while the user is near the
   bottom; a ResizeObserver re-scrolls after async image decrypts/backfill.
 
+## Display settings, profile links, emoji shortcodes
+
+- Local-only (localStorage) preferences, like `lnc_popup_layout` above:
+  `lnc_show_timestamps` (relative times in the room list),
+  `lnc_show_message_times` (absolute time beside every message, default
+  off; a full-date tooltip on each bubble is always there) and
+  `lnc_room_list_width` (side-by-side layouts only, set by dragging
+  `.lnc-resizer`, clamped 180-480px and to leave the conversation 280px;
+  double-click resets to 280).
+- Member names in Room info and sender names above incoming messages link
+  to `/profile/<nickname>` via `matrix.js`'s `profileUrlForUserId()` (local
+  mxids only). Full page opens a new tab; the corner popup uses
+  `target="_top"` so the parent page navigates and the widget survives.
+- `:wave:`-style shortcodes come from the `gemoji` package (GitHub's names,
+  same as Slack/Discord) via `client/src/emojiShortcodes.js`. `Composer.jsx`
+  replaces a just-closed `:name:` live, offers suggestions after `:xx`
+  (only at start or after whitespace, so `12:30` doesn't trigger it;
+  Enter/Tab picks instead of sending), and runs `replaceShortcodes()` over
+  the whole message on send for pasted text. Unknown names stay as typed.
+- The user's own mxid is shown copyable in chat Settings and in the
+  `/settings/addons` "Czat" panel (`larpnet_matrix_addon_settings()`).
+
 ## Matrix displayname sync -- why it matters for names shown to *other* users
 
 Matrix's own displayname for an account is only ever set by that account

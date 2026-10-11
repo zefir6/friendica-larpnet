@@ -29,6 +29,11 @@ export function SettingsModal({
   onShowPhrase,
   showTimestamps,
   onShowTimestampsChange,
+  showMessageTimes,
+  onShowMessageTimesChange,
+  // This user's own mxid, shown copyable so they can be added from any
+  // other Matrix client.
+  userId,
   // Corner-bubble popup only (App.jsx passes no handler in full-page mode,
   // where the list always sits beside the conversation).
   popupLayout,
@@ -38,6 +43,17 @@ export function SettingsModal({
   const [confirming, setConfirming] = useState(null);
   const [busy, setBusy] = useState(false);
   const [switchError, setSwitchError] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const copyUserId = async () => {
+    try {
+      await navigator.clipboard.writeText(userId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (e) {
+      // Clipboard denied (e.g. insecure context) -- the field is still
+      // selectable by hand.
+    }
+  };
   const isStandard = encryption?.mode === 'standard' && !!encryption?.passphrase;
   const isPrivate = encryption?.mode === 'private';
 
@@ -63,12 +79,31 @@ export function SettingsModal({
         <div class="lnc-room-info-body">
           {!confirming ? (
             <>
+              {userId && (
+                <div class="lnc-settings-mxid">
+                  <span class="lnc-settings-mxid-label">Twój adres Matrix</span>
+                  <div class="lnc-settings-mxid-row">
+                    <input type="text" class="lnc-picker-search" readonly value={userId} onFocus={(e) => e.currentTarget.select()} />
+                    <button type="button" class="lnc-btn-secondary" onClick={copyUserId}>
+                      {copied ? 'Skopiowano' : 'Kopiuj'}
+                    </button>
+                  </div>
+                </div>
+              )}
               <label class="lnc-settings-toggle">
                 <span>Pokazuj godziny w liście czatów</span>
                 <input
                   type="checkbox"
                   checked={showTimestamps}
                   onChange={(e) => onShowTimestampsChange(e.target.checked)}
+                />
+              </label>
+              <label class="lnc-settings-toggle">
+                <span>Pokazuj godzinę przy każdej wiadomości</span>
+                <input
+                  type="checkbox"
+                  checked={showMessageTimes}
+                  onChange={(e) => onShowMessageTimesChange(e.target.checked)}
                 />
               </label>
               {onPopupLayoutChange && (
