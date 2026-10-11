@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Composer } from './Composer.jsx';
 import { resolveDisplayName } from './matrix.js';
 import { getUploadLimitBytes, uploadEncryptedAttachment } from './mediaAttachments.js';
@@ -13,10 +13,44 @@ export function Conversation({ client, roomId, contacts }) {
     getUploadLimitBytes(client).then(setUploadLimit);
   }, [client]);
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  // "Stick to bottom": opening a room lands on the newest message, and new
+  // messages keep it there -- but only while the user is already at (or near)
+  // the bottom, so scrolling up to read history isn't yanked back down by
+  // every sync-triggered re-render. The ResizeObserver covers content that
+  // grows *after* render: images decrypting asynchronously, and older
+  // history landing via scrollback() below.
+  const pinnedRef = useRef(true);
+  const pinnedRoomRef = useRef(roomId);
+  const observerRef = useRef(null);
+  const scrollToBottomIfPinned = () => {
+    const el = scrollRef.current;
+    if (el && pinnedRef.current) {
+      el.scrollTop = el.scrollHeight;
     }
+  };
+  const onTimelineScroll = () => {
+    const el = scrollRef.current;
+    pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
+  // Callback ref, so the observer follows the content element across the
+  // "Wczytywanie…" -> loaded transition and room switches without effect deps.
+  const contentRef = useCallback((node) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
+    if (node && typeof ResizeObserver !== 'undefined') {
+      observerRef.current = new ResizeObserver(scrollToBottomIfPinned);
+      observerRef.current.observe(node);
+    }
+    // scrollToBottomIfPinned only reads refs, so a stale closure is fine.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useLayoutEffect(() => {
+    if (pinnedRoomRef.current !== roomId) {
+      pinnedRoomRef.current = roomId;
+      pinnedRef.current = true;
+    }
+    scrollToBottomIfPinned();
   });
 
   // client.getRoom()'s live timeline only holds whatever's already cached locally -- for a
@@ -81,32 +115,34 @@ export function Conversation({ client, roomId, contacts }) {
 
   return (
     <div class="lnc-conversation">
-      <div class="lnc-timeline" ref={scrollRef}>
-        {events.map((ev) => {
-          const mine = ev.getSender() === client.getUserId();
-          const failed = ev.isDecryptionFailure?.();
-          const content = ev.getContent();
-          return (
-            <div key={ev.getId()} class={'lnc-message' + (mine ? ' lnc-message-mine' : '')}>
-              {!mine && (
-                <div class="lnc-message-sender">
-                  {resolveDisplayName(ev.getSender(), contacts) || room.getMember(ev.getSender())?.name || ev.getSender()}
-                </div>
-              )}
-              <div class="lnc-message-body">
-                {failed ? (
-                  <em>Nie można odszyfrować wiadomości</em>
-                ) : content.msgtype === 'm.image' && content.file ? (
-                  <ImageMessage client={client} content={content} onOpenLightbox={setLightboxUrl} />
-                ) : content.msgtype === 'm.file' && content.file ? (
-                  <FileMessage client={client} content={content} />
-                ) : (
-                  content.body
+      <div class="lnc-timeline" ref={scrollRef} onScroll={onTimelineScroll}>
+        <div ref={contentRef}>
+          {events.map((ev) => {
+            const mine = ev.getSender() === client.getUserId();
+            const failed = ev.isDecryptionFailure?.();
+            const content = ev.getContent();
+            return (
+              <div key={ev.getId()} class={'lnc-message' + (mine ? ' lnc-message-mine' : '')}>
+                {!mine && (
+                  <div class="lnc-message-sender">
+                    {resolveDisplayName(ev.getSender(), contacts) || room.getMember(ev.getSender())?.name || ev.getSender()}
+                  </div>
                 )}
+                <div class="lnc-message-body">
+                  {failed ? (
+                    <em>Nie można odszyfrować wiadomości</em>
+                  ) : content.msgtype === 'm.image' && content.file ? (
+                    <ImageMessage client={client} content={content} onOpenLightbox={setLightboxUrl} />
+                  ) : content.msgtype === 'm.file' && content.file ? (
+                    <FileMessage client={client} content={content} />
+                  ) : (
+                    content.body
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
       {lightboxUrl && (
         <div class="lnc-lightbox" onClick={() => setLightboxUrl(null)}>

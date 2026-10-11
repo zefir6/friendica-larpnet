@@ -29,6 +29,10 @@ export function SettingsModal({
   onShowPhrase,
   showTimestamps,
   onShowTimestampsChange,
+  // Corner-bubble popup only (App.jsx passes no handler in full-page mode,
+  // where the list always sits beside the conversation).
+  popupLayout,
+  onPopupLayoutChange,
 }) {
   // null | 'reset' | 'standard' -- which confirmation step is showing.
   const [confirming, setConfirming] = useState(null);
@@ -67,6 +71,16 @@ export function SettingsModal({
                   onChange={(e) => onShowTimestampsChange(e.target.checked)}
                 />
               </label>
+              {onPopupLayoutChange && (
+                <label class="lnc-settings-toggle">
+                  <span>Lista rozmów obok czatu (szersze okienko)</span>
+                  <input
+                    type="checkbox"
+                    checked={popupLayout === 'side'}
+                    onChange={(e) => onPopupLayoutChange(e.target.checked ? 'side' : 'switch')}
+                  />
+                </label>
+              )}
               {(isStandard || isPrivate) && (
                 <p class="lnc-recovery-text">
                   <strong>Szyfrowanie: {isStandard ? 'standardowe' : 'prywatne'}</strong>

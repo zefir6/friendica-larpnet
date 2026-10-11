@@ -82,6 +82,32 @@ export function App({ config }) {
     setShowTimestamps(value);
     localStorage.setItem('lnc_show_timestamps', value ? 'true' : 'false');
   };
+  // Corner-bubble popup only, also local-only: 'switch' (default) shows
+  // either the room list or the open conversation, full width, never both
+  // -- the popup is too narrow for a 220px list beside a conversation.
+  // 'side' keeps them side by side, and has js/matrix-chat-widget.js widen
+  // the popup to fit (it reads the same localStorage key on page load,
+  // and the postMessage below applies a change live).
+  const [popupLayout, setPopupLayout] = useState(() => localStorage.getItem('lnc_popup_layout') === 'side' ? 'side' : 'switch');
+  const handlePopupLayoutChange = (value) => {
+    setPopupLayout(value);
+    localStorage.setItem('lnc_popup_layout', value);
+  };
+  useEffect(() => {
+    if (!isFullPage && window.parent !== window) {
+      window.parent.postMessage({ type: 'larpnet-chat-layout', layout: popupLayout }, location.origin);
+    }
+  }, [isFullPage, popupLayout]);
+  // Even with 'side' chosen, a narrow popup (phone: the widget goes
+  // full-screen there) falls back to single-pane rather than squeezing.
+  const [isNarrow, setIsNarrow] = useState(() => window.matchMedia('(max-width: 600px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 600px)');
+    const onChange = () => setIsNarrow(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  const singlePane = !isFullPage && (popupLayout === 'switch' || isNarrow);
 
   useEffect(() => {
     let cancelled = false;
@@ -197,12 +223,13 @@ export function App({ config }) {
     .filter((r) => r.getMyMembership() === 'join' || r.getMyMembership() === 'invite')
     .sort((a, b) => (b.getLastActiveTimestamp() || 0) - (a.getLastActiveTimestamp() || 0));
 
-  // Selecting a conversation auto-collapses the room list -- there isn't
-  // much width to spare in the overlay panel, and once you're in a
-  // conversation the list is one click away again via the toggle.
+  // Selecting a conversation switches the single-pane popup from the list
+  // to the conversation ("←" brings the list back). Side-by-side layouts
+  // (full page, or the widened popup) keep the list visible -- that's
+  // their whole point; it can still be hidden via the "Rozmowy" toggle.
   const selectRoom = (roomId) => {
     setSelectedRoomId(roomId);
-    setRoomListCollapsed(true);
+    setRoomListCollapsed(singlePane);
   };
 
   const handlePick = async (nickname) => {
@@ -329,19 +356,32 @@ export function App({ config }) {
       )
     : new Set();
 
+  // Single-pane: the list until a conversation is picked (selectRoom()
+  // collapses it), then only the conversation, with "←" back to the list.
+  const showingList = !singlePane || !selectedRoomId || !roomListCollapsed;
+  const showingConversation = !singlePane || !showingList;
+
   return (
-    <div class={isFullPage ? 'lnc-app lnc-app-fullpage' : 'lnc-app'}>
+    <div class={'lnc-app' + (isFullPage ? ' lnc-app-fullpage' : '') + (singlePane ? ' lnc-app-singlepane' : '')}>
       <div class="lnc-header">
-        <button
-          type="button"
-          class="lnc-header-btn"
-          title={roomListCollapsed ? 'Pokaż rozmowy' : 'Zwiń rozmowy'}
-          onClick={() => setRoomListCollapsed((c) => !c)}
-        >
-          Rozmowy
-        </button>
-        <span class="lnc-header-title">{headerTitle}</span>
-        {selectedRoom && (
+        {singlePane ? (
+          showingConversation && (
+            <button type="button" class="lnc-header-btn" title="Wróć do rozmów" onClick={() => setRoomListCollapsed(false)}>
+              <i class="ri ri-arrow-left-line" aria-hidden="true"></i>
+            </button>
+          )
+        ) : (
+          <button
+            type="button"
+            class="lnc-header-btn"
+            title={roomListCollapsed ? 'Pokaż rozmowy' : 'Zwiń rozmowy'}
+            onClick={() => setRoomListCollapsed((c) => !c)}
+          >
+            Rozmowy
+          </button>
+        )}
+        <span class="lnc-header-title">{showingConversation ? headerTitle : 'Rozmowy'}</span>
+        {selectedRoom && showingConversation && (
           <button type="button" class="lnc-header-btn" title="Informacje o rozmowie" onClick={() => setShowRoomInfo(true)}>
             Info
           </button>
@@ -357,12 +397,12 @@ export function App({ config }) {
           onSelect={selectRoom}
           client={client}
           onNewChat={() => setPickerMode('new_chat')}
-          collapsed={roomListCollapsed}
+          collapsed={singlePane ? !showingList : roomListCollapsed}
           contacts={config.contacts}
           onLeft={handleRoomLeft}
           showTimestamps={showTimestamps}
         />
-        <Conversation client={client} roomId={selectedRoomId} contacts={config.contacts} />
+        {showingConversation && <Conversation client={client} roomId={selectedRoomId} contacts={config.contacts} />}
       </div>
       {/* Pointless once already viewing the full-screen page -- it would
           just open the same URL in yet another new tab. Corner-bubble mode
@@ -406,6 +446,8 @@ export function App({ config }) {
           onShowPhrase={handleShowPhrase}
           showTimestamps={showTimestamps}
           onShowTimestampsChange={handleShowTimestampsChange}
+          popupLayout={popupLayout}
+          onPopupLayoutChange={isFullPage ? undefined : handlePopupLayoutChange}
         />
       )}
       {(recoveryPrompt === 'needs_setup' || recoveryPrompt === 'reset' || recoveryPrompt === 'private') && (
