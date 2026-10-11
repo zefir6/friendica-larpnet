@@ -1,4 +1,5 @@
 import { useState } from 'preact/hooks';
+import { shortcodeForEmoji } from './emojiShortcodes.js';
 
 // A curated, hand-picked set rather than the full Unicode emoji database --
 // keeps this dependency-free (no emoji-data package) and the bundle small.
@@ -109,7 +110,13 @@ export function EmojiPicker({ onPick, onClose }) {
       </div>
       <div class="lnc-emoji-grid">
         {CATEGORIES[activeCategory].emoji.map((e) => (
-          <button type="button" key={e} class="lnc-emoji-item" onClick={() => onPick(e)}>
+          <button
+            type="button"
+            key={e}
+            class="lnc-emoji-item"
+            title={shortcodeForEmoji(e) ? `:${shortcodeForEmoji(e)}:` : undefined}
+            onClick={() => onPick(e)}
+          >
             {e}
           </button>
         ))}

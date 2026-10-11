@@ -9,7 +9,7 @@ import { roomDisplayName, formatRelativeTime } from './matrix.js';
  * `window.confirm()`) to match `SettingsModal`'s existing
  * click-to-reveal-confirm pattern rather than introducing a second one.
  */
-export function RoomList({ rooms, selectedRoomId, onSelect, client, onNewChat, collapsed, contacts, onLeft, showTimestamps }) {
+export function RoomList({ rooms, selectedRoomId, onSelect, client, onNewChat, collapsed, contacts, onLeft, showTimestamps, width }) {
   const [confirmingRoomId, setConfirmingRoomId] = useState(null);
   const [busyRoomId, setBusyRoomId] = useState(null);
 
@@ -31,7 +31,7 @@ export function RoomList({ rooms, selectedRoomId, onSelect, client, onNewChat, c
   };
 
   return (
-    <div class="lnc-room-list">
+    <div class="lnc-room-list" style={width ? { width: width + 'px' } : undefined}>
       <button type="button" class="lnc-new-chat-btn" onClick={onNewChat}>+ Nowy czat</button>
       {rooms.length === 0 && <div class="lnc-room-list-empty">Brak rozmów</div>}
       {rooms.map((room) => {

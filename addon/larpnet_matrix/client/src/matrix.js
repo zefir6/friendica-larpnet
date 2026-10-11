@@ -237,6 +237,41 @@ export function formatRelativeTime(timestampMs) {
   return relativeTimeFormatter.format(Math.round(diffSeconds), 'second');
 }
 
+// Absolute time for a single message: just HH:MM today, with the date
+// otherwise (and the year once it's not this year).
+const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+export function formatMessageTime(timestampMs) {
+  const d = new Date(timestampMs);
+  const now = new Date();
+  const opts = { hour: '2-digit', minute: '2-digit' };
+  if (!sameDay(d, now)) {
+    opts.day = 'numeric';
+    opts.month = 'short';
+    if (d.getFullYear() !== now.getFullYear()) {
+      opts.year = 'numeric';
+    }
+  }
+  return d.toLocaleString(undefined, opts);
+}
+
+export function formatFullTime(timestampMs) {
+  return new Date(timestampMs).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' });
+}
+
+// Larpnet profile page for a local user's mxid, or null for anyone on
+// another homeserver. The localpart is the lowercased nickname
+// (larpnet_matrix_localpart()); config.contacts has the real-cased one
+// when the user is listed, otherwise Friendica's /profile/ lookup is
+// case-insensitive anyway.
+export function profileUrlForUserId(userId, serverName, contacts) {
+  const m = /^@([^:]+):(.+)$/.exec(userId || '');
+  if (!m || m[2] !== serverName) {
+    return null;
+  }
+  const nickname = contacts?.find((c) => c.nickname.toLowerCase() === m[1])?.nickname || m[1];
+  return 'profile/' + encodeURIComponent(nickname);
+}
+
 export function dmTargetMxid(cfg) {
   if (!cfg.dm) {
     return null;

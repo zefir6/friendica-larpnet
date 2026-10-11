@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Composer } from './Composer.jsx';
-import { resolveDisplayName } from './matrix.js';
+import { resolveDisplayName, profileUrlForUserId, formatMessageTime, formatFullTime } from './matrix.js';
 import { getUploadLimitBytes, uploadEncryptedAttachment } from './mediaAttachments.js';
 import { ImageMessage, FileMessage } from './AttachmentMessage.jsx';
 
-export function Conversation({ client, roomId, contacts }) {
+export function Conversation({ client, roomId, contacts, serverName, linkTarget, showMessageTimes }) {
   const scrollRef = useRef(null);
   const [uploadLimit, setUploadLimit] = useState(null);
   const [lightboxUrl, setLightboxUrl] = useState(null);
@@ -121,23 +121,34 @@ export function Conversation({ client, roomId, contacts }) {
             const mine = ev.getSender() === client.getUserId();
             const failed = ev.isDecryptionFailure?.();
             const content = ev.getContent();
+            const senderName = resolveDisplayName(ev.getSender(), contacts) || room.getMember(ev.getSender())?.name || ev.getSender();
+            const profileUrl = profileUrlForUserId(ev.getSender(), serverName, contacts);
             return (
               <div key={ev.getId()} class={'lnc-message' + (mine ? ' lnc-message-mine' : '')}>
                 {!mine && (
                   <div class="lnc-message-sender">
-                    {resolveDisplayName(ev.getSender(), contacts) || room.getMember(ev.getSender())?.name || ev.getSender()}
+                    {profileUrl ? (
+                      <a class="lnc-profile-link" href={profileUrl} target={linkTarget} rel="noopener" title="Otwórz profil">
+                        {senderName}
+                      </a>
+                    ) : (
+                      senderName
+                    )}
                   </div>
                 )}
-                <div class="lnc-message-body">
-                  {failed ? (
-                    <em>Nie można odszyfrować wiadomości</em>
-                  ) : content.msgtype === 'm.image' && content.file ? (
-                    <ImageMessage client={client} content={content} onOpenLightbox={setLightboxUrl} />
-                  ) : content.msgtype === 'm.file' && content.file ? (
-                    <FileMessage client={client} content={content} />
-                  ) : (
-                    content.body
-                  )}
+                <div class="lnc-message-line">
+                  <div class="lnc-message-body" title={formatFullTime(ev.getTs())}>
+                    {failed ? (
+                      <em>Nie można odszyfrować wiadomości</em>
+                    ) : content.msgtype === 'm.image' && content.file ? (
+                      <ImageMessage client={client} content={content} onOpenLightbox={setLightboxUrl} />
+                    ) : content.msgtype === 'm.file' && content.file ? (
+                      <FileMessage client={client} content={content} />
+                    ) : (
+                      content.body
+                    )}
+                  </div>
+                  {showMessageTimes && <span class="lnc-message-time">{formatMessageTime(ev.getTs())}</span>}
                 </div>
               </div>
             );

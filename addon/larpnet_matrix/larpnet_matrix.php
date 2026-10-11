@@ -95,32 +95,52 @@ function larpnet_matrix_ensure_hooks(): void
 }
 
 /**
- * Read-only "Szyfrowanie czatu" panel in /settings/addons. Switching modes
- * needs a client that is logged into Matrix (it has to rotate secret
- * storage itself, see CLAUDE.md "Encryption modes"), so this only explains
- * the current mode and links to the chat's own settings.
+ * Read-only "Czat" panel in /settings/addons: the user's own Matrix address
+ * (copyable, for adding them from another Matrix client) and, when escrow
+ * is configured, the current encryption mode. Switching modes needs a
+ * client that is logged into Matrix (it has to rotate secret storage
+ * itself, see CLAUDE.md "Encryption modes"), so this only explains the
+ * current mode and links to the chat's own settings.
  */
 function larpnet_matrix_addon_settings(array &$data)
 {
-	$uid = DI::userSession()->getLocalUserId();
-	if (!$uid || !larpnet_matrix_settings() || !larpnet_matrix_escrow_key()) {
+	$uid      = DI::userSession()->getLocalUserId();
+	$settings = larpnet_matrix_settings();
+	if (!$uid || !$settings) {
 		return;
 	}
 
-	$mode = larpnet_matrix_escrow_get((int) $uid)['mode'];
-	if ($mode === LARPNET_MATRIX_MODE_UNAVAILABLE) {
+	$html = '';
+	$user = User::getById((int) $uid, ['nickname']);
+	$sub  = larpnet_matrix_localpart($user['nickname'] ?? '');
+	if ($sub) {
+		$mxid  = htmlspecialchars('@' . $sub . ':' . $settings['server']);
+		$html .= '<p><strong>Twój adres Matrix</strong></p>'
+			. '<div class="input-group" style="max-width: 420px">'
+			. '<input type="text" class="form-control" readonly value="' . $mxid . '" onfocus="this.select()">'
+			. '<span class="input-group-btn"><button type="button" class="btn btn-default" '
+			. 'onclick="var b=this;navigator.clipboard.writeText(this.closest(\'.input-group\').querySelector(\'input\').value).then(function(){b.textContent=\'Skopiowano\';setTimeout(function(){b.textContent=\'Kopiuj\'},1500)})">Kopiuj</button></span>'
+			. '</div>'
+			. '<p class="help-block">Pod tym adresem można Cię znaleźć z innych aplikacji Matrix.</p>';
+	}
+
+	$mode = larpnet_matrix_escrow_key() ? larpnet_matrix_escrow_get((int) $uid)['mode'] : LARPNET_MATRIX_MODE_UNAVAILABLE;
+	if ($mode !== LARPNET_MATRIX_MODE_UNAVAILABLE) {
+		$private = $mode === LARPNET_MATRIX_MODE_PRIVATE;
+		$html   .= '<p><strong>Szyfrowanie: ' . ($private ? 'Prywatne' : 'Standardowe') . '</strong></p>'
+			. ($private
+				? '<p class="help-block">Tylko Ty znasz klucz odzyskiwania czatu. Administratorzy Larpnetu nie mają dostępu do Twoich wiadomości, ale na każdym nowym urządzeniu musisz wpisać swój klucz, a jego utrata oznacza utratę historii czatu.</p>'
+				: '<p class="help-block">Larpnet przechowuje klucz odzyskiwania czatu za Ciebie, więc historia wiadomości działa automatycznie na każdym urządzeniu. Administratorzy serwera mogą technicznie uzyskać do niej dostęp. Jeśli chcesz tego uniknąć, włącz tryb prywatny.</p>')
+			. '<p><a class="btn btn-default" href="larpnet_matrix?full=1">Zmień w ustawieniach czatu (⚙)</a></p>';
+	}
+
+	if ($html === '') {
 		return;
 	}
-	$private = $mode === LARPNET_MATRIX_MODE_PRIVATE;
-	$html    = '<p><strong>Tryb: ' . ($private ? 'Prywatny' : 'Standardowy') . '</strong></p>'
-		. ($private
-			? '<p class="help-block">Tylko Ty znasz klucz odzyskiwania czatu. Administratorzy Larpnetu nie mają dostępu do Twoich wiadomości, ale na każdym nowym urządzeniu musisz wpisać swój klucz, a jego utrata oznacza utratę historii czatu.</p>'
-			: '<p class="help-block">Larpnet przechowuje klucz odzyskiwania czatu za Ciebie, więc historia wiadomości działa automatycznie na każdym urządzeniu. Administratorzy serwera mogą technicznie uzyskać do niej dostęp. Jeśli chcesz tego uniknąć, włącz tryb prywatny.</p>')
-		. '<p><a class="btn btn-default" href="larpnet_matrix?full=1">Zmień w ustawieniach czatu (⚙)</a></p>';
 
 	$data = [
 		'addon' => 'larpnet_matrix',
-		'title' => 'Szyfrowanie czatu',
+		'title' => 'Czat',
 		'html'  => $html,
 		// Read-only panel: an empty string (not absent -- Settings\Addons
 		// falls back to a generic "Save Settings" button on null) hides it.
