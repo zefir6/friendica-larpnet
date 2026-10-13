@@ -750,12 +750,13 @@ function larpnet_matrix_server_request(int $uid, array $settings, string $method
 			$options['headers']['Content-Type'] = 'application/json';
 		}
 		$response = DI::httpClient()->request($method, $settings['internal_url'] . '/_matrix/client/v3' . $path, $options);
-		if ($response->getReturnCode() === 401 && !$fresh) {
+		// getReturnCode() is a string ("401") -- hence the casts here and in 'code'.
+		if ((int) $response->getReturnCode() === 401 && !$fresh) {
 			continue;
 		}
 		return [
 			'ok'   => $response->isSuccess(),
-			'code' => $response->getReturnCode(),
+			'code' => (int) $response->getReturnCode(),
 			'body' => json_decode($response->getBodyString(), true),
 		];
 	}
@@ -787,7 +788,7 @@ function larpnet_matrix_sync_profile(int $uid, array $identity, array $settings)
 		// The cached token may be stale (revoked, or a prod DB copy on test):
 		// probe it with /whoami first and re-login once if it's rejected.
 		$token = larpnet_matrix_server_token($uid, $settings);
-		if ($token && DI::httpClient()->request('GET', $internal . '/_matrix/client/v3/account/whoami', ['headers' => ['Authorization' => 'Bearer ' . $token]])->getReturnCode() === 401) {
+		if ($token && (int) DI::httpClient()->request('GET', $internal . '/_matrix/client/v3/account/whoami', ['headers' => ['Authorization' => 'Bearer ' . $token]])->getReturnCode() === 401) {
 			$token = larpnet_matrix_server_token($uid, $settings, true);
 		}
 		if (!$token) {
