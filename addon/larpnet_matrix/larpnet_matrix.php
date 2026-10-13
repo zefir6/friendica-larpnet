@@ -1071,7 +1071,9 @@ function larpnet_matrix_mute_endpoint(): void
 	$roomId = (string) ($body['room_id'] ?? '');
 
 	if ($action === 'mute' || $action === 'unmute') {
-		if (!preg_match('/^![^:\s]+:\S+$/', $roomId)) {
+		// Room version 12+ ids have no ":server" part ("!<hash>"), so only
+		// the leading "!" and a sane charset are checked.
+		if (!preg_match('/^![^\s\/]{1,255}$/', $roomId)) {
 			http_response_code(400);
 			echo json_encode(['error' => 'invalid_room_id']);
 			exit;
