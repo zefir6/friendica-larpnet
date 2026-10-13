@@ -1061,9 +1061,11 @@ function larpnet_matrix_mute_endpoint(): void
 		exit;
 	}
 
+	// JSON body (web, Android), else form fields or query params (iOS's API
+	// client only sends query params) -- same leniency as /encryption.
 	$body = json_decode((string) file_get_contents('php://input'), true);
 	if (!is_array($body)) {
-		$body = $_POST;
+		$body = $_POST + $_GET;
 	}
 	$action = (string) ($body['action'] ?? 'list');
 	$roomId = (string) ($body['room_id'] ?? '');
