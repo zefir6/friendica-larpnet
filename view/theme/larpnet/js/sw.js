@@ -1,7 +1,7 @@
 /* Service Worker – larpnet push notifications */
 
 self.addEventListener('install', function (event) { self.skipWaiting(); });
-self.addEventListener('activate', function (event) { event.waitUntil(clients.claim()); });
+self.addEventListener('activate', function (event) { event.waitUntil(self.clients.claim()); });
 
 // --- Chat (Matrix) messages --------------------------------------------------
 //
@@ -46,7 +46,7 @@ function chatRoomOf(msg) {
 }
 
 async function isRoomOnScreen(roomId) {
-    const live = new Set((await clients.matchAll({ includeUncontrolled: true })).map(function (c) { return c.id; }));
+    const live = new Set((await self.clients.matchAll({ includeUncontrolled: true })).map(function (c) { return c.id; }));
     const now = Date.now();
     for (const [id, s] of chatState) {
         if (!live.has(id) || now - s.at > CHAT_STATE_TTL_MS) {
@@ -64,7 +64,7 @@ async function handleMessage(msg) {
     if (roomId) {
         // Lets the chat bubble on open pages refresh its unread badge now
         // rather than at its next 30 s poll.
-        const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+        const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
         windows.forEach(function (c) { c.postMessage({ type: 'larpnet-chat-push', roomId: roomId }); });
 
         if (await isRoomOnScreen(roomId)) {
@@ -107,14 +107,14 @@ self.addEventListener('notificationclick', function (event) {
     const target = (event.notification.data || {}).url || '/';
 
     event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
             for (const client of list) {
                 if (client.url.startsWith(self.location.origin) && 'focus' in client) {
                     client.navigate(target);
                     return client.focus();
                 }
             }
-            return clients.openWindow(target);
+            return self.clients.openWindow(target);
         })
     );
 });
