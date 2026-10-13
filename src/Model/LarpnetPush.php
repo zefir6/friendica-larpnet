@@ -28,7 +28,12 @@ class LarpnetPush
 		return $topic;
 	}
 
-	public static function send(string $topic, string $title, string $message, string $click, ?string $icon = null): void
+	/**
+	 * @param array $extra further ntfy JSON publish fields (e.g. 'tags',
+	 *   'priority'), merged into the payload -- used by the larpnet_matrix
+	 *   addon's chat pushes.
+	 */
+	public static function send(string $topic, string $title, string $message, string $click, ?string $icon = null, array $extra = []): void
 	{
 		$ntfyUrl   = DI::config()->get('larpnet_notifications', 'ntfy_url');
 		$ntfyToken = DI::config()->get('larpnet_notifications', 'ntfy_token');
@@ -45,6 +50,7 @@ class LarpnetPush
 		if (!empty($icon)) {
 			$payload['icon'] = $icon;
 		}
+		$payload += $extra;
 
 		$headers = ['Content-Type' => 'application/json'];
 		if ($ntfyToken) {

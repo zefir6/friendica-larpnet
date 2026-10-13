@@ -66,20 +66,22 @@
                 const data = JSON.parse(e.data);
                 if (data.event !== 'message') return;
 
+                // With a service worker, let it decide (same chat handling
+                // as real Web Push: one notification per room, none for a
+                // room already open -- see sw.js's handleMessage()).
+                if (reg && reg.active) {
+                    reg.active.postMessage({ type: 'larpnet-ntfy-message', message: data });
+                    return;
+                }
+
                 const title   = data.title   || 'larpnet';
-                const options = {
+                new Notification(title, {
                     body:  data.message || '',
                     icon:  data.icon    || '/images/friendica.svg',
                     badge: '/images/friendica.svg',
                     tag:   String(data.id || ''),
                     data:  { url: data.click || '/' },
-                };
-
-                if (reg) {
-                    await reg.showNotification(title, options);
-                } else {
-                    new Notification(title, options);
-                }
+                });
             } catch (_) {}
         });
 
