@@ -35,6 +35,28 @@
   transform: scale(1.06);
 }
 
+/* Unread-chat count, see js/matrix-chat-widget.js's setBadge(). */
+.larpnet-chat-bubble-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  border: 2px solid #fff;
+  background: #d9534f;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.larpnet-chat-bubble-badge[hidden] {
+  display: none;
+}
+
 .larpnet-chat-bubble-label {
   font-size: 15px;
   font-weight: 600;

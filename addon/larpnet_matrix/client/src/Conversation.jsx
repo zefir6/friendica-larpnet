@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preac
 import { Composer } from './Composer.jsx';
 import { resolveDisplayName, profileUrlForUserId, formatMessageTime, formatFullTime } from './matrix.js';
 import { getUploadLimitBytes, uploadEncryptedAttachment } from './mediaAttachments.js';
+import { isChatActive, onChatActivityChange, markRoomRead } from './notifications.js';
 import { ImageMessage, FileMessage } from './AttachmentMessage.jsx';
 
 export function Conversation({ client, roomId, contacts, serverName, linkTarget, showMessageTimes }) {
@@ -30,7 +31,11 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
   };
   const onTimelineScroll = () => {
     const el = scrollRef.current;
+    const wasPinned = pinnedRef.current;
     pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    if (pinnedRef.current && !wasPinned) {
+      markReadIfActive();
+    }
   };
   // Callback ref, so the observer follows the content element across the
   // "Wczytywanie…" -> loaded transition and room switches without effect deps.
@@ -80,6 +85,21 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
       cancelled = true;
     };
   }, [client, roomId]);
+
+  // Read receipt for what's on screen: only while the user is actually
+  // looking (see isChatActive()) and at the bottom of the timeline, so a
+  // message that arrives while scrolled up into history, or while the
+  // popup is closed, stays unread. Runs after every render (App re-renders
+  // on each new event) plus whenever focus/visibility changes;
+  // markRoomRead() itself skips rooms that are already read.
+  const markReadIfActive = () => {
+    const room = roomId && client.getRoom(roomId);
+    if (room && pinnedRef.current && isChatActive()) {
+      markRoomRead(client, room).catch((e) => console.warn('larpnet chat: read receipt failed', e));
+    }
+  };
+  useEffect(markReadIfActive);
+  useEffect(() => onChatActivityChange(markReadIfActive), [client, roomId]);
 
   if (!roomId) {
     return <div class="lnc-conversation lnc-status">Wybierz rozmowę</div>;

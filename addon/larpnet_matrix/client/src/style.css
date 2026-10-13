@@ -511,9 +511,58 @@ body {
 }
 
 .lnc-room-item-name {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Unread: bold name + count pill, same as the iOS/Android room lists. */
+.lnc-room-item-unread .lnc-room-item-name {
+  font-weight: 700;
+}
+
+.lnc-room-item-unread .lnc-room-item-timestamp {
+  color: var(--lnc-accent);
+}
+
+.lnc-room-item-badge {
+  flex-shrink: 0;
+  align-self: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--lnc-accent);
+  color: #ffffff;
+  font-size: 0.75em;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+.lnc-room-item-muted {
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--lnc-text-secondary);
+}
+
+/* Mute controls in RoomInfoModal. */
+.lnc-room-info-notifications {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lnc-room-info-notifications-title {
+  font-weight: 600;
+}
+
+.lnc-room-info-mute-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .lnc-room-item-timestamp {

@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
-import { resolveDisplayName, profileUrlForUserId } from './matrix.js';
+import { resolveDisplayName, profileUrlForUserId, formatMessageTime } from './matrix.js';
+import { isRoomMuted, muteUntil, muteRoom, unmuteRoom, MUTE_OPTIONS } from './notifications.js';
 
 /**
  * "Room info" overlay for the currently open conversation -- rename (group
@@ -13,7 +14,7 @@ import { resolveDisplayName, profileUrlForUserId } from './matrix.js';
  * would silently have no visible effect and just confuse whoever tries it.
  * It only ever matters once a room has more than one other member.
  */
-export function RoomInfoModal({ client, room, contacts, serverName, linkTarget, onClose, onLeft, onAddMember }) {
+export function RoomInfoModal({ client, config, room, contacts, serverName, linkTarget, onClose, onLeft, onAddMember }) {
   const [nameInput, setNameInput] = useState(room.name || '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -47,6 +48,21 @@ export function RoomInfoModal({ client, room, contacts, serverName, linkTarget, 
       await client.kick(room.roomId, userId);
     } catch (e2) {
       setError('Nie udało się usunąć osoby z rozmowy.');
+    }
+    setBusy(false);
+  };
+
+  // The push rule / account data this changes come back over /sync, which
+  // re-renders this modal (App.jsx bumps on accountData), so no local state.
+  const muted = isRoomMuted(client, room.roomId);
+  const until = muteUntil(client, room.roomId);
+  const handleMute = async (durationMs) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await (durationMs === undefined ? unmuteRoom(config, room.roomId) : muteRoom(config, room.roomId, durationMs));
+    } catch (e2) {
+      setError('Nie udało się zmienić powiadomień. Odśwież stronę i spróbuj ponownie.');
     }
     setBusy(false);
   };
@@ -89,6 +105,27 @@ export function RoomInfoModal({ client, room, contacts, serverName, linkTarget, 
               </button>
             </form>
           )}
+          <div class="lnc-room-info-notifications">
+            <span class="lnc-room-info-notifications-title">
+              {muted ? (until ? 'Wyciszona do ' + formatMessageTime(until) : 'Wyciszona') : 'Powiadomienia włączone'}
+            </span>
+            {muted ? (
+              <div class="lnc-room-info-mute-options">
+                <button type="button" class="lnc-btn-secondary" onClick={() => handleMute(undefined)} disabled={busy}>
+                  Włącz powiadomienia
+                </button>
+              </div>
+            ) : (
+              <div class="lnc-room-info-mute-options">
+                <span>Wycisz na:</span>
+                {MUTE_OPTIONS.map((o) => (
+                  <button key={o.label} type="button" class="lnc-btn-secondary" onClick={() => handleMute(o.ms)} disabled={busy}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div class="lnc-room-info-members">
             {others.map((m) => {
               const name = resolveDisplayName(m.userId, contacts) || m.name || m.userId;

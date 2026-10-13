@@ -33,7 +33,38 @@
   }
   var chatUrl = window.LarpnetMatrixChat.chatUrl;
 
-  var bubble, panel, currentDm, loaded = false;
+  var bubble, panel, badge, currentDm, loaded = false;
+  // Unread-chat count for the bubble's badge. While the chat iframe is
+  // loaded it reports the exact live number itself ('larpnet-chat-unread');
+  // otherwise it comes from GET larpnet_matrix/unread, which is Synapse's
+  // own count as last pushed to this user's web pusher (see
+  // larpnet_matrix_unread_endpoint()). Polled every 30 s, and refreshed at
+  // once when the service worker sees a chat push.
+  var iframeReportsUnread = false;
+
+  function setBadge(count) {
+    if (!badge) {
+      return;
+    }
+    var n = parseInt(count, 10) || 0;
+    badge.textContent = n > 99 ? '99+' : String(n);
+    badge.hidden = n <= 0;
+    bubble.setAttribute('aria-label', n > 0 ? 'Czat, nieprzeczytane rozmowy: ' + n : 'Czat');
+  }
+
+  function fetchUnread() {
+    if (iframeReportsUnread || document.visibilityState !== 'visible') {
+      return;
+    }
+    fetch(chatUrl + '/unread', { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (data && data.rooms !== null && data.rooms !== undefined && !iframeReportsUnread) {
+          setBadge(data.rooms);
+        }
+      })
+      .catch(function () {});
+  }
 
   function build() {
     bubble = document.createElement('button');
@@ -44,7 +75,9 @@
     // Icon alone read as an unlabeled generic button in practice -- the
     // visible "Czat" label is what actually makes it recognizable as chat
     // at a glance (aria-label alone only helps screen readers).
-    bubble.innerHTML = '<i class="ri ri-message-3-line" aria-hidden="true"></i><span class="larpnet-chat-bubble-label">Czat</span>';
+    bubble.innerHTML = '<i class="ri ri-message-3-line" aria-hidden="true"></i><span class="larpnet-chat-bubble-label">Czat</span>'
+      + '<span class="larpnet-chat-bubble-badge" hidden></span>';
+    badge = bubble.querySelector('.larpnet-chat-bubble-badge');
     bubble.addEventListener('click', function () { toggle(); });
 
     panel = document.createElement('div');
@@ -63,6 +96,17 @@
     } catch (e) {
       // Storage blocked: keep the default (narrow) panel.
     }
+
+    fetchUnread();
+    setInterval(fetchUnread, 30000);
+    document.addEventListener('visibilitychange', fetchUnread);
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('message', function (e) {
+        if (e.data && e.data.type === 'larpnet-chat-push') {
+          fetchUnread();
+        }
+      });
+    }
   }
 
   function setWide(wide) {
@@ -77,7 +121,21 @@
     if (e.data && e.data.type === 'larpnet-chat-layout') {
       setWide(e.data.layout === 'side');
     }
+    if (e.data && e.data.type === 'larpnet-chat-unread') {
+      iframeReportsUnread = true;
+      setBadge(e.data.count);
+    }
   });
+
+  // The chat client only sends read receipts (and the service worker only
+  // skips notifications) while the panel is actually open -- see
+  // client/src/notifications.js's isChatActive().
+  function postPanelState() {
+    var iframe = panel && panel.querySelector('iframe');
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage({ type: 'larpnet-chat-panel', open: panel.classList.contains('open') }, window.location.origin);
+    }
+  }
 
   function ensureIframe(dm) {
     if (loaded && dm === currentDm) {
@@ -89,6 +147,7 @@
     iframe.title = 'Czat';
     iframe.allow = 'clipboard-write; microphone; camera; storage-access';
     iframe.src = chatUrl + (dm ? '?dm=' + encodeURIComponent(dm) : '');
+    iframe.addEventListener('load', postPanelState);
     body.appendChild(iframe);
     loaded = true;
     currentDm = dm || null;
@@ -99,12 +158,14 @@
     panel.classList.add('open');
     bubble.classList.add('open');
     bubble.setAttribute('aria-expanded', 'true');
+    postPanelState();
   }
 
   function close() {
     panel.classList.remove('open');
     bubble.classList.remove('open');
     bubble.setAttribute('aria-expanded', 'false');
+    postPanelState();
   }
 
   function toggle() {

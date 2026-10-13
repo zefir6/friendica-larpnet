@@ -9,6 +9,7 @@ import {
 } from './matrix.js';
 import { setUpRecovery, resetRecovery, restoreFromRecoveryKey } from './recovery.js';
 import { encryptionApi, ensureEncryption, switchToPrivate, switchToStandard, DeviceLockedError } from './encryption.js';
+import { unreadRoomCount, setReportedRoom, reportUnreadToParent } from './notifications.js';
 import { RoomList } from './RoomList.jsx';
 import { Conversation } from './Conversation.jsx';
 import { ContactPicker } from './ContactPicker.jsx';
@@ -179,6 +180,12 @@ export function App({ config }) {
         // the likely cause of "sender sends, it never shows up on the
         // other side" reports.
         c.on('Event.decrypted', bump);
+        // Unread markers and mute state: receipts (ours or another
+        // device's), Synapse's per-room counts, and push rules / mute
+        // expiries (both account data).
+        c.on('Room.receipt', bump);
+        c.on('Room.UnreadNotifications', bump);
+        c.on('accountData', bump);
         setClient(c);
         setRecoveryKeyCache(rkc);
         setStatus('ready');
@@ -231,6 +238,13 @@ export function App({ config }) {
           console.error('larpnet chat: automatic encryption setup failed', e);
         }
 
+        // ?room= from a chat notification's click URL. Only a room this
+        // account is actually in; anything else just shows the list.
+        if (config.room && c.getRoom(config.room)?.getMyMembership() === 'join') {
+          setSelectedRoomId(config.room);
+          setRoomListCollapsed(singlePane);
+        }
+
         const targetMxid = dmTargetMxid(config);
         if (targetMxid) {
           const roomId = await findOrCreateDirectRoom(c, targetMxid);
@@ -257,6 +271,19 @@ export function App({ config }) {
     // changes during the component's lifetime.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Which room is on screen, for the service worker (no notification for
+  // a room the user is looking at), and the unread total for the corner
+  // bubble's badge. Cheap enough to recompute on every tick.
+  useEffect(() => {
+    setReportedRoom(selectedRoomId);
+  }, [selectedRoomId]);
+  const unreadTotal = client ? unreadRoomCount(client.getRooms()) : null;
+  useEffect(() => {
+    if (unreadTotal !== null) {
+      reportUnreadToParent(unreadTotal);
+    }
+  }, [unreadTotal]);
 
   if (status === 'loading') {
     return <div class="lnc-status">Logowanie do czatu…</div>;
@@ -496,6 +523,7 @@ export function App({ config }) {
       {showRoomInfo && selectedRoom && (
         <RoomInfoModal
           client={client}
+          config={config}
           room={selectedRoom}
           contacts={config.contacts}
           serverName={config.serverName}

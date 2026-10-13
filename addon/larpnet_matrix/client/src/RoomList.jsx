@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
 import { roomDisplayName, formatRelativeTime } from './matrix.js';
+import { roomUnreadCount, isRoomMuted } from './notifications.js';
 
 /**
  * `onLeft(roomId)` mirrors `RoomInfoModal`'s own leave flow (same
@@ -36,16 +37,30 @@ export function RoomList({ rooms, selectedRoomId, onSelect, client, onNewChat, c
       {rooms.length === 0 && <div class="lnc-room-list-empty">Brak rozmów</div>}
       {rooms.map((room) => {
         const lastActive = room.getLastActiveTimestamp();
+        // Muted rooms never count (Synapse sees no 'notify' action), so
+        // this is 0 for them; the bell icon says why.
+        const unread = roomUnreadCount(room);
+        const muted = isRoomMuted(client, room.roomId);
         return (
           <div key={room.roomId} class="lnc-room-row">
             <button
               type="button"
-              class={'lnc-room-item' + (room.roomId === selectedRoomId ? ' lnc-room-item-active' : '')}
+              class={
+                'lnc-room-item' +
+                (room.roomId === selectedRoomId ? ' lnc-room-item-active' : '') +
+                (unread > 0 ? ' lnc-room-item-unread' : '')
+              }
               onClick={() => onSelect(room.roomId)}
             >
               <span class="lnc-room-item-name">{roomDisplayName(room, client, contacts)}</span>
+              {muted && <i class="ri ri-notification-off-line lnc-room-item-muted" title="Wyciszona" aria-label="Wyciszona"></i>}
               {showTimestamps && lastActive > 0 && (
                 <span class="lnc-room-item-timestamp">{formatRelativeTime(lastActive)}</span>
+              )}
+              {unread > 0 && (
+                <span class="lnc-room-item-badge" aria-label={unread + ' nieprzeczytanych'}>
+                  {unread > 99 ? '99+' : unread}
+                </span>
               )}
             </button>
             {confirmingRoomId === room.roomId ? (
