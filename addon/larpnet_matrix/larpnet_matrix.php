@@ -954,8 +954,15 @@ function larpnet_matrix_set_mute(int $uid, array $settings, string $roomId, int|
 
 	if ($until === 'off') {
 		$rule = larpnet_matrix_server_request($uid, $settings, 'DELETE', $rulePath);
-		// 404 = already unmuted.
-		$ok = $rule && ($rule['ok'] || $rule['code'] === 404);
+		// No rule = already unmuted (e.g. lifted from another client). Checked
+		// with a GET rather than trusting the DELETE's error code, which
+		// came back as a failure on test.larpnet.pl for a missing rule;
+		// without this, cron would retry an expired mute forever.
+		$ok = $rule && $rule['ok'];
+		if (!$ok) {
+			$exists = larpnet_matrix_server_request($uid, $settings, 'GET', $rulePath);
+			$ok     = $exists && $exists['code'] === 404;
+		}
 	} else {
 		$rule = larpnet_matrix_server_request($uid, $settings, 'PUT', $rulePath, [
 			'conditions' => [['kind' => 'event_match', 'key' => 'room_id', 'pattern' => $roomId]],
