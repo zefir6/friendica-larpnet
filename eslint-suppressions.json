@@ -218,9 +218,6 @@
     }
   },
   "view/theme/larpnet/js/sw.js": {
-    "no-undef": {
-      "count": 3
-    },
     "no-useless-assignment": {
       "count": 1
     }

@@ -281,7 +281,7 @@ JS;
 
 	$b .= "<script>window.LarpnetPush = {$config};</script>\n";
 
-	DI::page()->registerFooterScript(__DIR__ . '/js/push.js?v=2026.03');
+	DI::page()->registerFooterScript(__DIR__ . '/js/push.js?v=2026.10');
 }
 
 /**

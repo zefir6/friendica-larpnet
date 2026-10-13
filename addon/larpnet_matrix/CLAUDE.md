@@ -457,7 +457,8 @@ defense in depth against something unrelated on the internet triggering
 FCM/APNs sends through this endpoint, not a real trust boundary between
 us and our own homeserver.
 
-**App ID contract**: `LARPNET_MATRIX_APP_ID_ANDROID` (`pl.larpnet.android`)
+**App ID contract** (plus the server-registered `pl.larpnet.web`, see
+"Chat notifications" above): `LARPNET_MATRIX_APP_ID_ANDROID` (`pl.larpnet.android`)
 and `LARPNET_MATRIX_APP_ID_IOS` (`pl.larpnet.ios`) are the exact `app_id`
 values each native client must register with Synapse
 (`POST /_matrix/client/v3/pushers/set`) -- a cross-repo contract, the same
@@ -542,6 +543,62 @@ script before this shipped (not just eyeballed against the RFC), since a
 subtly wrong byte-padding here would silently produce a JWT that fails
 verification 100% of the time in production while looking
 completely fine in code review.
+
+## Chat notifications, unread counts, mute (2026-10)
+
+- **Gateway URL path.** Synapse rejects any HTTP pusher whose `data.url`
+  path isn't exactly `/_matrix/push/v1/notify` (a query string is fine).
+  Until 2026-10 `push_gateway_url` was `.../larpnet_matrix/push`, so every
+  native `pushers/set` failed and **chat push never reached a phone**. It
+  is now `<base>/_matrix/push/v1/notify?key=…`, and larpnet-config's nginx
+  maps that exact path onto `larpnet_matrix/push`. Without that nginx
+  location the request lands on Synapse and push breaks again.
+- **Server-side device.** `larpnet_matrix_server_token()` logs in once per
+  user with the fixed `device_id` `LARPNET_SERVER` and caches the token in
+  pconfig (`server_token`). Profile sync, mutes and the web pusher all use
+  it. Profile sync used to create a new device on every hourly run.
+- **Web/ntfy chat push.** `larpnet_matrix_ensure_web_pusher()` registers a
+  pusher with app_id `pl.larpnet.web`, pushkey = the user's ntfy topic, in
+  the *full* format. It runs on chat open, `POST /larpnet_matrix` and cron.
+  The gateway (`larpnet_matrix_push_deliver_web()`) sends sender and room
+  name only (never text; it's E2EE) to ntfy, tagged `larpnet-chat`, with
+  `room`/`event` in the click URL. Browsers get it via Web Push or SSE
+  (`view/theme/larpnet/js/sw.js` handles chat specially). The
+  ntfy-flavoured Android build gets it on the same topic and decrypts the
+  preview locally.
+- **Badge-only pushes.** Synapse calls the gateway with an empty
+  `event_id` (counts only) whenever read receipts change the count. These
+  never alert:
+  - iOS gets an `aps.badge`-only push.
+  - Android is skipped.
+  - Web stores the count in pconfig `unread_rooms` for
+    `GET /larpnet_matrix/unread`, which feeds the corner bubble's badge.
+  - Normal pushes carry `unread` as well: FCM data `unread`, APNs
+    `aps.badge`.
+- **Badge semantics.** The count is the number of rooms with unread
+  notifications (Synapse's default `group_unread_count_by_room`). Muted
+  rooms never count.
+- **Mute.** `POST /larpnet_matrix/mute` takes `{action: list|mute|unmute,
+  room_id, until?}` and always returns `{mutes: {roomId: untilMs|null}}`.
+  Auth is the same as `/encryption`.
+  - Applying a mute writes a per-room override push rule (rule_id = room
+    id, `actions: []`, the same shape the Rust SDK/Element call Mute), so
+    Synapse stops pushing everywhere.
+  - Timed mutes are stored in account data `pl.larpnet.mute_until` (for
+    display) and pconfig `mute_expiries`. `larpnet_matrix_cron()` and every
+    `list` call lift expired ones.
+  - Clients never write the push rule themselves, so expiry stays
+    server-enforced.
+- **Read receipts.** Every client now sends them (web:
+  `client/src/notifications.js` `markRoomRead()`, only while
+  `isChatActive()`: document visible and focused, and the widget panel
+  open, which the widget posts as `larpnet-chat-panel`). Before this, no
+  client sent any, so unread counts never cleared from our own apps.
+- **Web client wiring.**
+  - The iframe posts `larpnet-chat-unread` to the widget for a live badge.
+  - The client reports `{roomId, active}` to the service worker, which
+    skips notifications for a room on screen.
+  - `?room=` in the chat URL opens that room.
 
 ## Key files
 

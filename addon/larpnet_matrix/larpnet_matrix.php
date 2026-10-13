@@ -45,6 +45,10 @@
  *   unlock history silently; users can opt into private mode from chat
  *   settings. See CLAUDE.md "Encryption modes".
  *
+ *   POST /larpnet_matrix/mute (per-room mute, timed or permanent) and GET
+ *   /larpnet_matrix/unread (badge count for the web chat bubble) -- see
+ *   CLAUDE.md "Chat notifications, unread counts, mute".
+ *
  *   POST /larpnet_matrix/push implements the Matrix Push Gateway API
  *   (https://spec.matrix.org/latest/push-gateway-api/) for the native
  *   iOS/Android clients -- Synapse calls this directly (not a browser
@@ -52,7 +56,7 @@
  *   larpnet_matrix_push_notify() for the full contract and CLAUDE.md for
  *   why this is a small custom endpoint here rather than a separately
  *   deployed Sygnal instance.
- * Version: 2.1
+ * Version: 2.2
  * Author: larpnet admin
  */
 
@@ -174,6 +178,14 @@ function larpnet_matrix_cron(): void
 		return;
 	}
 
+	// Lift expired timed mutes (see larpnet_matrix_set_mute()). Only users
+	// who have one carry the pconfig key, so this is one query otherwise.
+	$muted = DBA::select('pconfig', ['uid'], ['cat' => 'larpnet_matrix', 'k' => 'mute_expiries']);
+	while ($row = DBA::fetch($muted)) {
+		larpnet_matrix_expire_mutes((int) $row['uid'], $settings);
+	}
+	DBA::close($muted);
+
 	$synced = 0;
 	foreach (User::getList(0, 1000, 'active', 'name') as $user) {
 		if ($synced >= 20) {
@@ -189,6 +201,22 @@ function larpnet_matrix_cron(): void
 		}
 		larpnet_matrix_sync_profile($uid, $identity, $settings);
 		$synced++;
+	}
+
+	// Web pushers for everyone, not just users who opened chat since this
+	// shipped: someone with browser notifications on should hear about a
+	// first message even if they've never opened chat. Same cap as above.
+	$registered = 0;
+	foreach (User::getList(0, 1000, 'active', 'name') as $user) {
+		if ($registered >= 20) {
+			break;
+		}
+		$uid = (int) $user['uid'];
+		if (time() - (int) DI::pConfig()->get($uid, 'larpnet_matrix', 'web_pusher_at', 0) < 86400) {
+			continue;
+		}
+		larpnet_matrix_ensure_web_pusher($uid, $settings);
+		$registered++;
 	}
 }
 
@@ -356,7 +384,14 @@ function larpnet_matrix_push_gateway_url(): ?string
 	if (!$secret) {
 		return null;
 	}
-	return rtrim((string) DI::baseUrl(), '/') . '/larpnet_matrix/push?key=' . rawurlencode($secret);
+	// Synapse refuses any HTTP pusher whose data.url path isn't exactly
+	// /_matrix/push/v1/notify (synapse/push/httppusher.py, a query string is
+	// fine). Until 2026-10 this returned .../larpnet_matrix/push, so every
+	// pushers/set from the native apps failed and chat push never reached a
+	// phone. larpnet-config's nginx maps this exact path onto
+	// larpnet_matrix/push (an exact `location =` beats the ^/_matrix regex
+	// that proxies everything else under /_matrix to Synapse).
+	return rtrim((string) DI::baseUrl(), '/') . '/_matrix/push/v1/notify?key=' . rawurlencode($secret);
 }
 
 function larpnet_matrix_jwt(array $claims, string $secret): string
@@ -642,9 +677,96 @@ function larpnet_matrix_contact_list(int $excludeUid): array
 }
 
 /**
+ * The fixed device_id every server-side login for a user reuses (profile
+ * sync, mutes, the web pusher). Before this existed, each hourly profile
+ * sync did a bare JWT login and so created a brand-new Matrix device every
+ * time. A fixed id keeps it to one "Larpnet (serwer)" entry per account.
+ * It never uploads E2EE keys, so other clients don't encrypt to it.
+ */
+const LARPNET_MATRIX_SERVER_DEVICE_ID = 'LARPNET_SERVER';
+
+/**
+ * An access token for $uid's server-side Matrix device, cached in pconfig
+ * and re-minted via a JWT login when missing or when $fresh is set (the
+ * caller saw a 401). Null if chat/internal_url isn't configured or the
+ * login failed.
+ */
+function larpnet_matrix_server_token(int $uid, array $settings, bool $fresh = false): ?string
+{
+	$internal = $settings['internal_url'] ?? null;
+	if (!$internal) {
+		return null;
+	}
+
+	if (!$fresh) {
+		$cached = DI::pConfig()->get($uid, 'larpnet_matrix', 'server_token');
+		if ($cached) {
+			return $cached;
+		}
+	}
+
+	$identity = larpnet_matrix_identity($uid, $settings);
+	if (!$identity) {
+		return null;
+	}
+
+	$login = DI::httpClient()->request('POST', $internal . '/_matrix/client/v3/login', [
+		'body' => json_encode([
+			'type'                        => 'org.matrix.login.jwt',
+			'token'                       => $identity['token'],
+			'device_id'                   => LARPNET_MATRIX_SERVER_DEVICE_ID,
+			'initial_device_display_name' => 'Larpnet (serwer)',
+		]),
+		'headers' => ['Content-Type' => 'application/json'],
+	]);
+	$token = $login->isSuccess() ? (json_decode($login->getBodyString(), true)['access_token'] ?? null) : null;
+	if (!$token) {
+		DI::logger()->warning('larpnet_matrix: server-side login failed', ['uid' => $uid, 'code' => $login->getReturnCode()]);
+		return null;
+	}
+
+	DI::pConfig()->set($uid, 'larpnet_matrix', 'server_token', $token);
+	return $token;
+}
+
+/**
+ * One authenticated Client-Server API call as $uid's server-side device.
+ * $path is relative to /_matrix/client/v3. Retries once with a fresh login
+ * on 401 (token revoked, or a prod DB copy on the test stack). Returns
+ * ['ok' => bool, 'code' => int, 'body' => array|null], or null if no token
+ * could be obtained at all.
+ */
+function larpnet_matrix_server_request(int $uid, array $settings, string $method, string $path, ?array $body = null): ?array
+{
+	foreach ([false, true] as $fresh) {
+		$token = larpnet_matrix_server_token($uid, $settings, $fresh);
+		if (!$token) {
+			return null;
+		}
+		$options = ['headers' => ['Authorization' => 'Bearer ' . $token]];
+		if ($body !== null) {
+			// (object) so an empty array still encodes as {} -- Synapse rejects [].
+			$options['body']                       = json_encode((object) $body);
+			$options['headers']['Content-Type'] = 'application/json';
+		}
+		$response = DI::httpClient()->request($method, $settings['internal_url'] . '/_matrix/client/v3' . $path, $options);
+		// getReturnCode() is a string ("401") -- hence the casts here and in 'code'.
+		if ((int) $response->getReturnCode() === 401 && !$fresh) {
+			continue;
+		}
+		return [
+			'ok'   => $response->isSuccess(),
+			'code' => (int) $response->getReturnCode(),
+			'body' => json_decode($response->getBodyString(), true),
+		];
+	}
+	return null;
+}
+
+/**
  * Best-effort: pushes the larpnet account's display name + avatar to its
- * Matrix profile, via a server-side login using the same short-lived JWT
- * larpnet_matrix_identity() just minted. Throttled to once an hour per user
+ * Matrix profile, as the user's server-side device
+ * (larpnet_matrix_server_token()). Throttled to once an hour per user
  * (pconfig-tracked) -- this costs a handful of HTTP round-trips to Synapse,
  * no need to pay for it on every chat page load or DM navigation. Never
  * throws: a sync failure must not break the chat widget itself.
@@ -663,13 +785,14 @@ function larpnet_matrix_sync_profile(int $uid, array $identity, array $settings)
 	try {
 		$mxid = rawurlencode($identity['user_id']);
 
-		$login = DI::httpClient()->request('POST', $internal . '/_matrix/client/v3/login', [
-			'body'    => json_encode(['type' => 'org.matrix.login.jwt', 'token' => $identity['token']]),
-			'headers' => ['Content-Type' => 'application/json'],
-		]);
-		$token = $login->isSuccess() ? (json_decode($login->getBodyString(), true)['access_token'] ?? null) : null;
+		// The cached token may be stale (revoked, or a prod DB copy on test):
+		// probe it with /whoami first and re-login once if it's rejected.
+		$token = larpnet_matrix_server_token($uid, $settings);
+		if ($token && (int) DI::httpClient()->request('GET', $internal . '/_matrix/client/v3/account/whoami', ['headers' => ['Authorization' => 'Bearer ' . $token]])->getReturnCode() === 401) {
+			$token = larpnet_matrix_server_token($uid, $settings, true);
+		}
 		if (!$token) {
-			DI::logger()->warning('larpnet_matrix: profile sync login failed', ['code' => $login->getReturnCode()]);
+			DI::logger()->warning('larpnet_matrix: profile sync login failed', ['uid' => $uid]);
 			return;
 		}
 		// Friendica's HTTPClient wraps Guzzle -- the request() option key is
@@ -746,6 +869,280 @@ function larpnet_matrix_sync_profile(int $uid, array $identity, array $settings)
 }
 
 /**
+ * app_id of the pusher this server registers on every user's behalf (as
+ * their server-side device) so chat messages reach the browser and the
+ * ntfy-based Android build: pushkey = the user's ntfy topic, and the gateway
+ * (larpnet_matrix_push_deliver_web()) forwards to ntfy via
+ * Model\LarpnetPush::send(). Unlike the native pushers it uses the full
+ * notification format: the browser can't decrypt anything, so the sender
+ * and room names Synapse includes are all it will ever show.
+ */
+const LARPNET_MATRIX_APP_ID_WEB = 'pl.larpnet.web';
+
+/**
+ * Makes sure $uid has the web pusher (see LARPNET_MATRIX_APP_ID_WEB).
+ * Cheap when nothing changed: one pconfig read. Re-asserted daily anyway,
+ * in case Synapse dropped it (e.g. the server device was deleted).
+ */
+function larpnet_matrix_ensure_web_pusher(int $uid, array $settings): void
+{
+	$gateway = larpnet_matrix_push_gateway_url();
+	if (!$gateway || !($settings['internal_url'] ?? null) || !DI::config()->get('larpnet_notifications', 'ntfy_url')) {
+		return;
+	}
+
+	try {
+		$topic = \Friendica\Model\LarpnetPush::getOrCreateTopic($uid);
+		$want  = $topic . '|' . md5($gateway);
+		$have  = (string) DI::pConfig()->get($uid, 'larpnet_matrix', 'web_pusher', '');
+		if ($have === $want && time() - (int) DI::pConfig()->get($uid, 'larpnet_matrix', 'web_pusher_at', 0) < 86400) {
+			return;
+		}
+
+		// The topic can change (LarpnetPush regenerates old-format ones), so
+		// drop the pusher for the previous one rather than leaving it behind.
+		$oldTopic = $have !== '' ? explode('|', $have)[0] : '';
+		if ($oldTopic !== '' && $oldTopic !== $topic) {
+			larpnet_matrix_server_request($uid, $settings, 'POST', '/pushers/set', [
+				'kind' => null, 'app_id' => LARPNET_MATRIX_APP_ID_WEB, 'pushkey' => $oldTopic,
+			]);
+		}
+
+		$result = larpnet_matrix_server_request($uid, $settings, 'POST', '/pushers/set', [
+			'kind'                => 'http',
+			'app_id'              => LARPNET_MATRIX_APP_ID_WEB,
+			'pushkey'             => $topic,
+			'app_display_name'    => 'Larpnet',
+			'device_display_name' => 'Larpnet (przeglądarka)',
+			'lang'                => 'pl',
+			'data'                => ['url' => $gateway],
+			'append'              => false,
+		]);
+		if (!($result['ok'] ?? false)) {
+			DI::logger()->warning('larpnet_matrix: web pusher registration failed', ['uid' => $uid, 'result' => $result]);
+			return;
+		}
+		DI::pConfig()->set($uid, 'larpnet_matrix', 'web_pusher', $want);
+		DI::pConfig()->set($uid, 'larpnet_matrix', 'web_pusher_at', time());
+	} catch (\Throwable $e) {
+		DI::logger()->warning('larpnet_matrix: web pusher registration failed', ['uid' => $uid, 'error' => $e->getMessage()]);
+	}
+}
+
+/**
+ * Per-room mute, shared by every client. Muting is a standard Matrix
+ * per-room override push rule (rule_id = room id, no actions -- the same
+ * shape Element and the Rust SDK's RoomNotificationMode::Mute use), so
+ * Synapse itself stops pushing to every pusher and stops counting the room
+ * in notification counts. Timed mutes also record their expiry in account
+ * data (LARPNET_MATRIX_MUTE_ACCOUNT_DATA, {rooms: {roomId: unixMillis}}) so
+ * clients can show "until 14:30", and in pconfig 'mute_expiries' so
+ * larpnet_matrix_cron() can lift them even if no client is running.
+ */
+const LARPNET_MATRIX_MUTE_ACCOUNT_DATA = 'pl.larpnet.mute_until';
+
+/**
+ * Applies one mute change. $until: null = permanent, int = unix millis,
+ * 'off' = unmute. Returns false if a Matrix call failed.
+ */
+function larpnet_matrix_set_mute(int $uid, array $settings, string $roomId, int|string|null $until): bool
+{
+	$identity = larpnet_matrix_identity($uid, $settings);
+	if (!$identity) {
+		return false;
+	}
+	$rulePath = '/pushrules/global/override/' . rawurlencode($roomId);
+
+	if ($until === 'off') {
+		$rule = larpnet_matrix_server_request($uid, $settings, 'DELETE', $rulePath);
+		// No rule = already unmuted (e.g. lifted from another client). Checked
+		// with a GET rather than trusting the DELETE's error code, which
+		// came back as a failure on test.larpnet.pl for a missing rule;
+		// without this, cron would retry an expired mute forever.
+		$ok = $rule && $rule['ok'];
+		if (!$ok) {
+			$exists = larpnet_matrix_server_request($uid, $settings, 'GET', $rulePath);
+			$ok     = $exists && $exists['code'] === 404;
+		}
+	} else {
+		$rule = larpnet_matrix_server_request($uid, $settings, 'PUT', $rulePath, [
+			'conditions' => [['kind' => 'event_match', 'key' => 'room_id', 'pattern' => $roomId]],
+			'actions'    => [],
+		]);
+		$ok = $rule && $rule['ok'];
+	}
+	if (!$ok) {
+		DI::logger()->warning('larpnet_matrix: mute push rule update failed', ['uid' => $uid, 'room' => $roomId, 'result' => $rule]);
+		return false;
+	}
+
+	$expiries = json_decode((string) DI::pConfig()->get($uid, 'larpnet_matrix', 'mute_expiries', '{}'), true) ?: [];
+	if (is_int($until)) {
+		$expiries[$roomId] = $until;
+	} else {
+		unset($expiries[$roomId]);
+	}
+	if ($expiries) {
+		DI::pConfig()->set($uid, 'larpnet_matrix', 'mute_expiries', json_encode($expiries));
+	} else {
+		DI::pConfig()->delete($uid, 'larpnet_matrix', 'mute_expiries');
+	}
+
+	// Account data mirrors pconfig, for display only -- the push rule alone
+	// decides whether the room is muted.
+	$dataPath = '/user/' . rawurlencode($identity['user_id']) . '/account_data/' . LARPNET_MATRIX_MUTE_ACCOUNT_DATA;
+	larpnet_matrix_server_request($uid, $settings, 'PUT', $dataPath, ['rooms' => (object) $expiries]);
+	return true;
+}
+
+/**
+ * {roomId: unixMillis|null} for every muted room (null = permanent),
+ * read back from the push rules themselves so a mute set from another
+ * Matrix client (e.g. Element) shows up too. Lifts expired timed mutes on
+ * the way. Null if the push rules couldn't be read.
+ */
+function larpnet_matrix_list_mutes(int $uid, array $settings): ?array
+{
+	larpnet_matrix_expire_mutes($uid, $settings);
+
+	$rules = larpnet_matrix_server_request($uid, $settings, 'GET', '/pushrules/');
+	if (!$rules || !$rules['ok']) {
+		return null;
+	}
+	$list = $rules['body']['global']['override'] ?? [];
+
+	$expiries = json_decode((string) DI::pConfig()->get($uid, 'larpnet_matrix', 'mute_expiries', '{}'), true) ?: [];
+	$mutes    = [];
+	foreach ($list as $rule) {
+		$id = $rule['rule_id'] ?? '';
+		if (!str_starts_with($id, '!') || !($rule['enabled'] ?? true)) {
+			continue;
+		}
+		$notifies = in_array('notify', $rule['actions'] ?? [], true)
+			|| array_filter($rule['actions'] ?? [], fn ($a) => is_array($a) && ($a['set_tweak'] ?? '') === 'sound');
+		if (!$notifies) {
+			$mutes[$id] = $expiries[$id] ?? null;
+		}
+	}
+	return $mutes;
+}
+
+/** Unmutes every timed mute of $uid whose expiry has passed. */
+function larpnet_matrix_expire_mutes(int $uid, array $settings): void
+{
+	$expiries = json_decode((string) DI::pConfig()->get($uid, 'larpnet_matrix', 'mute_expiries', '{}'), true) ?: [];
+	$nowMs    = (int) (microtime(true) * 1000);
+	foreach ($expiries as $roomId => $until) {
+		if ((int) $until <= $nowMs) {
+			larpnet_matrix_set_mute($uid, $settings, (string) $roomId, 'off');
+		}
+	}
+}
+
+/**
+ * POST /larpnet_matrix/mute -- the one mute API for every client.
+ * Body (JSON or form): {action: 'list'} -> {mutes}; {action: 'mute',
+ * room_id, until?: unixMillis} (no until = permanent); {action: 'unmute',
+ * room_id}. Every answer carries the current {mutes: {roomId: until|null}}.
+ * Auth is the same as larpnet_matrix_encryption_endpoint(): an app bearer
+ * token, or the web session plus X-CSRF-Token.
+ */
+function larpnet_matrix_mute_endpoint(): void
+{
+	header('Content-Type: application/json');
+	header('Cache-Control: no-store');
+
+	$uid = BaseApi::getCurrentUserID();
+	if (empty($uid) || empty(BaseApi::getCurrentApplication())) {
+		$uid = (int) DI::userSession()->getLocalUserId();
+		if (!$uid || !BaseModule::checkFormSecurityToken('larpnet_matrix_encryption')) {
+			http_response_code(401);
+			echo json_encode(['error' => 'unauthorized']);
+			exit;
+		}
+	}
+
+	$settings = larpnet_matrix_settings();
+	if (!$settings || !($settings['internal_url'] ?? null)) {
+		http_response_code(503);
+		echo json_encode(['error' => 'chat_not_configured']);
+		exit;
+	}
+
+	// JSON body (web, Android), else form fields or query params (iOS's API
+	// client only sends query params) -- same leniency as /encryption.
+	$body = json_decode((string) file_get_contents('php://input'), true);
+	if (!is_array($body)) {
+		$body = $_POST + $_GET;
+	}
+	$action = (string) ($body['action'] ?? 'list');
+	$roomId = (string) ($body['room_id'] ?? '');
+
+	if ($action === 'mute' || $action === 'unmute') {
+		// Room version 12+ ids have no ":server" part ("!<hash>"), so only
+		// the leading "!" and a sane charset are checked.
+		if (!preg_match('/^![^\s\/]{1,255}$/', $roomId)) {
+			http_response_code(400);
+			echo json_encode(['error' => 'invalid_room_id']);
+			exit;
+		}
+		$until = null;
+		if ($action === 'unmute') {
+			$until = 'off';
+		} elseif (isset($body['until']) && $body['until'] !== '' && $body['until'] !== null) {
+			$until = (int) $body['until'];
+			if ($until <= (int) (microtime(true) * 1000)) {
+				http_response_code(400);
+				echo json_encode(['error' => 'until_in_past']);
+				exit;
+			}
+		}
+		if (!larpnet_matrix_set_mute((int) $uid, $settings, $roomId, $until)) {
+			http_response_code(502);
+			echo json_encode(['error' => 'matrix_failed']);
+			exit;
+		}
+	} elseif ($action !== 'list') {
+		http_response_code(400);
+		echo json_encode(['error' => 'unknown_action']);
+		exit;
+	}
+
+	$mutes = larpnet_matrix_list_mutes((int) $uid, $settings);
+	if ($mutes === null) {
+		http_response_code(502);
+		echo json_encode(['error' => 'matrix_failed']);
+		exit;
+	}
+	echo json_encode(['mutes' => (object) $mutes]);
+	exit;
+}
+
+/**
+ * GET /larpnet_matrix/unread -- {rooms: N|null} for the web chat bubble's
+ * badge when no chat client is running in the page. N is Synapse's own
+ * badge count (rooms with unread notifications, muted rooms excluded)
+ * as last delivered to the user's web pusher, see
+ * larpnet_matrix_push_deliver_web(). Null until the first push arrives.
+ */
+function larpnet_matrix_unread_endpoint(): void
+{
+	header('Content-Type: application/json');
+	header('Cache-Control: no-store');
+
+	$uid = (int) DI::userSession()->getLocalUserId();
+	if (!$uid) {
+		http_response_code(401);
+		echo json_encode(['error' => 'unauthorized']);
+		exit;
+	}
+
+	$rooms = DI::pConfig()->get($uid, 'larpnet_matrix', 'unread_rooms');
+	echo json_encode(['rooms' => $rooms === null ? null : (int) $rooms]);
+	exit;
+}
+
+/**
  * Extension -> Content-Type for files under client/dist/. Anything not
  * listed here is refused (see larpnet_matrix_serve_asset()) rather than
  * guessed, so this route can never be used to serve an arbitrary file type.
@@ -813,6 +1210,9 @@ function larpnet_matrix_serve_asset(array $segments): void
 function larpnet_matrix_content(): string
 {
 	$argv = DI::args()->getArgv();
+	if (($argv[1] ?? null) === 'unread') {
+		larpnet_matrix_unread_endpoint();
+	}
 	if (count($argv) > 1) {
 		larpnet_matrix_serve_asset(array_slice($argv, 1));
 	}
@@ -829,6 +1229,7 @@ function larpnet_matrix_content(): string
 	}
 
 	larpnet_matrix_sync_profile((int) $uid, $identity, $settings);
+	larpnet_matrix_ensure_web_pusher((int) $uid, $settings);
 
 	$dm = larpnet_matrix_dm_localpart();
 	// Also sync the DM target's own Matrix name -- not just the viewer's.
@@ -869,6 +1270,9 @@ function larpnet_matrix_content(): string
 		'serverName'    => $settings['server'],
 		'jwt'           => $identity['token'],
 		'dm'            => $dm,
+		// ?room=<id> from a chat notification's click URL (see
+		// larpnet_matrix_push_deliver_web()); the client opens it if joined.
+		'room'          => is_string($_GET['room'] ?? null) && str_starts_with($_GET['room'], '!') ? $_GET['room'] : null,
 		'deviceName'    => 'larpnet web',
 		'contacts'      => larpnet_matrix_contact_list((int) $uid),
 		'fullPage'      => $full,
@@ -953,6 +1357,9 @@ function larpnet_matrix_post()
 	if (($argv[1] ?? null) === 'encryption') {
 		larpnet_matrix_encryption_endpoint();
 	}
+	if (($argv[1] ?? null) === 'mute') {
+		larpnet_matrix_mute_endpoint();
+	}
 
 	header('Content-Type: application/json');
 
@@ -991,6 +1398,7 @@ function larpnet_matrix_post()
 	}
 
 	larpnet_matrix_sync_profile((int) $uid, $identity, $settings);
+	larpnet_matrix_ensure_web_pusher((int) $uid, $settings);
 
 	// Same nickname->displayname fallback the web client's
 	// resolveDisplayName() uses (config.contacts, larpnet_matrix_content())
@@ -1096,16 +1504,28 @@ function larpnet_matrix_push_notify(): void
 		exit;
 	}
 
+	// Synapse also calls this with no event at all ("badge-only": event_id
+	// empty, just counts) whenever the user's read receipts change the
+	// unread count. Those must never show a notification. Before this
+	// check, iOS got a "New message" placeholder banner for every one.
 	$data = [
-		'event_id' => $notification['event_id'] ?? '',
-		'room_id'  => $notification['room_id']  ?? '',
+		'event_id' => (string) ($notification['event_id'] ?? ''),
+		'room_id'  => (string) ($notification['room_id']  ?? ''),
 	];
+	$unread = $notification['counts']['unread'] ?? null;
+	if ($unread !== null) {
+		$data['unread'] = (string) (int) $unread;
+	}
 
 	$rejected = [];
 	foreach ($devices as $device) {
 		$appId   = $device['app_id']  ?? null;
 		$pushkey = $device['pushkey'] ?? null;
 		if (!$appId || !$pushkey) {
+			continue;
+		}
+		if ($appId === LARPNET_MATRIX_APP_ID_WEB) {
+			larpnet_matrix_push_deliver_web((string) $pushkey, $notification);
 			continue;
 		}
 		if (larpnet_matrix_push_deliver((string) $appId, (string) $pushkey, $data)) {
@@ -1149,7 +1569,13 @@ function larpnet_matrix_push_notify_authorized(): bool
  */
 function larpnet_matrix_push_deliver(string $appId, string $pushkey, array $data): bool
 {
+	$badgeOnly = $data['event_id'] === '';
+
 	if ($appId === LARPNET_MATRIX_APP_ID_ANDROID) {
+		// Android has no app-icon badge to update; skip the FCM round trip.
+		if ($badgeOnly) {
+			return false;
+		}
 		// Reaches into the larpnet_fcm addon the same way
 		// src/Worker/FcmPush.php and src/Model/Profile.php already reach
 		// into larpnet_matrix/larpnet_fcm -- an established cross-addon
@@ -1164,11 +1590,77 @@ function larpnet_matrix_push_deliver(string $appId, string $pushkey, array $data
 	}
 
 	if ($appId === LARPNET_MATRIX_APP_ID_IOS) {
-		return larpnet_matrix_apns_send($pushkey, $data);
+		return $badgeOnly
+			? larpnet_matrix_apns_send_badge($pushkey, (int) ($data['unread'] ?? 0))
+			: larpnet_matrix_apns_send($pushkey, $data);
 	}
 
 	DI::logger()->warning('larpnet_matrix: push notify for unrecognised app_id', ['app_id' => $appId]);
 	return false;
+}
+
+/**
+ * The web pusher's delivery (see LARPNET_MATRIX_APP_ID_WEB): $pushkey is
+ * the user's ntfy topic, which the browser (Web Push or SSE, see
+ * view/theme/larpnet/js/push.js) and the ntfy-flavoured Android build both
+ * listen on. Also records Synapse's badge count for the web chat bubble
+ * (larpnet_matrix_unread_endpoint()), from badge-only calls too.
+ *
+ * Only names go out, never message text: the event is E2EE, and the full
+ * notification format gives us sender_display_name/room_name in clear.
+ * The click URL carries room_id/event_id: sw.js opens that room, and the
+ * Android ntfy listener uses them to fetch and decrypt the real preview.
+ */
+function larpnet_matrix_push_deliver_web(string $topic, array $notification): void
+{
+	$owner = DBA::selectFirst('pconfig', ['uid'], ['cat' => 'larpnet_notifications', 'k' => 'ntfy_topic', 'v' => $topic]);
+	if (!$owner) {
+		return;
+	}
+	$uid = (int) $owner['uid'];
+
+	if (isset($notification['counts']['unread'])) {
+		DI::pConfig()->set($uid, 'larpnet_matrix', 'unread_rooms', (int) $notification['counts']['unread']);
+	}
+
+	$eventId = (string) ($notification['event_id'] ?? '');
+	$roomId  = (string) ($notification['room_id'] ?? '');
+	if ($eventId === '' || $roomId === '') {
+		return;
+	}
+
+	$sender = trim((string) ($notification['sender_display_name'] ?? '')) ?: 'Larpnet';
+	$room   = trim((string) ($notification['room_name'] ?? ''));
+	$title  = ($room !== '' && $room !== $sender) ? "$sender ($room)" : $sender;
+	$invite = ($notification['type'] ?? '') === 'm.room.member';
+	$body   = $invite ? 'Zaprasza Cię do rozmowy' : 'Nowa wiadomość';
+
+	$click = rtrim((string) DI::baseUrl(), '/') . '/larpnet_matrix?full=1'
+		. '&room=' . rawurlencode($roomId) . '&event=' . rawurlencode($eventId);
+
+	\Friendica\Model\LarpnetPush::send($topic, $title, $body, $click, null, [
+		'tags'     => [LARPNET_MATRIX_NTFY_CHAT_TAG],
+		'priority' => 4,
+	]);
+}
+
+/**
+ * ntfy tag marking a chat message, read by view/theme/larpnet/js/sw.js and
+ * larpnet-android's NtfyListenerService to tell chat pushes apart from
+ * classic Friendica notifications on the same topic.
+ */
+const LARPNET_MATRIX_NTFY_CHAT_TAG = 'larpnet-chat';
+
+/**
+ * Badge-only APNs push: sets the app icon number after the user read
+ * something elsewhere. Apple wants the 'alert' push type even for a payload
+ * with only a badge ('background' must not carry one); without
+ * mutable-content the NSE is not involved and nothing is shown. Priority 5:
+ * not urgent, lets the device batch it.
+ */
+function larpnet_matrix_apns_send_badge(string $deviceToken, int $unread): bool
+{
+	return larpnet_matrix_apns_deliver($deviceToken, ['aps' => ['badge' => $unread]], '5');
 }
 
 /**
@@ -1201,6 +1693,9 @@ function larpnet_matrix_apns_send(string $deviceToken, array $data): bool
 			],
 			'mutable-content' => 1,
 			'sound'           => 'default',
+			// Synapse's count of rooms with unread notifications (muted rooms
+			// excluded), see larpnet_matrix_push_notify().
+			...(isset($data['unread']) ? ['badge' => (int) $data['unread']] : []),
 		],
 		...$data,
 	]);
@@ -1228,7 +1723,7 @@ function larpnet_matrix_apns_send(string $deviceToken, array $data): bool
  *   both success and a transient failure -- see `larpnet_matrix_apns_send()`'s
  *   own doc comment for why that distinction matters to callers.
  */
-function larpnet_matrix_apns_deliver(string $deviceToken, array $payload): bool
+function larpnet_matrix_apns_deliver(string $deviceToken, array $payload, string $priority = '10'): bool
 {
 	$keyId     = getenv('LARPNET_MATRIX_APNS_KEY_ID');
 	$teamId    = getenv('LARPNET_MATRIX_APNS_TEAM_ID');
@@ -1265,7 +1760,7 @@ function larpnet_matrix_apns_deliver(string $deviceToken, array $payload): bool
 			'authorization'  => 'bearer ' . $jwt,
 			'apns-topic'     => (string) $topic,
 			'apns-push-type' => 'alert',
-			'apns-priority'  => '10',
+			'apns-priority'  => $priority,
 			'content-type'   => 'application/json',
 		],
 		// APNs' HTTP/2 provider API requires an actual HTTP/2 connection --
