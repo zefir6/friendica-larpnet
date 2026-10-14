@@ -272,6 +272,29 @@ export function profileUrlForUserId(userId, serverName, contacts) {
   return 'profile/' + encodeURIComponent(nickname);
 }
 
+// Friendica profile photo (80px) for a local user's mxid, or null for
+// anyone on another homeserver -- same lookup as profileUrlForUserId().
+// Public and same-origin, so a plain <img> works; a Matrix avatar_url would
+// need an authenticated media fetch (Synapse's authenticated media) per
+// image instead.
+export function avatarUrlForUserId(userId, serverName, contacts) {
+  const m = /^@([^:]+):(.+)$/.exec(userId || '');
+  if (!m || m[2] !== serverName) {
+    return null;
+  }
+  const nickname = contacts?.find((c) => c.nickname.toLowerCase() === m[1])?.nickname || m[1];
+  return 'photo/avatar/' + encodeURIComponent(nickname) + '.jpg';
+}
+
+// The other member of a 1:1 room, or null for a group (or an empty room).
+export function roomPeerUserId(room, client) {
+  const others = room
+    .getMembersWithMembership('join')
+    .concat(room.getMembersWithMembership('invite'))
+    .filter((m) => m.userId !== client.getUserId());
+  return others.length === 1 ? others[0].userId : null;
+}
+
 export function dmTargetMxid(cfg) {
   if (!cfg.dm) {
     return null;
