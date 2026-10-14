@@ -1430,6 +1430,19 @@ const LARPNET_MATRIX_MIN_ANDROID_VERSION = '0.23.0';
 const LARPNET_MATRIX_MIN_IOS_VERSION     = '1.31';
 
 /**
+ * iOS version numbers aren't monotonic, so the iOS check is a range, not
+ * a plain floor. Native chat arrived in test build 1.8, and the
+ * pre-standard-mode chat builds were 1.8-1.30. Then the App Store release
+ * reset the numbering to 1.6 (2026-10-14), and 1.6/1.7 are current builds
+ * with standard mode. Only [this, LARPNET_MATRIX_MIN_IOS_VERSION) is
+ * rejected. Anything below 1.8 is either one of those new releases or a
+ * build with no chat at all, so it can't make a recovery key either.
+ * Future iOS releases must not be numbered inside this range again: skip
+ * from 1.7 straight to 1.34+ (or 2.0).
+ */
+const LARPNET_MATRIX_LEGACY_IOS_FROM     = '1.8';
+
+/**
  * The minimum version the caller must update to, or null if it may proceed.
  * Anything that isn't one of our apps' User-Agents (web, the iOS Notification
  * Service Extension's default one, scripts) is let through -- only a
@@ -1440,10 +1453,13 @@ function larpnet_matrix_outdated_app_min_version(string $userAgent): ?string
 	if (!preg_match('#^larpnet-(android|ios)/(\d+(?:\.\d+)*)#', $userAgent, $m)) {
 		return null;
 	}
-	$min = $m[1] === 'android'
-		? (getenv('LARPNET_MATRIX_MIN_ANDROID_VERSION') ?: LARPNET_MATRIX_MIN_ANDROID_VERSION)
-		: (getenv('LARPNET_MATRIX_MIN_IOS_VERSION') ?: LARPNET_MATRIX_MIN_IOS_VERSION);
-	return version_compare($m[2], $min, '<') ? $min : null;
+	if ($m[1] === 'android') {
+		$min = getenv('LARPNET_MATRIX_MIN_ANDROID_VERSION') ?: LARPNET_MATRIX_MIN_ANDROID_VERSION;
+		return version_compare($m[2], $min, '<') ? $min : null;
+	}
+	$min = getenv('LARPNET_MATRIX_MIN_IOS_VERSION') ?: LARPNET_MATRIX_MIN_IOS_VERSION;
+	$legacyFrom = getenv('LARPNET_MATRIX_LEGACY_IOS_FROM') ?: LARPNET_MATRIX_LEGACY_IOS_FROM;
+	return version_compare($m[2], $legacyFrom, '>=') && version_compare($m[2], $min, '<') ? $min : null;
 }
 
 /**
