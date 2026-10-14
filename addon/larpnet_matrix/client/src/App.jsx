@@ -6,11 +6,14 @@ import {
   roomDisplayName,
   consolidateDuplicateDirectRooms,
   autoJoinLocalInvites,
+  avatarUrlForUserId,
+  roomPeerUserId,
 } from './matrix.js';
 import { setUpRecovery, resetRecovery, restoreFromRecoveryKey } from './recovery.js';
 import { encryptionApi, ensureEncryption, switchToPrivate, switchToStandard, DeviceLockedError } from './encryption.js';
 import { unreadRoomCount, setReportedRoom, reportUnreadToParent } from './notifications.js';
 import { RoomList } from './RoomList.jsx';
+import { Avatar } from './Avatar.jsx';
 import { Conversation } from './Conversation.jsx';
 import { ContactPicker } from './ContactPicker.jsx';
 import { RecoveryKeyModal } from './RecoveryKeyModal.jsx';
@@ -455,7 +458,16 @@ export function App({ config }) {
             Rozmowy
           </button>
         )}
-        <span class="lnc-header-title">{showingConversation ? headerTitle : 'Rozmowy'}</span>
+        <span class="lnc-header-title">
+          {showingConversation && selectedRoom && (
+            <Avatar
+              url={avatarUrlForUserId(roomPeerUserId(selectedRoom, client), config.serverName, config.contacts)}
+              name={headerTitle}
+              size={26}
+            />
+          )}
+          <span class="lnc-header-title-text">{showingConversation ? headerTitle : 'Rozmowy'}</span>
+        </span>
         {selectedRoom && showingConversation && (
           <button type="button" class="lnc-header-btn" title="Informacje o rozmowie" onClick={() => setShowRoomInfo(true)}>
             Info
@@ -474,6 +486,7 @@ export function App({ config }) {
           onNewChat={() => setPickerMode('new_chat')}
           collapsed={singlePane ? !showingList : roomListCollapsed}
           contacts={config.contacts}
+          serverName={config.serverName}
           onLeft={handleRoomLeft}
           showTimestamps={showTimestamps}
           width={singlePane ? undefined : roomListWidth}
