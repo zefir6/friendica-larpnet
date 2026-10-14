@@ -147,6 +147,11 @@ the user create their *own* recovery key, which leaves every other client
 User-Agent; anything else passes) with `426 app_update_required` --
 `larpnet_matrix_outdated_app_min_version()`. Raise the floor per deployment
 with `LARPNET_MATRIX_MIN_ANDROID_VERSION` / `LARPNET_MATRIX_MIN_IOS_VERSION`.
+For iOS this is a range, not a floor: only 1.8 <= v < 1.31 is rejected
+(`LARPNET_MATRIX_LEGACY_IOS_FROM`). The App Store release reset the version
+to 1.6 on 2026-10-14, below the old test-build numbers, so a plain floor
+locked every current iOS build out of chat. Never number an iOS release
+inside 1.8-1.30 again (go from 1.7 to 1.34+ or 2.0).
 Not 401/403: larpnet-ios force-logs-out on those.
 
 Admin support: the passphrase for a user can be recovered with the DB row
