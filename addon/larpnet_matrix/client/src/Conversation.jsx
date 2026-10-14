@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Composer } from './Composer.jsx';
-import { resolveDisplayName, profileUrlForUserId, formatMessageTime, formatFullTime } from './matrix.js';
+import { resolveDisplayName, profileUrlForUserId, avatarUrlForUserId, formatMessageTime, formatFullTime } from './matrix.js';
+import { Avatar } from './Avatar.jsx';
 import { getUploadLimitBytes, uploadEncryptedAttachment } from './mediaAttachments.js';
 import { isChatActive, onChatActivityChange, markRoomRead } from './notifications.js';
 import { ImageMessage, FileMessage } from './AttachmentMessage.jsx';
@@ -110,6 +111,14 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
     return <div class="lnc-conversation lnc-status">Wczytywanie…</div>;
   }
 
+  // Sender avatars only in group rooms -- in a 1:1 the header already
+  // shows who it is, same as the mobile apps.
+  const isGroup =
+    room
+      .getMembersWithMembership('join')
+      .concat(room.getMembersWithMembership('invite'))
+      .filter((m) => m.userId !== client.getUserId()).length > 1;
+
   const events = room
     .getLiveTimeline()
     .getEvents()
@@ -147,6 +156,7 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
               <div key={ev.getId()} class={'lnc-message' + (mine ? ' lnc-message-mine' : '')}>
                 {!mine && (
                   <div class="lnc-message-sender">
+                    {isGroup && <Avatar url={avatarUrlForUserId(ev.getSender(), serverName, contacts)} name={senderName} size={20} />}
                     {profileUrl ? (
                       <a class="lnc-profile-link" href={profileUrl} target={linkTarget} rel="noopener" title="Otwórz profil">
                         {senderName}

@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
-import { roomDisplayName, formatRelativeTime } from './matrix.js';
+import { roomDisplayName, formatRelativeTime, avatarUrlForUserId, roomPeerUserId } from './matrix.js';
+import { Avatar } from './Avatar.jsx';
 import { roomUnreadCount, isRoomMuted } from './notifications.js';
 
 /**
@@ -10,7 +11,7 @@ import { roomUnreadCount, isRoomMuted } from './notifications.js';
  * `window.confirm()`) to match `SettingsModal`'s existing
  * click-to-reveal-confirm pattern rather than introducing a second one.
  */
-export function RoomList({ rooms, selectedRoomId, onSelect, client, onNewChat, collapsed, contacts, onLeft, showTimestamps, width }) {
+export function RoomList({ rooms, selectedRoomId, onSelect, client, onNewChat, collapsed, contacts, serverName, onLeft, showTimestamps, width }) {
   const [confirmingRoomId, setConfirmingRoomId] = useState(null);
   const [busyRoomId, setBusyRoomId] = useState(null);
 
@@ -41,6 +42,8 @@ export function RoomList({ rooms, selectedRoomId, onSelect, client, onNewChat, c
         // this is 0 for them; the bell icon says why.
         const unread = roomUnreadCount(room);
         const muted = isRoomMuted(client, room.roomId);
+        const name = roomDisplayName(room, client, contacts);
+        const avatarUrl = avatarUrlForUserId(roomPeerUserId(room, client), serverName, contacts);
         return (
           <div key={room.roomId} class="lnc-room-row">
             <button
@@ -52,7 +55,8 @@ export function RoomList({ rooms, selectedRoomId, onSelect, client, onNewChat, c
               }
               onClick={() => onSelect(room.roomId)}
             >
-              <span class="lnc-room-item-name">{roomDisplayName(room, client, contacts)}</span>
+              <Avatar url={avatarUrl} name={name} size={32} />
+              <span class="lnc-room-item-name">{name}</span>
               {muted && <i class="ri ri-notification-off-line lnc-room-item-muted" title="Wyciszona" aria-label="Wyciszona"></i>}
               {showTimestamps && lastActive > 0 && (
                 <span class="lnc-room-item-timestamp">{formatRelativeTime(lastActive)}</span>
