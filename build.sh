@@ -51,7 +51,7 @@ echo "Building ${IMAGE}:${TAG}"
 
 docker login "$PUSH_URL" -u "$REGISTRY_USER" -p "$REGISTRY_PASSWORD"
 
-docker build -t "${IMAGE}:${TAG}" "$SCRIPT_DIR"
+docker build --build-arg "GIT_SHA=${LARPNET_VERSION}" -t "${IMAGE}:${TAG}" "$SCRIPT_DIR"
 
 if [[ "$PUSH_URL" != "$REGISTRY_URL" ]]; then
   docker tag "${IMAGE}:${TAG}" "${PUSH_IMAGE}:${TAG}"

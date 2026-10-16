@@ -84,6 +84,7 @@ All files below are larpnet additions or patches. When rebasing onto a new Frien
 
 | Path | Purpose |
 |---|---|
+| `build-version.txt` | Not a source file — generated at image-build time by the `Dockerfile` from the `GIT_SHA` build arg (passed by `.github/workflows/build.yml`/`build.sh`), then kept fresh on disk by `larpnet-entrypoint.sh` like every other patched file. Publicly servable as a static file, no PHP involved — see "Checking what's actually deployed" above. |
 | `addon/larpnet_banner/` | Per-user profile banner image (uploaded via addon settings, injected as CSS background on profile pages) |
 | `addon/larpnet_calendar/` | Generates private iCal subscription URL for each user's events |
 | `addon/larpnet_wifi/` | **Optional, LARP-venue-specific** — provisions MikroTik venue WiFi credentials for larp events; see `scripts/larpnet-wifi-provision.sh`, `scripts/larpnet-wifi.conf.example` and `scripts/larpnet-wifi.cron` for the companion provisioning script and its cron schedule. A fork with no physical venue/WiFi concept can drop it cleanly: remove its `COPY` line from `Dockerfile` and its matching entry from `larpnet-entrypoint.sh`'s copy loop — nothing else in the codebase depends on it |
@@ -165,6 +166,17 @@ cp .env.example .env       # fill in REGISTRY_URL, REGISTRY_USER, REGISTRY_PASSW
 ```
 
 If the registry is behind Cloudflare and upload fails, open an SSH tunnel and set `REGISTRY_PUSH_URL=localhost:5000` in `.env`.
+
+### Checking what's actually deployed
+
+A release tag (or `watchtower`'s auto-pull on `larpnet-test`) publishing a new image is not the same as the running container serving it — "restarted" has looked done before while prod kept serving the old code (see `friendica_larpnet_release_process` in the operator's own notes). `GET /build-version.txt` (plain text, served directly by nginx, no PHP involved — see the `location /` fallthrough in `larpnet-config`'s `nginx.conf.template`) answers "what's actually running right now" directly:
+
+```bash
+curl -s "https://larpnet.pl/build-version.txt?x=$RANDOM"
+curl -s "https://test.larpnet.pl/build-version.txt?x=$RANDOM"
+```
+
+Two lines, `git_sha=<short sha>` and `built_at=<UTC build timestamp>` — baked into the image at build time (`ARG GIT_SHA` in the `Dockerfile`, passed by both `.github/workflows/build.yml` and `build.sh`) and reinstalled fresh from the image on every container start by `larpnet-entrypoint.sh`, the same way every other larpnet-patched file is. Compare `git_sha` against `git rev-parse --short HEAD` on the branch you expect to be live, instead of inferring deploy state from an unrelated asset's `Last-Modified` header or just trusting that a restart command was run. Deliberately just a commit sha and a timestamp — nothing about environment, paths, or secrets — so this is safe to leave world-readable.
 
 ### Applying the database schema after deploy
 
