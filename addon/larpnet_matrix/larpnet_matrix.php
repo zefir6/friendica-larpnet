@@ -1693,6 +1693,18 @@ function larpnet_matrix_apns_send_badge(string $deviceToken, int $unread): bool
  * content modification and has no delivery-time guarantee, which is why
  * this isn't a silent/background push instead.
  *
+ * `content-available: 1` is additionally set alongside the alert (not
+ * instead of it, per the paragraph above): combined with `alert`, Apple
+ * still delivers the banner and invokes the NSE with the same guarantees
+ * as before, and *also* best-effort wakes the main app in the background
+ * (`application:didReceiveRemoteNotification:fetchCompletionHandler:`,
+ * gated on the app's `remote-notification` UIBackgroundMode) to run a
+ * Matrix catch-up sync so an already-open/recently-backgrounded chat
+ * screen doesn't sit on a stale timeline until its own long-poll resumes
+ * on its own schedule. Best-effort only -- iOS can throttle/coalesce this
+ * half under Low Power Mode or background-budget exhaustion -- but it is
+ * strictly additive: the alert+NSE delivery path is unaffected either way.
+ *
  * @return bool true if APNs reported $deviceToken itself as dead
  *   (BadDeviceToken/Unregistered/DeviceTokenNotForTopic). False covers
  *   both success and a transient failure (network error, ExpiredProviderToken,
@@ -1707,8 +1719,9 @@ function larpnet_matrix_apns_send(string $deviceToken, array $data): bool
 				'title' => 'Larpnet',
 				'body'  => DI::l10n()->t('New message'),
 			],
-			'mutable-content' => 1,
-			'sound'           => 'default',
+			'mutable-content'   => 1,
+			'content-available' => 1,
+			'sound'             => 'default',
 			// Synapse's count of rooms with unread notifications (muted rooms
 			// excluded), see larpnet_matrix_push_notify().
 			...(isset($data['unread']) ? ['badge' => (int) $data['unread']] : []),
