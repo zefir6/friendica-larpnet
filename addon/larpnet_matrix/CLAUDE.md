@@ -506,7 +506,11 @@ MatrixRustSDK's `NotificationClient`, same pattern Element X's iOS client
 uses for encrypted rooms. A pure `content-available`-only background push
 was deliberately not used instead: it doesn't invoke the NSE for content
 modification and has no delivery-time guarantee, whereas an alert push
-does both.
+does both. As of 2026-10, `content-available: 1` is also set *alongside*
+the alert (see `larpnet_matrix_apns_send()`'s own doc comment) so the main
+app additionally gets a best-effort background wake to run a Matrix
+catch-up sync -- additive only, the alert/NSE guarantees above are
+unchanged.
 
 **Config: env vars, same as this addon's other `LARPNET_MATRIX_*` settings**
 (deliberately not admin-config the way `larpnet_fcm`'s
