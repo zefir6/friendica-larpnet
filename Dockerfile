@@ -48,6 +48,15 @@ CMD ["php-fpm"]
 
 COPY --from=builder /usr/src/friendica /usr/src/friendica
 
+# Publicly-servable build identifier (see "Checking what's actually
+# deployed" in CLAUDE.md) -- just a short git commit sha and a UTC build
+# timestamp, nothing sensitive. GIT_SHA is passed by CI/build.sh; a local
+# `docker build` with no --build-arg falls back to "unknown" rather than
+# failing or guessing.
+ARG GIT_SHA=unknown
+RUN printf 'git_sha=%s\nbuilt_at=%s\n' "$GIT_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      > /usr/src/friendica/build-version.txt
+
 # Custom theme
 COPY view/theme/larpnet /usr/src/friendica/view/theme/larpnet
 
