@@ -21,7 +21,12 @@ use Friendica\DI;
  */
 class ApnsPush
 {
-	public static function execute(int $uid, string $title, string $body, string $click)
+	/**
+	 * $key identifies the notification ("social:<nid>", "mail:<id>") so a
+	 * repeat replaces it on the device -- optional because jobs queued
+	 * before it existed don't carry it.
+	 */
+	public static function execute(int $uid, string $title, string $body, string $click, string $key = '')
 	{
 		$tokens = DBA::selectToArray('apns-token', ['token'], ['uid' => $uid]);
 		if (empty($tokens)) {
@@ -35,7 +40,7 @@ class ApnsPush
 			return;
 		}
 
-		$dead = larpnet_apns_send_to_tokens($tokens, $title, $body, $click);
+		$dead = larpnet_apns_send_to_tokens($tokens, $title, $body, $click, $key);
 		if (!empty($dead)) {
 			DBA::delete('apns-token', ['token' => $dead]);
 			DI::logger()->info('ApnsPush: pruned dead tokens', ['count' => count($dead)]);
