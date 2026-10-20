@@ -1524,9 +1524,13 @@ function larpnet_matrix_push_notify(): void
 	// empty, just counts) whenever the user's read receipts change the
 	// unread count. Those must never show a notification. Before this
 	// check, iOS got a "New message" placeholder banner for every one.
-	$data = [
-		'event_id' => (string) ($notification['event_id'] ?? ''),
-		'room_id'  => (string) ($notification['room_id']  ?? ''),
+	// `type` (chat | chat_counts) is part of the push contract shared with
+	// both apps -- see NOTIFICATION_REDESIGN_PLAN.md ("Push payload contract").
+	$eventId = (string) ($notification['event_id'] ?? '');
+	$data    = [
+		'type'     => $eventId === '' ? 'chat_counts' : 'chat',
+		'event_id' => $eventId,
+		'room_id'  => (string) ($notification['room_id'] ?? ''),
 	];
 	$unread = $notification['counts']['unread'] ?? null;
 	if ($unread !== null) {
@@ -1588,10 +1592,6 @@ function larpnet_matrix_push_deliver(string $appId, string $pushkey, array $data
 	$badgeOnly = $data['event_id'] === '';
 
 	if ($appId === LARPNET_MATRIX_APP_ID_ANDROID) {
-		// Android has no app-icon badge to update; skip the FCM round trip.
-		if ($badgeOnly) {
-			return false;
-		}
 		// Reaches into the larpnet_fcm addon the same way
 		// src/Worker/FcmPush.php and src/Model/Profile.php already reach
 		// into larpnet_matrix/larpnet_fcm -- an established cross-addon
@@ -1602,7 +1602,11 @@ function larpnet_matrix_push_deliver(string $appId, string $pushkey, array $data
 			return false;
 		}
 		require_once $fcmFile;
-		return larpnet_fcm_send_data_message($pushkey, $data);
+		// A badge-only push is the only signal that a chat was read on
+		// another device: the app wakes, catches up and removes the
+		// notifications of rooms that are now read ('chat_counts'). App
+		// builds from before it ignore a push with no event_id.
+		return larpnet_fcm_send_data_message($pushkey, $data, $badgeOnly ? 'normal' : 'high');
 	}
 
 	if ($appId === LARPNET_MATRIX_APP_ID_IOS) {
@@ -1676,7 +1680,16 @@ const LARPNET_MATRIX_NTFY_CHAT_TAG = 'larpnet-chat';
  */
 function larpnet_matrix_apns_send_badge(string $deviceToken, int $unread): bool
 {
-	return larpnet_matrix_apns_deliver($deviceToken, ['aps' => ['badge' => $unread]], '5');
+	return larpnet_matrix_apns_deliver($deviceToken, [
+		'aps'    => [
+			'badge' => $unread,
+			// Best-effort background wake, so the app catches up and removes
+			// the notifications of chats read on another device.
+			'content-available' => 1,
+		],
+		'type'   => 'chat_counts',
+		'unread' => (string) $unread,
+	], '5');
 }
 
 /**
@@ -1727,7 +1740,7 @@ function larpnet_matrix_apns_send(string $deviceToken, array $data): bool
 			...(isset($data['unread']) ? ['badge' => (int) $data['unread']] : []),
 		],
 		...$data,
-	]);
+	], '10', $data['event_id'] ?? null);
 }
 
 /**
@@ -1752,7 +1765,7 @@ function larpnet_matrix_apns_send(string $deviceToken, array $data): bool
  *   both success and a transient failure -- see `larpnet_matrix_apns_send()`'s
  *   own doc comment for why that distinction matters to callers.
  */
-function larpnet_matrix_apns_deliver(string $deviceToken, array $payload, string $priority = '10'): bool
+function larpnet_matrix_apns_deliver(string $deviceToken, array $payload, string $priority = '10', ?string $collapseId = null): bool
 {
 	$keyId     = getenv('LARPNET_MATRIX_APNS_KEY_ID');
 	$teamId    = getenv('LARPNET_MATRIX_APNS_TEAM_ID');
@@ -1791,6 +1804,11 @@ function larpnet_matrix_apns_deliver(string $deviceToken, array $payload, string
 			'apns-push-type' => 'alert',
 			'apns-priority'  => $priority,
 			'content-type'   => 'application/json',
+			// Same id = the device replaces the notification instead of
+			// showing it again -- a Synapse retry of the same event, or the
+			// same classic notification sent twice. APNs caps it at 64 bytes.
+			...($collapseId !== null && $collapseId !== '' && strlen($collapseId) <= 64
+				? ['apns-collapse-id' => $collapseId] : []),
 		],
 		// APNs' HTTP/2 provider API requires an actual HTTP/2 connection --
 		// it does not speak HTTP/1.1 on this endpoint. Guzzle/curl only

@@ -577,13 +577,24 @@ completely fine in code review.
   preview locally.
 - **Badge-only pushes.** Synapse calls the gateway with an empty
   `event_id` (counts only) whenever read receipts change the count. These
-  never alert:
-  - iOS gets an `aps.badge`-only push.
-  - Android is skipped.
+  never alert, and are the only "read on another device" signal:
+  - iOS gets an `aps.badge` + `content-available` push (`type:
+    chat_counts`, `unread`), which wakes the app to catch up and remove
+    notifications of chats that are now read.
+  - Android gets a normal-priority FCM data message `type: chat_counts`
+    (empty `event_id`, `unread`) for the same purpose. App builds before
+    0.29 ignore it (no `event_id`).
   - Web stores the count in pconfig `unread_rooms` for
     `GET /larpnet_matrix/unread`, which feeds the corner bubble's badge.
   - Normal pushes carry `unread` as well: FCM data `unread`, APNs
-    `aps.badge`.
+    `aps.badge`, plus `type: chat`. APNs chat pushes set
+    `apns-collapse-id` = event id, so a Synapse retry replaces rather than
+    repeats; classic `larpnet_apns` pushes use `social:<nid>` /
+    `mail:<id>` and `thread-id: social`.
+- **FCM access token is cached** (55 min, `DI::cache()`). Minting one per
+  send made the gateway answer Synapse slowly, which caused retries and
+  duplicate notifications. Delivery stays synchronous (Synapse needs the
+  `rejected` list, and the test stack has no worker daemon).
 - **Badge semantics.** The count is the number of rooms with unread
   notifications (Synapse's default `group_unread_count_by_room`). Muted
   rooms never count.
