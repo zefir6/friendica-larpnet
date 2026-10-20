@@ -1595,8 +1595,8 @@ function larpnet_matrix_push_notify_authorized(): bool
  * its own. nginx denies *.log, so it is never served. Rotated to
  * `.log.1` at 5 MB. Never carries message content or full push tokens.
  *
- * Off unless LARPNET_MATRIX_PUSH_LOG is true (set in larpnet-config's
- * .env.matrix). Off, failures still reach friendica.log as warnings; only
+ * Off unless LARPNET_MATRIX_PUSH_LOG is true (larpnet-config's
+ * env.example). Off, failures still reach friendica.log as warnings; only
  * the per-delivery lines are dropped.
  */
 function larpnet_matrix_push_log(string $event, array $context = []): void
