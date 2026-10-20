@@ -1594,9 +1594,20 @@ function larpnet_matrix_push_notify_authorized(): bool
  * host), kept apart from friendica.log so push delivery can be read on
  * its own. nginx denies *.log, so it is never served. Rotated to
  * `.log.1` at 5 MB. Never carries message content or full push tokens.
+ *
+ * Off unless LARPNET_MATRIX_PUSH_LOG is true (larpnet-config's
+ * env.example). Off, failures still reach friendica.log as warnings; only
+ * the per-delivery lines are dropped.
  */
 function larpnet_matrix_push_log(string $event, array $context = []): void
 {
+	if (!filter_var(getenv('LARPNET_MATRIX_PUSH_LOG') ?: '', FILTER_VALIDATE_BOOLEAN)) {
+		if ($event !== 'delivery') {
+			DI::logger()->warning('larpnet_matrix: push ' . $event, $context);
+		}
+		return;
+	}
+
 	$file = DI::basePath() . '/larpnet-push.log';
 	if (@filesize($file) > 5 * 1024 * 1024) {
 		@rename($file, $file . '.1');
