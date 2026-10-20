@@ -292,7 +292,7 @@ function larpnet_fcm_send_to_tokens(array $tokens, string $title, string $body, 
  * accepts string values, unlike the 'notification' block.
  *
  * @return bool true if FCM reported the token itself as dead
- *   (NOT_FOUND/UNREGISTERED/INVALID_ARGUMENT) -- the caller reports these
+ *   (NOT_FOUND/UNREGISTERED) -- the caller reports these
  *   back to Synapse as "rejected" so it prunes the pusher. False covers
  *   both success and a transient failure -- a transient failure must NOT
  *   be reported as rejected, Synapse retries those on its own.
@@ -301,11 +301,13 @@ function larpnet_fcm_send_data_message(string $token, array $data, string $prior
 {
 	$account = larpnet_fcm_get_service_account();
 	if (empty($account['project_id'])) {
+		DI::logger()->warning('larpnet_fcm: no fcm_service_account_json configured, data message dropped');
 		return false;
 	}
 
 	$accessToken = larpnet_fcm_get_access_token($account);
 	if (empty($accessToken)) {
+		DI::logger()->warning('larpnet_fcm: no access token, data message dropped');
 		return false;
 	}
 
@@ -338,12 +340,16 @@ function larpnet_fcm_send_data_message(string $token, array $data, string $prior
 	$result = json_decode($response->getBodyString(), true);
 	$status = $result['error']['status'] ?? '';
 
-	DI::logger()->info('larpnet_fcm: data message send failed', [
-		'code'   => $response->getReturnCode(),
-		'status' => $status,
+	DI::logger()->warning('larpnet_fcm: data message send failed', [
+		'code'    => $response->getReturnCode(),
+		'status'  => $status,
+		'message' => $result['error']['message'] ?? '',
 	]);
 
-	return in_array($status, ['NOT_FOUND', 'UNREGISTERED', 'INVALID_ARGUMENT'], true);
+	// Not INVALID_ARGUMENT: FCM also returns that for a payload it doesn't
+	// accept, and treating it as a dead token made Synapse delete a working
+	// pusher. UNREGISTERED/NOT_FOUND are the token-is-gone answers.
+	return in_array($status, ['NOT_FOUND', 'UNREGISTERED'], true);
 }
 
 function larpnet_fcm_get_service_account(): ?array
