@@ -10,6 +10,7 @@
  * Author: larpnet admin
  */
 
+use Friendica\Core\Cache\Enum\Duration;
 use Friendica\Core\Hook;
 use Friendica\Core\Worker;
 use Friendica\Content\Text\BBCode;
@@ -251,6 +252,7 @@ function larpnet_fcm_send_to_tokens(array $tokens, string $title, string $body, 
 					'body'  => $body,
 				],
 				'data' => array_filter([
+					'type'  => 'social',
 					'click' => $click,
 					'icon'  => $icon,
 				]),
@@ -295,7 +297,7 @@ function larpnet_fcm_send_to_tokens(array $tokens, string $title, string $body, 
  *   both success and a transient failure -- a transient failure must NOT
  *   be reported as rejected, Synapse retries those on its own.
  */
-function larpnet_fcm_send_data_message(string $token, array $data): bool
+function larpnet_fcm_send_data_message(string $token, array $data, string $priority = 'high'): bool
 {
 	$account = larpnet_fcm_get_service_account();
 	if (empty($account['project_id'])) {
@@ -317,10 +319,13 @@ function larpnet_fcm_send_data_message(string $token, array $data): bool
 		'message' => [
 			'token'   => $token,
 			'data'    => array_map('strval', $data),
-			// High priority so FCM/the device doesn't defer delivery -- a
-			// data-only message defaults to normal priority otherwise,
-			// which can sit for minutes on a dozed device.
-			'android' => ['priority' => 'high'],
+			// High priority (the default) so FCM/the device doesn't defer a
+			// chat message -- a data-only message defaults to normal
+			// priority otherwise, which can sit for minutes on a dozed
+			// device. Count updates ('chat_counts') pass 'normal': not
+			// urgent, and Android limits how many high-priority messages
+			// an app may receive that don't show a notification.
+			'android' => ['priority' => $priority],
 		],
 	];
 
@@ -359,6 +364,18 @@ function larpnet_fcm_get_service_account(): ?array
 
 function larpnet_fcm_get_access_token(array $account): ?string
 {
+	// Cached: minting one costs a signed JWT plus a round trip to Google, and
+	// used to happen on every single send. The Matrix push gateway answers
+	// Synapse only after FCM does, so that slowed every chat push and made
+	// Synapse retry (duplicate notifications). Google's tokens last an hour;
+	// keep them 55 minutes. Keyed by client_email so a rotated service
+	// account never reuses the old account's token.
+	$cacheKey = 'larpnet_fcm:access_token:' . $account['client_email'];
+	$cached   = DI::cache()->get($cacheKey);
+	if (is_string($cached) && $cached !== '') {
+		return $cached;
+	}
+
 	$now    = time();
 	$header = ['alg' => 'RS256', 'typ' => 'JWT'];
 	$claims = [
@@ -389,8 +406,12 @@ function larpnet_fcm_get_access_token(array $account): ?string
 		return null;
 	}
 
-	$data = json_decode($response->getBodyString(), true);
-	return $data['access_token'] ?? null;
+	$data  = json_decode($response->getBodyString(), true);
+	$token = $data['access_token'] ?? null;
+	if (is_string($token) && $token !== '') {
+		DI::cache()->set($cacheKey, $token, Duration::HOUR - 5 * Duration::MINUTE);
+	}
+	return $token;
 }
 
 function larpnet_fcm_base64url(string $data): string

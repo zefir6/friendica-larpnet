@@ -122,7 +122,8 @@ function larpnet_apns_push_notification(array &$data)
 		$uid,
 		$title ?: DI::l10n()->t('Notification'),
 		$body ?: $title,
-		(string) DI::baseUrl() . '/notification'
+		(string) DI::baseUrl() . '/notification',
+		'social:' . $nid
 	);
 }
 
@@ -156,7 +157,8 @@ function larpnet_apns_push_notification_mail(array &$data)
 		$uid,
 		DI::l10n()->t('New message from %s', $mail['from-name']),
 		$body,
-		(string) DI::baseUrl() . '/message/' . $mailId
+		(string) DI::baseUrl() . '/message/' . $mailId,
+		'mail:' . $mailId
 	);
 }
 
@@ -239,9 +241,12 @@ function larpnet_apns_post()
  * session's current parity with Android (PushNotifications.kt also just
  * opens the app generically on tap, no per-type routing yet either).
  *
+ * $key ("social:<nid>", "mail:<id>") becomes the apns-collapse-id, so the
+ * same notification sent twice replaces itself instead of stacking.
+ *
  * @return string[] tokens APNs reported as dead -- caller should delete these rows
  */
-function larpnet_apns_send_to_tokens(array $tokens, string $title, string $body, string $click): array
+function larpnet_apns_send_to_tokens(array $tokens, string $title, string $body, string $click, string $key = ''): array
 {
 	require_once __DIR__ . '/../larpnet_matrix/larpnet_matrix.php';
 	if (!function_exists('larpnet_matrix_apns_deliver')) {
@@ -258,9 +263,12 @@ function larpnet_apns_send_to_tokens(array $tokens, string $title, string $body,
 					'body'  => $body,
 				],
 				'sound' => 'default',
+				// Stacked apart from chat, whose notifications use the room id.
+				'thread-id' => 'social',
 			],
+			'type'  => 'social',
 			'click' => $click,
-		]);
+		], '10', $key);
 		if ($isDead) {
 			$dead[] = $token;
 		}
