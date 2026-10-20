@@ -1548,18 +1548,18 @@ function larpnet_matrix_push_notify(): void
 			larpnet_matrix_push_deliver_web((string) $pushkey, $notification);
 			// Logged too: a web line with no native one next to it means
 			// the phone's pusher isn't registered with Synapse at all.
-			DI::logger()->notice('larpnet_matrix: push gateway delivery', ['type' => $data['type'], 'app_id' => $appId]);
+			larpnet_matrix_push_log('delivery', ['type' => $data['type'], 'app_id' => $appId]);
 			continue;
 		}
 		$dead = larpnet_matrix_push_deliver((string) $appId, (string) $pushkey, $data);
 		if ($dead) {
 			$rejected[] = $pushkey;
 		}
-		// Notice, not info: prod logs at 'notice', and without one line per
-		// native delivery a phone that silently stopped getting chat pushes
-		// can't be told apart from one whose pusher Synapse never calls.
-		// Only a prefix of the pushkey -- enough to tell devices apart.
-		DI::logger()->notice('larpnet_matrix: push gateway delivery', [
+		// One line per native delivery, or a phone that silently stopped
+		// getting chat pushes can't be told apart from one whose pusher
+		// Synapse never calls. Only a prefix of the pushkey -- enough to
+		// tell devices apart.
+		larpnet_matrix_push_log('delivery', [
 			'type'     => $data['type'],
 			'app_id'   => $appId,
 			'pushkey'  => substr((string) $pushkey, 0, 8),
@@ -1586,6 +1586,25 @@ function larpnet_matrix_push_notify_authorized(): bool
 {
 	$secret = getenv('LARPNET_MATRIX_PUSH_SECRET');
 	return $secret && hash_equals($secret, (string) ($_GET['key'] ?? ''));
+}
+
+/**
+ * Appends one line to the push log, `larpnet-push.log` in Friendica's base
+ * directory (/var/www/html in the image, i.e. html_data/ on the docker
+ * host), kept apart from friendica.log so push delivery can be read on
+ * its own. nginx denies *.log, so it is never served. Rotated to
+ * `.log.1` at 5 MB. Never carries message content or full push tokens.
+ */
+function larpnet_matrix_push_log(string $event, array $context = []): void
+{
+	$file = DI::basePath() . '/larpnet-push.log';
+	if (@filesize($file) > 5 * 1024 * 1024) {
+		@rename($file, $file . '.1');
+	}
+	$line = date('c') . ' ' . $event . ' ' . json_encode($context, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
+	if (@file_put_contents($file, $line, FILE_APPEND | LOCK_EX) === false) {
+		DI::logger()->warning('larpnet_matrix: cannot write push log', ['file' => $file, 'event' => $event] + $context);
+	}
 }
 
 /**
@@ -1791,7 +1810,7 @@ function larpnet_matrix_apns_deliver(string $deviceToken, array $payload, string
 	$topic     = getenv('LARPNET_MATRIX_APNS_TOPIC') ?: 'pl.larpnet.ios';
 	$sandbox   = filter_var(getenv('LARPNET_MATRIX_APNS_USE_SANDBOX') ?: '', FILTER_VALIDATE_BOOLEAN);
 	if (!$keyId || !$teamId || !$keyPemB64) {
-		DI::logger()->warning('larpnet_matrix: APNs not configured (LARPNET_MATRIX_APNS_KEY_ID/TEAM_ID/KEY_PEM_B64), push dropped');
+		larpnet_matrix_push_log('apns_not_configured', ['missing' => 'LARPNET_MATRIX_APNS_KEY_ID/TEAM_ID/KEY_PEM_B64']);
 		return false;
 	}
 
@@ -1843,7 +1862,7 @@ function larpnet_matrix_apns_deliver(string $deviceToken, array $payload, string
 	$result = json_decode($response->getBodyString(), true);
 	$reason = $result['reason'] ?? '';
 
-	DI::logger()->warning('larpnet_matrix: apns send failed', [
+	larpnet_matrix_push_log('apns_failed', [
 		'code'   => $response->getReturnCode(),
 		'reason' => $reason,
 		'host'   => $host,
