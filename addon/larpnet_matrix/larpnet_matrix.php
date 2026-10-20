@@ -1546,11 +1546,25 @@ function larpnet_matrix_push_notify(): void
 		}
 		if ($appId === LARPNET_MATRIX_APP_ID_WEB) {
 			larpnet_matrix_push_deliver_web((string) $pushkey, $notification);
+			// Logged too: a web line with no native one next to it means
+			// the phone's pusher isn't registered with Synapse at all.
+			larpnet_matrix_push_log('delivery', ['type' => $data['type'], 'app_id' => $appId]);
 			continue;
 		}
-		if (larpnet_matrix_push_deliver((string) $appId, (string) $pushkey, $data)) {
+		$dead = larpnet_matrix_push_deliver((string) $appId, (string) $pushkey, $data);
+		if ($dead) {
 			$rejected[] = $pushkey;
 		}
+		// One line per native delivery, or a phone that silently stopped
+		// getting chat pushes can't be told apart from one whose pusher
+		// Synapse never calls. Only a prefix of the pushkey -- enough to
+		// tell devices apart.
+		larpnet_matrix_push_log('delivery', [
+			'type'     => $data['type'],
+			'app_id'   => $appId,
+			'pushkey'  => substr((string) $pushkey, 0, 8),
+			'rejected' => $dead,
+		]);
 	}
 
 	echo json_encode(['rejected' => $rejected]);
@@ -1572,6 +1586,36 @@ function larpnet_matrix_push_notify_authorized(): bool
 {
 	$secret = getenv('LARPNET_MATRIX_PUSH_SECRET');
 	return $secret && hash_equals($secret, (string) ($_GET['key'] ?? ''));
+}
+
+/**
+ * Appends one line to the push log, `larpnet-push.log` in Friendica's base
+ * directory (/var/www/html in the image, i.e. html_data/ on the docker
+ * host), kept apart from friendica.log so push delivery can be read on
+ * its own. nginx denies *.log, so it is never served. Rotated to
+ * `.log.1` at 5 MB. Never carries message content or full push tokens.
+ *
+ * Off unless LARPNET_MATRIX_PUSH_LOG is true (larpnet-config's
+ * env.example). Off, failures still reach friendica.log as warnings; only
+ * the per-delivery lines are dropped.
+ */
+function larpnet_matrix_push_log(string $event, array $context = []): void
+{
+	if (!filter_var(getenv('LARPNET_MATRIX_PUSH_LOG') ?: '', FILTER_VALIDATE_BOOLEAN)) {
+		if ($event !== 'delivery') {
+			DI::logger()->warning('larpnet_matrix: push ' . $event, $context);
+		}
+		return;
+	}
+
+	$file = DI::basePath() . '/larpnet-push.log';
+	if (@filesize($file) > 5 * 1024 * 1024) {
+		@rename($file, $file . '.1');
+	}
+	$line = date('c') . ' ' . $event . ' ' . json_encode($context, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
+	if (@file_put_contents($file, $line, FILE_APPEND | LOCK_EX) === false) {
+		DI::logger()->warning('larpnet_matrix: cannot write push log', ['file' => $file, 'event' => $event] + $context);
+	}
 }
 
 /**
@@ -1606,17 +1650,21 @@ function larpnet_matrix_push_deliver(string $appId, string $pushkey, array $data
 		// another device: the app wakes, catches up and removes the
 		// notifications of rooms that are now read ('chat_counts'). App
 		// builds from before it ignore a push with no event_id.
-		return larpnet_fcm_send_data_message($pushkey, $data, $badgeOnly ? 'normal' : 'high');
-	}
-
-	if ($appId === LARPNET_MATRIX_APP_ID_IOS) {
-		return $badgeOnly
+		$dead = larpnet_fcm_send_data_message($pushkey, $data, $badgeOnly ? 'normal' : 'high');
+	} elseif ($appId === LARPNET_MATRIX_APP_ID_IOS) {
+		$dead = $badgeOnly
 			? larpnet_matrix_apns_send_badge($pushkey, (int) ($data['unread'] ?? 0))
 			: larpnet_matrix_apns_send($pushkey, $data);
+	} else {
+		DI::logger()->warning('larpnet_matrix: push notify for unrecognised app_id', ['app_id' => $appId]);
+		return false;
 	}
 
-	DI::logger()->warning('larpnet_matrix: push notify for unrecognised app_id', ['app_id' => $appId]);
-	return false;
+	// Only a real message push may prune a pusher. A badge-only push is
+	// best-effort, and if Google/Apple refuse its payload (rather than the
+	// token) the pusher would be deleted and every later chat push lost --
+	// a token that really is dead gets pruned by the next message push.
+	return $dead && !$badgeOnly;
 }
 
 /**
@@ -1773,6 +1821,7 @@ function larpnet_matrix_apns_deliver(string $deviceToken, array $payload, string
 	$topic     = getenv('LARPNET_MATRIX_APNS_TOPIC') ?: 'pl.larpnet.ios';
 	$sandbox   = filter_var(getenv('LARPNET_MATRIX_APNS_USE_SANDBOX') ?: '', FILTER_VALIDATE_BOOLEAN);
 	if (!$keyId || !$teamId || !$keyPemB64) {
+		larpnet_matrix_push_log('apns_not_configured', ['missing' => 'LARPNET_MATRIX_APNS_KEY_ID/TEAM_ID/KEY_PEM_B64']);
 		return false;
 	}
 
@@ -1824,9 +1873,11 @@ function larpnet_matrix_apns_deliver(string $deviceToken, array $payload, string
 	$result = json_decode($response->getBodyString(), true);
 	$reason = $result['reason'] ?? '';
 
-	DI::logger()->info('larpnet_matrix: apns send failed', [
+	larpnet_matrix_push_log('apns_failed', [
 		'code'   => $response->getReturnCode(),
 		'reason' => $reason,
+		'host'   => $host,
+		'topic'  => $topic,
 	]);
 
 	return in_array($reason, ['BadDeviceToken', 'Unregistered', 'DeviceTokenNotForTopic'], true);
