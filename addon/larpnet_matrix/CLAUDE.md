@@ -533,6 +533,12 @@ rather than introducing a second pattern):
   from Xcode onto a device with a development provisioning profile --
   TestFlight and App Store builds both use the production APNs
   environment regardless of which internal/external track they're on.
+- `LARPNET_MATRIX_PUSH_LOG` -- optional bool, default off. On, every
+  push gateway delivery and every FCM/APNs failure (missing config
+  included) is appended to `larpnet-push.log` in Friendica's base dir
+  (`/var/www/html`, i.e. `html_data/` on the docker host; nginx denies
+  `*.log`). Off, failures still go to `friendica.log` as warnings. See
+  `larpnet_matrix_push_log()`.
 
 Same Apple Developer account/app either way, so (unlike
 `LARPNET_MATRIX_JWT_SECRET`, deliberately per-deployment since test and
