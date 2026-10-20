@@ -1546,11 +1546,25 @@ function larpnet_matrix_push_notify(): void
 		}
 		if ($appId === LARPNET_MATRIX_APP_ID_WEB) {
 			larpnet_matrix_push_deliver_web((string) $pushkey, $notification);
+			// Logged too: a web line with no native one next to it means
+			// the phone's pusher isn't registered with Synapse at all.
+			DI::logger()->notice('larpnet_matrix: push gateway delivery', ['type' => $data['type'], 'app_id' => $appId]);
 			continue;
 		}
-		if (larpnet_matrix_push_deliver((string) $appId, (string) $pushkey, $data)) {
+		$dead = larpnet_matrix_push_deliver((string) $appId, (string) $pushkey, $data);
+		if ($dead) {
 			$rejected[] = $pushkey;
 		}
+		// Notice, not info: prod logs at 'notice', and without one line per
+		// native delivery a phone that silently stopped getting chat pushes
+		// can't be told apart from one whose pusher Synapse never calls.
+		// Only a prefix of the pushkey -- enough to tell devices apart.
+		DI::logger()->notice('larpnet_matrix: push gateway delivery', [
+			'type'     => $data['type'],
+			'app_id'   => $appId,
+			'pushkey'  => substr((string) $pushkey, 0, 8),
+			'rejected' => $dead,
+		]);
 	}
 
 	echo json_encode(['rejected' => $rejected]);
@@ -1606,17 +1620,21 @@ function larpnet_matrix_push_deliver(string $appId, string $pushkey, array $data
 		// another device: the app wakes, catches up and removes the
 		// notifications of rooms that are now read ('chat_counts'). App
 		// builds from before it ignore a push with no event_id.
-		return larpnet_fcm_send_data_message($pushkey, $data, $badgeOnly ? 'normal' : 'high');
-	}
-
-	if ($appId === LARPNET_MATRIX_APP_ID_IOS) {
-		return $badgeOnly
+		$dead = larpnet_fcm_send_data_message($pushkey, $data, $badgeOnly ? 'normal' : 'high');
+	} elseif ($appId === LARPNET_MATRIX_APP_ID_IOS) {
+		$dead = $badgeOnly
 			? larpnet_matrix_apns_send_badge($pushkey, (int) ($data['unread'] ?? 0))
 			: larpnet_matrix_apns_send($pushkey, $data);
+	} else {
+		DI::logger()->warning('larpnet_matrix: push notify for unrecognised app_id', ['app_id' => $appId]);
+		return false;
 	}
 
-	DI::logger()->warning('larpnet_matrix: push notify for unrecognised app_id', ['app_id' => $appId]);
-	return false;
+	// Only a real message push may prune a pusher. A badge-only push is
+	// best-effort, and if Google/Apple refuse its payload (rather than the
+	// token) the pusher would be deleted and every later chat push lost --
+	// a token that really is dead gets pruned by the next message push.
+	return $dead && !$badgeOnly;
 }
 
 /**
@@ -1773,6 +1791,7 @@ function larpnet_matrix_apns_deliver(string $deviceToken, array $payload, string
 	$topic     = getenv('LARPNET_MATRIX_APNS_TOPIC') ?: 'pl.larpnet.ios';
 	$sandbox   = filter_var(getenv('LARPNET_MATRIX_APNS_USE_SANDBOX') ?: '', FILTER_VALIDATE_BOOLEAN);
 	if (!$keyId || !$teamId || !$keyPemB64) {
+		DI::logger()->warning('larpnet_matrix: APNs not configured (LARPNET_MATRIX_APNS_KEY_ID/TEAM_ID/KEY_PEM_B64), push dropped');
 		return false;
 	}
 
@@ -1824,9 +1843,11 @@ function larpnet_matrix_apns_deliver(string $deviceToken, array $payload, string
 	$result = json_decode($response->getBodyString(), true);
 	$reason = $result['reason'] ?? '';
 
-	DI::logger()->info('larpnet_matrix: apns send failed', [
+	DI::logger()->warning('larpnet_matrix: apns send failed', [
 		'code'   => $response->getReturnCode(),
 		'reason' => $reason,
+		'host'   => $host,
+		'topic'  => $topic,
 	]);
 
 	return in_array($reason, ['BadDeviceToken', 'Unregistered', 'DeviceTokenNotForTopic'], true);
