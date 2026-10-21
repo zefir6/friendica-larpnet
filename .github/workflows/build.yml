@@ -26,7 +26,7 @@ jobs:
       - name: Extract versions
         id: version
         run: |
-          FRIENDICA=$(grep '^FROM friendica:' Dockerfile | sed 's/FROM friendica:\(.*\)-fpm/\1/')
+          FRIENDICA=$(grep '^ARG FRIENDICA_VERSION=' Dockerfile | cut -d= -f2)
           SHA=$(git rev-parse --short HEAD)
           echo "friendica=${FRIENDICA}" >> "$GITHUB_OUTPUT"
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
@@ -89,6 +89,9 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          # Always re-resolve php:<tag> so a PHP security release lands on
+          # the next build instead of a cached older base.
+          pull: true
           push: true
           tags: ${{ steps.tags.outputs.tags }}
           build-args: |

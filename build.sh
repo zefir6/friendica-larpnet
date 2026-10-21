@@ -40,7 +40,7 @@ fi
 PUSH_URL="${REGISTRY_PUSH_URL:-$REGISTRY_URL}"
 
 # Derive image tags
-FRIENDICA_VERSION=$(grep '^FROM friendica:' Dockerfile | sed 's/FROM friendica:\(.*\)-fpm/\1/')
+FRIENDICA_VERSION=$(grep '^ARG FRIENDICA_VERSION=' Dockerfile | cut -d= -f2)
 LARPNET_VERSION=$(git rev-parse --short HEAD)
 TAG="${FRIENDICA_VERSION}-${LARPNET_VERSION}"
 IMAGE="${REGISTRY_URL}/friendica-larpnet"
