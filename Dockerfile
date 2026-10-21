@@ -1,3 +1,6 @@
+ARG PHP_IMAGE=php:8.4-fpm-trixie
+ARG FRIENDICA_VERSION=2026.08-rc
+
 # Builds the larpnet_matrix addon's own chat client (Preact + matrix-js-sdk,
 # served same-origin by the addon itself -- see addon/larpnet_matrix/CLAUDE.md).
 # Separate, self-contained stage: only this addon's client/ directory is
@@ -10,29 +13,233 @@ RUN npm ci
 COPY addon/larpnet_matrix/client/ ./
 RUN npm run build
 
-FROM friendica:2026.08-rc-fpm AS base
-
-# friendica:2026.08-rc-fpm ships from Docker Hub without any Friendica
-# sources under /usr/src/friendica (only /usr/src/friendica/config/ exists -
-# an upstream publishing bug affecting the whole 2026.08 pre-release wave,
-# both -rc and -dev tags, both architectures; the PHP runtime/extensions in
-# the image itself are fine). We build /usr/src/friendica ourselves from
-# this repo instead of depending on upstream's image contents.
+# The friendica base layer (PHP runtime + extensions + upstream entrypoint)
+# is built here from friendica/docker's 2026.08-rc/fpm Dockerfile (vendored
+# at commit eb90b55, support files in docker/friendica-base/) instead of
+# FROM friendica:<tag>-fpm, so a PHP security release only has to wait for
+# docker-library's php image, not for Friendica's own image to be rebuilt
+# on top of it. Pin PHP_IMAGE to an exact patch (e.g. php:8.4.27-fpm-trixie)
+# to force a specific release.
 #
-# NOTE: the friendica-addons branch below must be bumped in lockstep with
-# the FROM tag's version above - it isn't derived automatically because
-# build.sh/.github/workflows/build.yml parse the literal "FROM friendica:"
-# line to derive the release tag.
+# Upstream's friendica:2026.08-rc-fpm also shipped without any Friendica
+# sources under /usr/src/friendica (a publishing bug in the 2026.08
+# pre-release wave), so /usr/src/friendica is built from this repo below
+# either way.
+#
+# build.sh/.github/workflows/build.yml parse the literal
+# "ARG FRIENDICA_VERSION=" line to derive the release tag.
+FROM ${PHP_IMAGE} AS base
+ARG FRIENDICA_VERSION
+
+# entrypoint.sh and cron.sh dependencies
+RUN set -ex; \
+    \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        rsync \
+        bzip2 \
+# For mail() support
+        msmtp \
+        tini \
+    ;
+
+ENV GOSU_VERSION=1.19
+RUN set -eux; \
+# save list of currently installed packages for later so we can clean up
+	savedAptMark="$(apt-mark showmanual)"; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends ca-certificates wget; \
+	if ! command -v gpg; then \
+		apt-get install -y --no-install-recommends gnupg2 dirmngr; \
+	elif gpg --version | grep -q '^gpg (GnuPG) 1\.'; then \
+# "This package provides support for HKPS keyservers." (GnuPG 1.x only)
+		apt-get install -y --no-install-recommends gnupg-curl; \
+	fi; \
+	rm -rf /var/lib/apt/lists/*; \
+	\
+	dpkgArch="$(dpkg --print-architecture | awk -F- '{ print $NF }')"; \
+	wget -O /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$dpkgArch"; \
+	wget -O /usr/local/bin/gosu.asc "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$dpkgArch.asc"; \
+	\
+# verify the signature
+	export GNUPGHOME="$(mktemp -d)"; \
+	gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4; \
+	gpg --batch --verify /usr/local/bin/gosu.asc /usr/local/bin/gosu; \
+	command -v gpgconf && gpgconf --kill all || :; \
+	rm -rf "$GNUPGHOME" /usr/local/bin/gosu.asc; \
+	\
+# clean up fetch dependencies
+	apt-mark auto '.*' > /dev/null; \
+	[ -z "$savedAptMark" ] || apt-mark manual $savedAptMark; \
+	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+	\
+	chmod +x /usr/local/bin/gosu; \
+# verify that the binary works
+	gosu --version; \
+	gosu nobody true
+
+# install the PHP extensions we need
+# see https://friendi.ca/resources/requirements/
+RUN set -ex; \
+    \
+    savedAptMark="$(apt-mark showmanual)"; \
+    \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        mariadb-client \
+        bash \
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libtool \
+        libmagick++-dev \
+        libmemcached-dev \
+        zlib1g-dev \
+        libssl-dev \
+        libgraphicsmagick1-dev \
+        libfreetype6-dev \
+        libwebp-dev \
+        librsvg2-2 \
+        libzip-dev \
+        libldap2-dev \
+        libgmp-dev \
+        libmagickcore-7.q16-10-extra \
+        gettext \
+    ; \
+    \
+    debMultiarch="$(dpkg-architecture --query DEB_BUILD_MULTIARCH)"; \
+    \
+    docker-php-ext-configure gd \
+        --with-freetype \
+        --with-jpeg \
+        --with-webp \
+    ; \
+    docker-php-ext-configure ldap \
+        --with-libdir=lib/$debMultiarch/ \
+    ;\
+    docker-php-ext-install -j "$(nproc)" \
+        pdo_mysql \
+        gd \
+        exif \
+        zip \
+        opcache \
+        ctype \
+        pcntl \
+        ldap \
+        gmp \
+        intl \
+    ; \
+    \
+# larpnet: upstream pecl-installs these, but pecl.php.net was down (HTTP 500)
+# during the PHP2Shell release, so build the same versions from their
+# GitHub release tags instead, pinned by sha256. Upstream's redis zstd/lz4
+# configureoptions never took effect (no compression in the old image), so
+# they're dropped.
+    docker-php-source extract; \
+    for ext in \
+        "apcu 0e60ba9d0fa4021c57a70c071f3d8f71de236275d084e560d5959fec4edd8c32 https://github.com/krakjoe/apcu/archive/refs/tags/v5.1.28.tar.gz" \
+        "memcached 10b98a0fdc3ce9ab823db59e8935f068de87e374728871a1efacdadd8c7807d1 https://github.com/php-memcached-dev/php-memcached/archive/refs/tags/v3.4.0.tar.gz" \
+        "redis cb8f81df1a275599e4f8ddcfec7e1f65ed1953e6f5673649149fd680ebff4cad https://github.com/phpredis/phpredis/archive/refs/tags/6.3.0.tar.gz" \
+        "imagick b0e9279ddf6e75a8c6b4068e16daec0475427dbca7ce2e144e30a51a88aa5ddc https://github.com/Imagick/imagick/archive/refs/tags/3.8.1.tar.gz" \
+    ; do \
+        set -- $ext; \
+        curl -fsSL "$3" -o "/tmp/$1.tar.gz"; \
+        echo "$2  /tmp/$1.tar.gz" | sha256sum -c -; \
+        mkdir -p "/usr/src/php/ext/$1"; \
+        tar -xzf "/tmp/$1.tar.gz" -C "/usr/src/php/ext/$1" --strip-components=1; \
+        rm "/tmp/$1.tar.gz"; \
+    done; \
+# pecl's packaging normally fills in imagick's version placeholder
+    sed -i 's/@PACKAGE_VERSION@/3.8.1/' /usr/src/php/ext/imagick/php_imagick.h; \
+    docker-php-ext-install -j "$(nproc)" \
+        apcu \
+        memcached \
+        redis \
+        imagick \
+    ; \
+    docker-php-source delete; \
+    \
+# reset apt-mark's "manual" list so that "purge --auto-remove" will remove all build dependencies
+    apt-mark auto '.*' > /dev/null; \
+    apt-mark manual $savedAptMark; \
+    ldd "$(php -r 'echo ini_get("extension_dir");')"/*.so \
+        | awk '/=>/ { so = $(NF-1); if (index(so, "/usr/local/") == 1) { next }; gsub("^/(usr/)?", "", so); print so }' \
+        | sort -u \
+        | xargs -r dpkg-query -S \
+        | cut -d: -f1 \
+        | sort -u \
+        | xargs -rt apt-mark manual; \
+    \
+    apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+    rm -rf /var/lib/apt/lists/*
+
+# set recommended PHP.ini settings
+ENV PHP_MEMORY_LIMIT=512M
+ENV PHP_UPLOAD_LIMIT=512M
+RUN set -ex; \
+    { \
+        echo 'opcache.enable=1' ; \
+        echo 'opcache.interned_strings_buffer=8'; \
+        echo 'opcache.max_accelerated_files=10000'; \
+        echo 'opcache.memory_consumption=128'; \
+        echo 'opcache.save_comments=1'; \
+        echo 'opcache.revalidte_freq=60'; \
+        echo 'opcache.jit=tracing'; \
+        echo 'opcache.jit_buffer_size=32M'; \
+    } > /usr/local/etc/php/conf.d/opcache-recommended.ini; \
+    \
+    { \
+        echo sendmail_path = "/usr/bin/msmtp -t"; \
+    } > /usr/local/etc/php/conf.d/sendmail.ini; \
+    \
+    echo 'apc.enable_cli=1' >> /usr/local/etc/php/conf.d/docker-php-ext-apcu.ini; \
+    \
+    { \
+        echo 'memory_limit=${PHP_MEMORY_LIMIT}'; \
+        echo 'upload_max_filesize=${PHP_UPLOAD_LIMIT}'; \
+        echo 'post_max_size=${PHP_UPLOAD_LIMIT}'; \
+    } > /usr/local/etc/php/conf.d/friendica.ini; \
+    ln -s /usr/local/etc/php/php.ini-production /usr/local/etc/php/php.ini
+
+RUN set -ex; \
+    echo access.format = '"%{REMOTE_ADDR}e - %u %t \"%m %r\" %s"' >> /usr/local/etc/php-fpm.d/docker.conf;
+
+RUN set -ex; \
+    mkdir -p -m 775 /var/www/data; \
+    chown -R www-data:www-data /var/www/data
+
+VOLUME /var/www/html
+VOLUME /var/www/data
+
+# 39 = LOG_PID | LOG_ODELAY | LOG_CONS | LOG_PERROR
+ENV FRIENDICA_SYSLOG_FLAGS=39
+ENV FRIENDICA_VERSION="${FRIENDICA_VERSION}"
+
+
+RUN set -ex; \
+    fetchDeps=" \
+      gnupg \
+    "; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends $fetchDeps;
+
+COPY docker/friendica-base/*.sh docker/friendica-base/upgrade.exclude /
+COPY docker/friendica-base/config/* /usr/src/friendica/config/
+
+ENTRYPOINT ["/entrypoint-dev.sh"]
+CMD ["php-fpm"]
+
 FROM base AS builder
 ENV COMPOSER_ALLOW_SUPERUSER=1
 RUN apt-get update \
  && apt-get install -y --no-install-recommends git unzip \
  && rm -rf /var/lib/apt/lists/*
 COPY . /usr/src/friendica/
+# docker/friendica-base/ is only build input for the base stage above.
+RUN rm -rf /usr/src/friendica/docker
 # Upstream keeps community addons in a separate repo; the official image
 # normally supplies them, so pull the branch matching our core version and
 # merge it in (our own larpnet_* addons, already copied above, are untouched).
-RUN git clone --depth 1 --branch 2026.08-rc https://github.com/friendica/friendica-addons.git /tmp/friendica-addons \
+RUN git clone --depth 1 --branch "${FRIENDICA_VERSION}" https://github.com/friendica/friendica-addons.git /tmp/friendica-addons \
  && cp -r /tmp/friendica-addons/. /usr/src/friendica/addon/ \
  && rm -rf /tmp/friendica-addons
 RUN cd /usr/src/friendica && php bin/composer.phar install --no-dev --optimize-autoloader
