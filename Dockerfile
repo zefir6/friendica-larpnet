@@ -129,19 +129,34 @@ RUN set -ex; \
         intl \
     ; \
     \
-# pecl will claim success even if one install fails, so we need to perform each install separately
-    pecl install apcu-5.1.28; \
-    pecl install memcached-3.4.0; \
-    pecl install redis-6.3.0 --configureoptions 'enable-redis-zstd="yes" enable-redis-lz4="yes"'; \
-    pecl install imagick-3.8.1; \
-    \
-    docker-php-ext-enable \
+# larpnet: upstream pecl-installs these, but pecl.php.net was down (HTTP 500)
+# during the PHP2Shell release, so build the same versions from their
+# GitHub release tags instead, pinned by sha256. Upstream's redis zstd/lz4
+# configureoptions never took effect (no compression in the old image), so
+# they're dropped.
+    docker-php-source extract; \
+    for ext in \
+        "apcu 0e60ba9d0fa4021c57a70c071f3d8f71de236275d084e560d5959fec4edd8c32 https://github.com/krakjoe/apcu/archive/refs/tags/v5.1.28.tar.gz" \
+        "memcached 10b98a0fdc3ce9ab823db59e8935f068de87e374728871a1efacdadd8c7807d1 https://github.com/php-memcached-dev/php-memcached/archive/refs/tags/v3.4.0.tar.gz" \
+        "redis cb8f81df1a275599e4f8ddcfec7e1f65ed1953e6f5673649149fd680ebff4cad https://github.com/phpredis/phpredis/archive/refs/tags/6.3.0.tar.gz" \
+        "imagick b0e9279ddf6e75a8c6b4068e16daec0475427dbca7ce2e144e30a51a88aa5ddc https://github.com/Imagick/imagick/archive/refs/tags/3.8.1.tar.gz" \
+    ; do \
+        set -- $ext; \
+        curl -fsSL "$3" -o "/tmp/$1.tar.gz"; \
+        echo "$2  /tmp/$1.tar.gz" | sha256sum -c -; \
+        mkdir -p "/usr/src/php/ext/$1"; \
+        tar -xzf "/tmp/$1.tar.gz" -C "/usr/src/php/ext/$1" --strip-components=1; \
+        rm "/tmp/$1.tar.gz"; \
+    done; \
+# pecl's packaging normally fills in imagick's version placeholder
+    sed -i 's/@PACKAGE_VERSION@/3.8.1/' /usr/src/php/ext/imagick/php_imagick.h; \
+    docker-php-ext-install -j "$(nproc)" \
         apcu \
         memcached \
         redis \
         imagick \
     ; \
-    rm -r /tmp/pear; \
+    docker-php-source delete; \
     \
 # reset apt-mark's "manual" list so that "purge --auto-remove" will remove all build dependencies
     apt-mark auto '.*' > /dev/null; \
