@@ -167,6 +167,19 @@ function larpnet_get_or_create_ntfy_topic(int $uid): string
 	return LarpnetPush::getOrCreateTopic($uid);
 }
 
+/**
+ * A theme asset path with an `lv` cache-buster from the file's mtime.
+ * Page::registerFooterScript()/registerStylesheet() overwrite any `v` with
+ * Friendica's own version, which doesn't change between larpnet deploys,
+ * and Cloudflare caches theme assets for 4 h -- so a changed script used to
+ * reach browsers hours after a deploy.
+ */
+function larpnet_theme_asset(string $relativePath): string
+{
+	$path = __DIR__ . '/' . $relativePath;
+	return $path . '?lv=' . (@filemtime($path) ?: 0);
+}
+
 function larpnet_head(string &$b): void
 {
 	if (DI::appHelper()->getCurrentTheme() !== 'larpnet') {
@@ -281,7 +294,7 @@ JS;
 
 	$b .= "<script>window.LarpnetPush = {$config};</script>\n";
 
-	DI::page()->registerFooterScript(__DIR__ . '/js/push.js?v=2026.10');
+	DI::page()->registerFooterScript(larpnet_theme_asset('js/push.js'));
 }
 
 /**
@@ -326,10 +339,15 @@ function larpnet_matrix_chat_widget_head(string &$b): void
 		return;
 	}
 
-	$b .= "<script>window.LarpnetMatrixChat = " . json_encode(['chatUrl' => 'larpnet_matrix']) . ";</script>\n";
+	// `user` only keys the widget's per-account warm-up marker in
+	// localStorage (see matrix-chat-widget.js's maybeWarmUp()).
+	$b .= "<script>window.LarpnetMatrixChat = " . json_encode([
+		'chatUrl' => 'larpnet_matrix',
+		'user'    => (string) DI::userSession()->getLocalUserNickname(),
+	]) . ";</script>\n";
 
-	DI::page()->registerStylesheet(__DIR__ . '/css/matrix-chat-widget.css');
-	DI::page()->registerFooterScript(__DIR__ . '/js/matrix-chat-widget.js');
+	DI::page()->registerStylesheet(larpnet_theme_asset('css/matrix-chat-widget.css'));
+	DI::page()->registerFooterScript(larpnet_theme_asset('js/matrix-chat-widget.js'));
 }
 
 // ---------------------------------------------------------------------------

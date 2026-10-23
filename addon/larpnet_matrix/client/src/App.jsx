@@ -240,6 +240,11 @@ export function App({ config }) {
         } catch (e) {
           console.error('larpnet chat: automatic encryption setup failed', e);
         }
+        // This device now exists (and, in standard mode, backs up its keys):
+        // the corner widget records the warm-up as done.
+        if (!cancelled && window.parent !== window) {
+          window.parent.postMessage({ type: 'larpnet-chat-ready' }, location.origin);
+        }
 
         // ?room= from a chat notification's click URL. Only a room this
         // account is actually in; anything else just shows the list.
