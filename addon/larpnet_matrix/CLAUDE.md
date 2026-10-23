@@ -626,6 +626,31 @@ completely fine in code review.
     skips notifications for a room on screen.
   - `?room=` in the chat URL opens that room.
 
+## Warm-up: every web user gets an E2EE device (2026-10)
+
+A message is only encrypted to the devices its recipients have *when it
+is sent*. Someone who had never opened chat had no device with keys (the
+server's `LARPNET_SERVER` device never uploads any), so the first message
+to them was encrypted to nobody and showed "Nie można odszyfrować
+wiadomości" forever. Reproduced on test.larpnet.pl 2026-10-23: test
+Synapse had 7 chat accounts for 92 Friendica users.
+
+Fix: `view/theme/larpnet/js/matrix-chat-widget.js` (`maybeWarmUp()`)
+loads the chat iframe into the *closed* panel once per 24 h per account
+(localStorage `lnc_warmup_<nickname>`; a 10 min claim keeps a second tab
+from booting a second client on the same crypto store). The normal boot
+creates the device and, in standard mode, key backup; `App.jsx` posts
+`larpnet-chat-ready` afterwards. Later warm-ups let that device collect
+queued room keys and back them up for the user's other devices. Opening
+the bubble reuses the running iframe. Nothing changes while the panel is
+closed: no read receipts (`isChatActive()`), and notifications come from
+the service worker, not the client.
+
+Not covered: a user who never visits the site or opens an app after this
+shipped. The native apps create their device at launch (`ensureClient()`)
+but only run `ensureEncryption()` on the chat screen, so app-only users
+still get no backup until they open chat.
+
 ## Key files
 
 | Path | Purpose |

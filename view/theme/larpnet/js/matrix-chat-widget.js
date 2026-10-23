@@ -42,6 +42,69 @@
   // once when the service worker sees a chat push.
   var iframeReportsUnread = false;
 
+  // Warm-up: start the chat client in the closed panel at least once a day
+  // per account, without the user opening it. A message sent to someone
+  // with no E2EE device yet is encrypted to nobody and stays undecryptable
+  // for them forever, and users who never clicked the bubble had no device
+  // at all (only the server's keyless LARPNET_SERVER one). One boot gives
+  // them a device plus, in standard mode, key backup (ensureEncryption()),
+  // and each later boot lets that device collect queued room keys and back
+  // them up. The client posts 'larpnet-chat-ready' once that's done. The
+  // claim stamp keeps a second tab from starting another client on the
+  // same crypto store meanwhile.
+  var WARMUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+  var WARMUP_CLAIM_MS = 10 * 60 * 1000;
+  var warmupKey = 'lnc_warmup_' + (window.LarpnetMatrixChat.user || '');
+
+  function readWarmup() {
+    try {
+      return JSON.parse(localStorage.getItem(warmupKey) || '{}') || {};
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function writeWarmup(state) {
+    try {
+      localStorage.setItem(warmupKey, JSON.stringify(state));
+    } catch (e) {
+      // Storage blocked: readWarmup() fails the same way, so no warm-ups.
+    }
+  }
+
+  function maybeWarmUp() {
+    if (loaded || !window.LarpnetMatrixChat.user || document.visibilityState !== 'visible') {
+      return;
+    }
+    var state = readWarmup();
+    var now = Date.now();
+    if (state === null
+      || (state.done && now - state.done < WARMUP_INTERVAL_MS)
+      || (state.claimed && now - state.claimed < WARMUP_CLAIM_MS)) {
+      return;
+    }
+    state.claimed = now;
+    writeWarmup(state);
+    ensureIframe(null);
+  }
+
+  function scheduleWarmUp() {
+    // Let the page itself finish loading first; the client pulls in a few
+    // MB of wasm.
+    setTimeout(function () {
+      if (document.visibilityState === 'visible') {
+        maybeWarmUp();
+      } else {
+        document.addEventListener('visibilitychange', function onVisible() {
+          if (document.visibilityState === 'visible') {
+            document.removeEventListener('visibilitychange', onVisible);
+            maybeWarmUp();
+          }
+        });
+      }
+    }, 5000);
+  }
+
   function setBadge(count) {
     if (!badge) {
       return;
@@ -99,6 +162,7 @@
 
     fetchUnread();
     setInterval(fetchUnread, 30000);
+    scheduleWarmUp();
     document.addEventListener('visibilitychange', fetchUnread);
     if (navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener('message', function (e) {
@@ -124,6 +188,9 @@
     if (e.data && e.data.type === 'larpnet-chat-unread') {
       iframeReportsUnread = true;
       setBadge(e.data.count);
+    }
+    if (e.data && e.data.type === 'larpnet-chat-ready') {
+      writeWarmup({ done: Date.now() });
     }
   });
 
