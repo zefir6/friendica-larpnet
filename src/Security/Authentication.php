@@ -371,8 +371,14 @@ class Authentication
 		if ($interactive) {
 			if ($user_record['login_date'] <= DBA::NULL_DATETIME) {
 				DI::sysmsg()->addInfo($this->l10n->t('Welcome %s', $user_record['username']));
-				DI::sysmsg()->addInfo($this->l10n->t('Please upload a profile photo.'));
-				$this->baseUrl->redirect('settings/profile/photo/new');
+				// A pending return_path (set by withPassword() above) wins over the
+				// profile-photo nudge: a brand-new account's first login from a native
+				// app's OAuth sheet carries oauth/authorize there, and redirecting away
+				// left the app waiting forever for its authorization code.
+				if (!$this->session->get('return_path')) {
+					DI::sysmsg()->addInfo($this->l10n->t('Please upload a profile photo.'));
+					$this->baseUrl->redirect('settings/profile/photo/new');
+				}
 			}
 		}
 
