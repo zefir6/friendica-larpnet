@@ -183,7 +183,9 @@ export function Composer({ onSend, onSendFile, uploadLimitBytes }) {
           type="text"
           value={text}
           placeholder="Napisz wiadomość…"
-          disabled={sending}
+          // readOnly, not disabled: a disabled input loses focus, so after
+          // sending with Enter you had to click back into it to type again.
+          readOnly={sending}
           onInput={handleInput}
           onKeyDown={handleKeyDown}
           onFocus={() => setShowEmoji(false)}
