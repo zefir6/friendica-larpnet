@@ -11,7 +11,7 @@ import {
 } from './matrix.js';
 import { setUpRecovery, resetRecovery, restoreFromRecoveryKey } from './recovery.js';
 import { encryptionApi, ensureEncryption, switchToPrivate, switchToStandard, DeviceLockedError } from './encryption.js';
-import { unreadRoomCount, setReportedRoom, reportUnreadToParent } from './notifications.js';
+import { unreadRoomCount, setReportedRoom, reportUnreadToParent, onPanelOpened } from './notifications.js';
 import { RoomList } from './RoomList.jsx';
 import { Avatar } from './Avatar.jsx';
 import { Conversation } from './Conversation.jsx';
@@ -68,6 +68,11 @@ export function App({ config }) {
   const [roomListCollapsed, setRoomListCollapsed] = useState(false);
   const [showRoomInfo, setShowRoomInfo] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  // Bumped to put the caret back in the message box: a conversation
+  // picked (even the one already open), or the corner panel reopened.
+  const [focusToken, setFocusToken] = useState(0);
+  const refocusComposer = () => setFocusToken((t) => t + 1);
+  useEffect(() => onPanelOpened(refocusComposer), []);
   // null once resolved (nothing to show); 'needs_setup', 'needs_restore' or
   // 'needs_restore_legacy' render RecoveryKeyModal -- see encryption.js's
   // ensureEncryption() for when each happens. 'reset' is the setup flow
@@ -313,6 +318,7 @@ export function App({ config }) {
   const selectRoom = (roomId) => {
     setSelectedRoomId(roomId);
     setRoomListCollapsed(singlePane);
+    refocusComposer();
   };
 
   const handlePick = async (nickname) => {
@@ -517,6 +523,8 @@ export function App({ config }) {
             serverName={config.serverName}
             linkTarget={isFullPage ? '_blank' : '_top'}
             showMessageTimes={showMessageTimes}
+            focusToken={focusToken}
+            focusBlocked={!!(pickerMode || showRoomInfo || showSettings || recoveryPrompt)}
           />
         )}
       </div>

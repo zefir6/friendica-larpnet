@@ -225,10 +225,18 @@
     panel.classList.add('open');
     bubble.classList.add('open');
     bubble.setAttribute('aria-expanded', 'true');
+    // Hands keyboard focus to the chat document, so the client's own
+    // focus() on the message box takes (an unfocused iframe's focus()
+    // only moves its inner activeElement, not the caret).
+    panel.querySelector('iframe').focus();
     postPanelState();
   }
 
   function close() {
+    // Don't leave focus (and typing) inside the now hidden panel.
+    if (document.activeElement === panel.querySelector('iframe')) {
+      bubble.focus();
+    }
     panel.classList.remove('open');
     bubble.classList.remove('open');
     bubble.setAttribute('aria-expanded', 'false');

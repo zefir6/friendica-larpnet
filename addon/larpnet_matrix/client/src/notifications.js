@@ -91,6 +91,7 @@ export async function markRoomRead(client, room) {
 
 let panelOpen = window.parent === window;
 const listeners = new Set();
+const panelOpenedListeners = new Set();
 
 export function isChatActive() {
   return panelOpen && document.visibilityState === 'visible' && document.hasFocus();
@@ -101,14 +102,24 @@ export function onChatActivityChange(fn) {
   return () => listeners.delete(fn);
 }
 
+// Corner panel went from closed to open (the bubble or a "message" button).
+export function onPanelOpened(fn) {
+  panelOpenedListeners.add(fn);
+  return () => panelOpenedListeners.delete(fn);
+}
+
 function emit() {
   listeners.forEach((fn) => fn(isChatActive()));
 }
 
 window.addEventListener('message', (e) => {
   if (e.origin === location.origin && e.source === window.parent && e.data?.type === 'larpnet-chat-panel') {
+    const wasOpen = panelOpen;
     panelOpen = !!e.data.open;
     emit();
+    if (panelOpen && !wasOpen) {
+      panelOpenedListeners.forEach((fn) => fn());
+    }
   }
 });
 document.addEventListener('visibilitychange', emit);
