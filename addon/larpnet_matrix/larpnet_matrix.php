@@ -1832,9 +1832,16 @@ function larpnet_matrix_apns_deliver(string $deviceToken, array $payload, string
 	// base64 sidesteps that entirely by construction, same reasoning as
 	// why `LARPNET_MATRIX_APNS_KEY_PEM_B64` exists instead of a plain
 	// `..._PEM` var.
-	$keyPem = base64_decode($keyPemB64, true);
-	if ($keyPem === false) {
-		DI::logger()->warning('larpnet_matrix: LARPNET_MATRIX_APNS_KEY_PEM_B64 is not valid base64');
+	//
+	// Anything outside the base64 alphabet is dropped first: pasting the
+	// blob into .env tends to bring a newline, quotes, or zsh's "%"
+	// no-newline marker along, and a strict decode then failed every send
+	// (found on test 2026-10-27, a trailing "%"). Logged via push_log so a
+	// bad key shows up in larpnet-push.log, not only as a friendica.log
+	// warning below the configured log level.
+	$keyPem = base64_decode(preg_replace('#[^A-Za-z0-9+/=]#', '', $keyPemB64), true);
+	if ($keyPem === false || !openssl_pkey_get_private($keyPem)) {
+		larpnet_matrix_push_log('apns_bad_key', ['problem' => 'LARPNET_MATRIX_APNS_KEY_PEM_B64 is not a base64-encoded .p8 key']);
 		return false;
 	}
 
