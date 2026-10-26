@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { EmojiPicker } from './EmojiPicker.jsx';
 import { replaceShortcodes, searchShortcodes } from './emojiShortcodes.js';
 
@@ -8,7 +8,16 @@ const CLOSED_SHORTCODE_RE = /:([a-z0-9_+-]+):$/i;
 // Requiring that boundary keeps "12:30" or "http://" from popping the list.
 const OPEN_SHORTCODE_RE = /(^|\s):([a-z0-9_+-]{2,})$/i;
 
-export function Composer({ onSend, onSendFile, uploadLimitBytes }) {
+// Taking focus on its own only makes sense with a real keyboard: on a phone
+// it would pop the on-screen keyboard over the conversation (or the emoji
+// picker) the moment a room opens.
+const hasFinePointer = () => window.matchMedia?.('(pointer: fine)').matches ?? true;
+
+// Keeps the caret in the message box: on mount, whenever focusKey changes
+// (another room, the corner panel reopened), when focusBlocked goes back to
+// false (a modal or the lightbox closed), and after the composer's own
+// buttons -- which never take focus themselves, see keepFocus below.
+export function Composer({ onSend, onSendFile, uploadLimitBytes, focusKey, focusBlocked }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -21,6 +30,13 @@ export function Composer({ onSend, onSendFile, uploadLimitBytes }) {
   // Caret position to restore after a re-render that changed the text
   // around it (shortcode replaced by a shorter emoji).
   const pendingCaretRef = useRef(null);
+
+  const focusInput = () => {
+    if (!focusBlocked && hasFinePointer()) {
+      inputRef.current?.focus();
+    }
+  };
+  useEffect(focusInput, [focusKey, focusBlocked]);
 
   useLayoutEffect(() => {
     if (pendingCaretRef.current != null && inputRef.current) {
@@ -63,6 +79,10 @@ export function Composer({ onSend, onSendFile, uploadLimitBytes }) {
 
   const handleKeyDown = (e) => {
     if (!suggest) {
+      if (e.key === 'Escape' && showEmoji) {
+        e.preventDefault();
+        setShowEmoji(false);
+      }
       return;
     }
     const count = suggest.items.length;
@@ -100,8 +120,15 @@ export function Composer({ onSend, onSendFile, uploadLimitBytes }) {
     }
   };
 
+  // At the caret, not appended: the input keeps focus (and its caret) while
+  // the picker is open.
   const pickEmoji = (emoji) => {
-    setText((t) => t + emoji);
+    const el = inputRef.current;
+    const start = el?.selectionStart ?? text.length;
+    const end = el?.selectionEnd ?? text.length;
+    setText(text.slice(0, start) + emoji + text.slice(end));
+    pendingCaretRef.current = start + emoji.length;
+    focusInput();
   };
 
   const openFilePicker = () => {
@@ -128,14 +155,19 @@ export function Composer({ onSend, onSendFile, uploadLimitBytes }) {
       setUploadError('Nie udało się wysłać pliku');
     } finally {
       setSending(false);
+      focusInput();
     }
   };
+
+  // mousedown default is what moves focus onto a clicked button; the send
+  // button then gets disabled mid-send and focus drops to <body>.
+  const keepFocus = (e) => e.preventDefault();
 
   return (
     <div class="lnc-composer-wrap">
       {uploadError && <div class="lnc-composer-error">{uploadError}</div>}
       {showEmoji && (
-        <EmojiPicker onPick={pickEmoji} onClose={() => setShowEmoji(false)} />
+        <EmojiPicker onPick={pickEmoji} onClose={() => setShowEmoji(false)} onMouseDown={keepFocus} />
       )}
       {suggest && (
         <div class="lnc-emoji-suggest" role="listbox">
@@ -164,6 +196,7 @@ export function Composer({ onSend, onSendFile, uploadLimitBytes }) {
           class="lnc-composer-icon-btn"
           title="Dodaj plik"
           disabled={sending}
+          onMouseDown={keepFocus}
           onClick={openFilePicker}
         >
           <i class="ri ri-attachment-line" aria-hidden="true"></i>
@@ -174,6 +207,7 @@ export function Composer({ onSend, onSendFile, uploadLimitBytes }) {
           class="lnc-composer-icon-btn"
           title="Emoji"
           disabled={sending}
+          onMouseDown={keepFocus}
           onClick={() => setShowEmoji((v) => !v)}
         >
           <i class="ri ri-emotion-line" aria-hidden="true"></i>
@@ -188,10 +222,10 @@ export function Composer({ onSend, onSendFile, uploadLimitBytes }) {
           readOnly={sending}
           onInput={handleInput}
           onKeyDown={handleKeyDown}
-          onFocus={() => setShowEmoji(false)}
+          onClick={() => setShowEmoji(false)}
           onBlur={() => setSuggest(null)}
         />
-        <button type="submit" disabled={sending || !text.trim()}>Wyślij</button>
+        <button type="submit" disabled={sending || !text.trim()} onMouseDown={keepFocus}>Wyślij</button>
       </form>
     </div>
   );

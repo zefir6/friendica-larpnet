@@ -6,7 +6,7 @@ import { getUploadLimitBytes, uploadEncryptedAttachment } from './mediaAttachmen
 import { isChatActive, onChatActivityChange, markRoomRead } from './notifications.js';
 import { ImageMessage, FileMessage } from './AttachmentMessage.jsx';
 
-export function Conversation({ client, roomId, contacts, serverName, linkTarget, showMessageTimes }) {
+export function Conversation({ client, roomId, contacts, serverName, linkTarget, showMessageTimes, focusToken, focusBlocked }) {
   const scrollRef = useRef(null);
   const [uploadLimit, setUploadLimit] = useState(null);
   const [lightboxUrl, setLightboxUrl] = useState(null);
@@ -190,7 +190,13 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
           <img src={lightboxUrl} alt="" />
         </div>
       )}
-      <Composer onSend={send} onSendFile={sendFile} uploadLimitBytes={uploadLimit} />
+      <Composer
+        onSend={send}
+        onSendFile={sendFile}
+        uploadLimitBytes={uploadLimit}
+        focusKey={roomId + ':' + focusToken}
+        focusBlocked={focusBlocked || !!lightboxUrl}
+      />
     </div>
   );
 }

@@ -90,11 +90,11 @@ const CATEGORIES = [
   },
 ];
 
-export function EmojiPicker({ onPick, onClose }) {
+export function EmojiPicker({ onPick, onClose, onMouseDown }) {
   const [activeCategory, setActiveCategory] = useState(0);
 
   return (
-    <div class="lnc-emoji-picker" onClick={(e) => e.stopPropagation()}>
+    <div class="lnc-emoji-picker" onClick={(e) => e.stopPropagation()} onMouseDown={onMouseDown}>
       <div class="lnc-emoji-tabs">
         {CATEGORIES.map((cat, i) => (
           <button
