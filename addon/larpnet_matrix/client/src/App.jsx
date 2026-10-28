@@ -11,7 +11,7 @@ import {
 } from './matrix.js';
 import { setUpRecovery, resetRecovery, restoreFromRecoveryKey } from './recovery.js';
 import { encryptionApi, ensureEncryption, switchToPrivate, switchToStandard, DeviceLockedError } from './encryption.js';
-import { unreadRoomCount, setReportedRoom, reportUnreadToParent, onPanelOpened } from './notifications.js';
+import { unreadRoomCount, setReportedRoom, reportUnreadToParent, onPanelOpened, isChatActive, onChatActivityChange } from './notifications.js';
 import { RoomList } from './RoomList.jsx';
 import { Avatar } from './Avatar.jsx';
 import { Conversation } from './Conversation.jsx';
@@ -291,7 +291,13 @@ export function App({ config }) {
   useEffect(() => {
     setReportedRoom(selectedRoomId);
   }, [selectedRoomId]);
-  const unreadTotal = client ? unreadRoomCount(client.getRooms()) : null;
+  // The conversation being looked at never counts: its read receipt goes
+  // out a few seconds after a message lands, which flashed "1" on the
+  // bubble while the message was already on screen.
+  const roomOnScreen = selectedRoomId && (!singlePane || roomListCollapsed) && isChatActive() ? selectedRoomId : null;
+  const unreadTotal = client ? unreadRoomCount(client.getRooms().filter((r) => r.roomId !== roomOnScreen)) : null;
+  // ...and counts again once the panel closes or the tab loses focus.
+  useEffect(() => onChatActivityChange(bump), [bump]);
   useEffect(() => {
     if (unreadTotal !== null) {
       reportUnreadToParent(unreadTotal);
