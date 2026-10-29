@@ -11,8 +11,20 @@ export const MUTE_ACCOUNT_DATA = 'pl.larpnet.mute_until';
 
 // Synapse's own notification count, which already excludes muted rooms
 // (a mute push rule has no 'notify' action, so nothing in the room counts).
+// Zero once our receipt covers the newest message: the server's count only
+// drops with the next sync, so a conversation the user had just read kept
+// counting for a second or two on the bubble and in the room list.
 export function roomUnreadCount(room) {
-  return room.getUnreadNotificationCount(NotificationCountType.Total) || 0;
+  const count = room.getUnreadNotificationCount(NotificationCountType.Total) || 0;
+  const newest = count > 0 && newestEvent(room);
+  return newest && room.hasUserReadEvent(room.myUserId, newest.getId()) ? 0 : count;
+}
+
+// Newest event a read receipt can point at: sent (no local '~' id) and
+// not a state event.
+function newestEvent(room) {
+  const events = room.getLiveTimeline().getEvents();
+  return [...events].reverse().find((ev) => ev.getId() && !ev.getId().startsWith('~') && !ev.isState?.());
 }
 
 // Same number the server hands the push gateway as counts.unread: how many
@@ -73,8 +85,7 @@ export function unmuteRoom(config, roomId) {
 // Without these, unread counts (and the phones' badges) only ever cleared
 // when some *other* client marked the room read.
 export async function markRoomRead(client, room) {
-  const events = room.getLiveTimeline().getEvents();
-  const last = [...events].reverse().find((ev) => ev.getId() && !ev.getId().startsWith('~') && !ev.isState?.());
+  const last = newestEvent(room);
   if (!last || room.hasUserReadEvent(client.getUserId(), last.getId())) {
     return;
   }
@@ -83,18 +94,66 @@ export async function markRoomRead(client, room) {
 
 // --- "Is the user actually looking at the chat?" ---------------------------
 //
-// True when this document is visible and focused and, inside the corner
+// True when this tab is visible and focused and, inside the corner
 // widget's iframe, the panel is open (js/matrix-chat-widget.js posts
 // 'larpnet-chat-panel' on open/close). Read receipts are only sent while
 // active, and the service worker skips a chat notification for the room an
 // active client reports open (see view/theme/larpnet/js/sw.js).
 
-let panelOpen = window.parent === window;
 const listeners = new Set();
 const panelOpenedListeners = new Set();
 
 export function isChatActive() {
-  return panelOpen && document.visibilityState === 'visible' && document.hasFocus();
+  return isPanelOpen() && document.visibilityState === 'visible' && tabHasFocus();
+}
+
+// Read from the widget's own DOM (same origin) rather than kept from its
+// 'larpnet-chat-panel' messages: the one sent on the iframe's load event
+// can arrive before this module has registered its listener, and the chat
+// then believed the panel closed for good -- no read receipts, so the open
+// conversation's messages kept counting on the bubble (2026-10-28). The
+// messages below still trigger an immediate re-check.
+function isPanelOpen() {
+  if (window.parent === window) {
+    return true;
+  }
+  try {
+    return !!window.parent.document.getElementById('larpnet-chat-panel')?.classList.contains('open');
+  } catch (e) {
+    return false;
+  }
+}
+let panelWasOpen = isPanelOpen();
+
+// Focus anywhere in the tab, not just in this document. The corner chat is
+// an iframe, and after a click on the page around it the iframe's own
+// hasFocus() is false while the open conversation is in plain sight: its
+// messages then stayed unread and the bubble counted them (2026-10-28). The
+// top document's hasFocus() is true for focus in it or any of its iframes.
+function tabHasFocus() {
+  try {
+    return window.top.document.hasFocus();
+  } catch (e) {
+    return document.hasFocus();
+  }
+}
+
+// The conversation whose newest message is on screen: open in
+// Conversation.jsx and scrolled to the bottom. Its messages get read
+// receipts as they land, so the bubble badge leaves it out (otherwise
+// it flashed "1" until the receipt round trip finished). Scrolled up
+// into history, a new message stays unread and counts.
+let roomAtBottom = null;
+
+export function setRoomAtBottom(roomId) {
+  if (roomAtBottom !== roomId) {
+    roomAtBottom = roomId;
+    emit();
+  }
+}
+
+export function roomBeingRead() {
+  return isChatActive() ? roomAtBottom : null;
 }
 
 export function onChatActivityChange(fn) {
@@ -114,17 +173,26 @@ function emit() {
 
 window.addEventListener('message', (e) => {
   if (e.origin === location.origin && e.source === window.parent && e.data?.type === 'larpnet-chat-panel') {
-    const wasOpen = panelOpen;
-    panelOpen = !!e.data.open;
+    const open = !!e.data.open;
     emit();
-    if (panelOpen && !wasOpen) {
+    if (open && !panelWasOpen) {
       panelOpenedListeners.forEach((fn) => fn());
     }
+    panelWasOpen = open;
   }
 });
 document.addEventListener('visibilitychange', emit);
 window.addEventListener('focus', emit);
 window.addEventListener('blur', emit);
+// Focus moving between the page and other windows never reaches the iframe.
+if (window.parent !== window) {
+  try {
+    window.parent.addEventListener('focus', emit);
+    window.parent.addEventListener('blur', emit);
+  } catch (e) {
+    // Cross-origin parent: only this document's own focus counts.
+  }
+}
 
 // Tells the service worker which room this client shows, and whether the
 // user is looking at it. Re-sent every 20 s while active, since a service

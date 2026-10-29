@@ -3,7 +3,7 @@ import { Composer } from './Composer.jsx';
 import { resolveDisplayName, profileUrlForUserId, avatarUrlForUserId, formatMessageTime, formatFullTime } from './matrix.js';
 import { Avatar } from './Avatar.jsx';
 import { getUploadLimitBytes, uploadEncryptedAttachment } from './mediaAttachments.js';
-import { isChatActive, onChatActivityChange, markRoomRead } from './notifications.js';
+import { isChatActive, onChatActivityChange, markRoomRead, setRoomAtBottom } from './notifications.js';
 import { ImageMessage, FileMessage } from './AttachmentMessage.jsx';
 
 export function Conversation({ client, roomId, contacts, serverName, linkTarget, showMessageTimes, focusToken, focusBlocked }) {
@@ -34,6 +34,7 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
     const el = scrollRef.current;
     const wasPinned = pinnedRef.current;
     pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    setRoomAtBottom(pinnedRef.current ? roomId : null);
     if (pinnedRef.current && !wasPinned) {
       markReadIfActive();
     }
@@ -56,8 +57,10 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
       pinnedRoomRef.current = roomId;
       pinnedRef.current = true;
     }
+    setRoomAtBottom(pinnedRef.current ? roomId : null);
     scrollToBottomIfPinned();
   });
+  useEffect(() => () => setRoomAtBottom(null), []);
 
   // client.getRoom()'s live timeline only holds whatever's already cached locally -- for a
   // conversation with no *recent* activity, that can be nothing at all, even once this
