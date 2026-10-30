@@ -2950,6 +2950,19 @@ ul.viewcontact_wrapper > li {
 ul li:hover .contact-wrapper .contact-action-link:hover {
 	opacity: 1;
 }
+/* "Czat" is the main action on a contact row: a real button, not a faded icon. */
+.contact-wrapper .contact-action-link.contact-chat-link,
+.contact-wrapper .contact-action-link.contact-chat-link:focus {
+	background-color: $nav_bg;
+	color: $btn_primary_color;
+	opacity: 1;
+	margin-right: 4px;
+	border-radius: 4px;
+}
+.contact-wrapper .contact-action-link.contact-chat-link:hover {
+	background-color: $btn_primary_hover_color;
+	color: $btn_primary_color;
+}
 #contacts-search-wrapper,
 #directory-search-wrapper {
 	padding: 10px 0;

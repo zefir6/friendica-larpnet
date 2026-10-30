@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { resolveDisplayName, profileUrlForUserId, avatarUrlForUserId, formatMessageTime } from './matrix.js';
 import { Avatar } from './Avatar.jsx';
 import { isRoomMuted, muteUntil, muteRoom, unmuteRoom, MUTE_OPTIONS } from './notifications.js';
@@ -24,6 +24,10 @@ export function RoomInfoModal({ client, config, room, contacts, serverName, link
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [confirmingRemove, setConfirmingRemove] = useState(null);
+  const closeRef = useRef(null);
+  // Focus inside the dialog so Escape reaches its key handler; `autoFocus`
+  // is ignored for elements mounted after page load.
+  useEffect(() => closeRef.current?.focus(), []);
 
   const others = room
     .getMembersWithMembership('join')
@@ -91,7 +95,7 @@ export function RoomInfoModal({ client, config, room, contacts, serverName, link
       <div class="lnc-picker" role="dialog" aria-label="Informacje o rozmowie" onClick={(e) => e.stopPropagation()}>
         <div class="lnc-picker-header">
           <span>Informacje o rozmowie</span>
-          <button type="button" class="lnc-picker-close" aria-label="Zamknij" onClick={onClose} autoFocus><i class="ri ri-close-line" aria-hidden="true"></i></button>
+          <button type="button" class="lnc-picker-close" aria-label="Zamknij" onClick={onClose} ref={closeRef}><i class="ri ri-close-line" aria-hidden="true"></i></button>
         </div>
         <div class="lnc-room-info-body">
           {isGroup && (
