@@ -1453,6 +1453,12 @@ aside .vcard .icon {
 	white-space: wrap;
 	width: 75%;
 }
+#profile-extra-links a.profile-feed-link {
+	width: auto;
+	text-align: center;
+	font-size: 12px;
+	color: $font_color_darker;
+}
 /* vcard-short-info */
 #vcard-short-info,
 #nav-short-info .contact-wrapper {
@@ -2988,6 +2994,10 @@ ul li:hover .contact-wrapper .contact-action-link:hover {
 #circle-edit-wrapper {
 	margin-top: 14px;
 	display: none;
+}
+.circle-help {
+	color: $font_color_darker;
+	margin: 10px 0;
 }
 #circle-edit-header {
 	display: block;
