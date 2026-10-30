@@ -70,6 +70,7 @@ use Friendica\Model\Photo;
 use Friendica\Model\User;
 use Friendica\Module\BaseApi;
 use Friendica\Util\DateTimeFormat;
+use Friendica\Util\Strings;
 
 function larpnet_matrix_install()
 {
@@ -659,6 +660,7 @@ function larpnet_matrix_dm_localpart(): ?string
 function larpnet_matrix_contact_list(int $excludeUid): array
 {
 	$profiles = DBA::selectToArray('owner-view', ['uid', 'nickname', 'name'], ['net-publish' => true]);
+	$followed = larpnet_matrix_followed_nicknames($excludeUid);
 
 	$out = [];
 	foreach ($profiles as $p) {
@@ -669,10 +671,42 @@ function larpnet_matrix_contact_list(int $excludeUid): array
 		if (!$sub) {
 			continue;
 		}
-		$out[] = ['nickname' => $p['nickname'], 'name' => $p['name'] ?: $p['nickname']];
+		$out[] = [
+			'nickname' => $p['nickname'],
+			'name'     => $p['name'] ?: $p['nickname'],
+			'followed' => isset($followed[strtolower($p['nickname'])]),
+		];
 	}
 
 	usort($out, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+	return $out;
+}
+
+/**
+ * Lowercased nicknames of the local users $uid follows (rel SHARING or
+ * FRIEND), as a set. The "+ Nowy czat" picker lists them in their own
+ * "Obserwowani" section above everyone else.
+ */
+function larpnet_matrix_followed_nicknames(int $uid): array
+{
+	$prefix = Strings::normaliseLink(DI::baseUrl() . '/profile/');
+	$rows   = DBA::select('contact', ['nurl'], [
+		'uid'     => $uid,
+		'rel'     => [Contact::SHARING, Contact::FRIEND],
+		'self'    => false,
+		'blocked' => false,
+		'pending' => false,
+		'deleted' => false,
+	]);
+
+	$out = [];
+	while ($row = DBA::fetch($rows)) {
+		$nurl = (string) ($row['nurl'] ?? '');
+		if (str_starts_with($nurl, $prefix)) {
+			$out[strtolower(substr($nurl, strlen($prefix)))] = true;
+		}
+	}
+	DBA::close($rows);
 	return $out;
 }
 
@@ -1276,6 +1310,9 @@ function larpnet_matrix_content(): string
 		'deviceName'    => 'larpnet web',
 		'contacts'      => larpnet_matrix_contact_list((int) $uid),
 		'fullPage'      => $full,
+		// The user's Larpnet language, for dates and times in the chat;
+		// the browser's own locale is often English on a Polish site.
+		'locale'        => DI::l10n()->getCurrentLang(),
 		// For POST /larpnet_matrix/encryption (client/src/encryption.js) --
 		// the escrowed passphrase itself is deliberately fetched rather than
 		// inlined here, see larpnet_matrix_encryption_endpoint().
