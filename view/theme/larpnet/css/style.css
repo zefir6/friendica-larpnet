@@ -2957,7 +2957,7 @@ ul li:hover .contact-wrapper .contact-action-link:hover {
 	color: $btn_primary_color;
 	opacity: 1;
 	margin-right: 4px;
-	border-radius: 4px;
+	border-radius: 4px !important; /* it sits in a .btn-group, which squares inner corners */
 }
 .contact-wrapper .contact-action-link.contact-chat-link:hover {
 	background-color: $btn_primary_hover_color;
