@@ -450,6 +450,13 @@ export function App({ config }) {
       )
     : new Set();
 
+  // 1:1 peers of the conversations in the list, newest first -- the
+  // picker's "Ostatnie" section.
+  const recentPeerNicknames = rooms
+    .map((r) => /^@([^:]+):(.+)$/.exec(roomPeerUserId(r, client) || ''))
+    .filter((m) => m && m[2] === config.serverName)
+    .map((m) => m[1]);
+
   // Single-pane: the list until a conversation is picked (selectRoom()
   // collapses it), then only the conversation, with "←" back to the list.
   const showingList = !singlePane || !selectedRoomId || !roomListCollapsed;
@@ -546,7 +553,9 @@ export function App({ config }) {
       )}
       {pickerMode && (
         <ContactPicker
+          title={pickerMode === 'add_member' ? 'Dodaj osobę' : 'Nowy czat'}
           contacts={(config.contacts || []).filter((c) => !existingMemberNicknames.has(c.nickname.toLowerCase()))}
+          recentNicknames={recentPeerNicknames}
           onPick={handlePick}
           onClose={() => setPickerMode(null)}
         />

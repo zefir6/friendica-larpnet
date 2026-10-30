@@ -215,9 +215,10 @@ export function roomDisplayName(room, client, contacts) {
   return others[0]?.name || others[0]?.userId || 'Rozmowa';
 }
 
-// Locale-aware relative timestamp ("5 min temu" / "5 minutes ago" depending on browser locale),
-// via the standard Intl API rather than hand-rolling pl/en strings -- mirrors the iOS/Android
-// clients' own RelativeTime helpers.
+// Locale-aware relative timestamp ("5 min temu" / "5 minutes ago"), via the standard Intl API
+// rather than hand-rolling pl/en strings -- mirrors the iOS/Android clients' own RelativeTime
+// helpers. The locale is the user's Larpnet language (setChatLocale(), from config.locale), not
+// the browser's: an English browser on the Polish site showed "13 hours ago" / "28 Oct".
 const RELATIVE_TIME_UNITS = [
   ['year', 31536000],
   ['month', 2592000],
@@ -225,7 +226,17 @@ const RELATIVE_TIME_UNITS = [
   ['hour', 3600],
   ['minute', 60],
 ];
-const relativeTimeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+let chatLocale;
+let relativeTimeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+
+export function setChatLocale(locale) {
+  try {
+    relativeTimeFormatter = new Intl.RelativeTimeFormat(locale || undefined, { numeric: 'auto' });
+    chatLocale = locale || undefined;
+  } catch (e) {
+    // Unknown tag: keep the browser default.
+  }
+}
 
 export function formatRelativeTime(timestampMs) {
   const diffSeconds = (timestampMs - Date.now()) / 1000;
@@ -251,11 +262,11 @@ export function formatMessageTime(timestampMs) {
       opts.year = 'numeric';
     }
   }
-  return d.toLocaleString(undefined, opts);
+  return d.toLocaleString(chatLocale, opts);
 }
 
 export function formatFullTime(timestampMs) {
-  return new Date(timestampMs).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' });
+  return new Date(timestampMs).toLocaleString(chatLocale, { dateStyle: 'full', timeStyle: 'short' });
 }
 
 // Larpnet profile page for a local user's mxid, or null for anyone on
@@ -283,6 +294,10 @@ export function avatarUrlForUserId(userId, serverName, contacts) {
     return null;
   }
   const nickname = contacts?.find((c) => c.nickname.toLowerCase() === m[1])?.nickname || m[1];
+  return avatarUrlForNickname(nickname);
+}
+
+export function avatarUrlForNickname(nickname) {
   return 'photo/avatar/' + encodeURIComponent(nickname) + '.jpg';
 }
 

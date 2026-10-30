@@ -6,6 +6,9 @@ import { getUploadLimitBytes, uploadEncryptedAttachment } from './mediaAttachmen
 import { isChatActive, onChatActivityChange, markRoomRead, setRoomAtBottom } from './notifications.js';
 import { ImageMessage, FileMessage } from './AttachmentMessage.jsx';
 
+// Same 60-second window as the iOS/Android ChatMessageGrouping.
+const GROUP_GAP_MS = 60 * 1000;
+
 export function Conversation({ client, roomId, contacts, serverName, linkTarget, showMessageTimes, focusToken, focusBlocked }) {
   const scrollRef = useRef(null);
   const [uploadLimit, setUploadLimit] = useState(null);
@@ -149,15 +152,19 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
     <div class="lnc-conversation">
       <div class="lnc-timeline" ref={scrollRef} onScroll={onTimelineScroll}>
         <div ref={contentRef}>
-          {events.map((ev) => {
+          {events.map((ev, i) => {
             const mine = ev.getSender() === client.getUserId();
+            // Consecutive messages from one sender (within GROUP_GAP_MS) form a run: the name
+            // shows once above the first, and the bubbles sit closer together.
+            const prev = events[i - 1];
+            const continued = !!prev && prev.getSender() === ev.getSender() && ev.getTs() - prev.getTs() < GROUP_GAP_MS;
             const failed = ev.isDecryptionFailure?.();
             const content = ev.getContent();
             const senderName = resolveDisplayName(ev.getSender(), contacts) || room.getMember(ev.getSender())?.name || ev.getSender();
             const profileUrl = profileUrlForUserId(ev.getSender(), serverName, contacts);
             return (
-              <div key={ev.getId()} class={'lnc-message' + (mine ? ' lnc-message-mine' : '')}>
-                {!mine && (
+              <div key={ev.getId()} class={'lnc-message' + (mine ? ' lnc-message-mine' : '') + (continued ? ' lnc-message-continued' : '')}>
+                {!mine && !continued && (
                   <div class="lnc-message-sender">
                     {isGroup && <Avatar url={avatarUrlForUserId(ev.getSender(), serverName, contacts)} name={senderName} size={20} />}
                     {profileUrl ? (
