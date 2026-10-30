@@ -16,6 +16,7 @@ export function ContactPicker({ title = 'Nowy czat', contacts, recentNicknames =
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const listRef = useRef(null);
+  const searchRef = useRef(null);
 
   const q = query.trim().toLowerCase();
   const byNick = new Map(contacts.map((c) => [c.nickname.toLowerCase(), c]));
@@ -37,6 +38,9 @@ export function ContactPicker({ title = 'Nowy czat', contacts, recentNicknames =
   }
   const flat = sections.flatMap((s) => s.items);
 
+  // The `autoFocus` attribute only applies on page load, not to an input
+  // mounted later, so focus it explicitly or keyboard use goes nowhere.
+  useEffect(() => searchRef.current?.focus(), []);
   useEffect(() => setActive(0), [q]);
   useEffect(() => {
     listRef.current?.querySelector('.lnc-picker-item-active')?.scrollIntoView({ block: 'nearest' });
@@ -72,7 +76,7 @@ export function ContactPicker({ title = 'Nowy czat', contacts, recentNicknames =
           placeholder="Szukaj po imieniu lub nicku…"
           value={query}
           onInput={(e) => setQuery(e.currentTarget.value)}
-          autoFocus
+          ref={searchRef}
         />
         <div class="lnc-picker-list" ref={listRef}>
           {flat.length === 0 && <div class="lnc-room-list-empty">Nie znaleziono</div>}
