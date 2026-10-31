@@ -27,8 +27,13 @@
 			<h2>{{$title}}</h2>
 		</div>
 
-		{{* Edit the name of the circle *}}
-		<div id="circle-edit-wrapper">
+		{{* Edit the name of the circle. On circle/new it's the whole page, so
+		    it starts open (the stylesheet hides it until the pencil is
+		    clicked, which left circle/new with no way to name the circle). *}}
+		{{if $gid == 'new'}}
+		<p class="circle-help">Krąg to Twoja prywatna lista osób, które obserwujesz. Możesz potem pisać wpisy widoczne tylko dla niego. Nazwij krąg, a na następnym ekranie kliknij osoby, aby je dodać.</p>
+		{{/if}}
+		<div id="circle-edit-wrapper"{{if $gid == 'new'}} style="display: block;"{{/if}}>
 
 			<form action="circle/{{$gid}}" id="circle-edit-form" method="post">
 				<input type="hidden" name="form_security_token" value="{{$form_security_token}}">
@@ -48,6 +53,7 @@
 	</div>
 
 	{{* The search input field to search for contacts *}}
+	{{if $gid != 'new'}}
 	<div id="contacts-search-wrapper">
 		<form id="contacts-search-form" class="navbar-form" role="search" method="get">
 			<div class="row">
@@ -59,6 +65,7 @@
 		</form>
 	</div>
 
+	{{/if}}
 	<div id="contacts-search-end"></div>
 
 	{{if $circle_editor}}
@@ -77,5 +84,8 @@
 	<div id="circle-update-wrapper">
 		{{include file="circle_editor.tpl"}}
 	</div>
+	{{if $editable == 1 && !$circle_editor.members && !$circle_editor.contacts}}
+		<p class="circle-help">Do kręgu możesz dodać tylko osoby, które obserwujesz, a nie obserwujesz jeszcze nikogo. Znajdź ludzi w <a href="directory">Katalogu</a> i kliknij „Obserwuj”.</p>
+	{{/if}}
 	{{/if}}
 </div>

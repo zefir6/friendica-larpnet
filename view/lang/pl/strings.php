@@ -3039,3 +3039,8 @@ $a->strings['Only Larpnet'] = 'Tylko Larpnet';
 $a->strings['Visible to everyone, even without logging in. Never shared through federation.'] = 'Widoczne dla wszystkich, nawet bez logowania. Nigdy nie jest udostępniane w federacji.';
 $a->strings['Larpnet-only Message'] = 'Wiadomość tylko na Larpnecie';
 $a->strings['Larpnet-only'] = 'Tylko Larpnet';
+
+// larpnet: profile labels upstream leaves untranslated (src/Model/Profile.php, src/Module/BaseProfile.php)
+$a->strings['Posts'] = 'Wpisy';
+$a->strings['Media posts'] = 'Multimedia';
+$a->strings['Group posts'] = 'Wpisy grupy';

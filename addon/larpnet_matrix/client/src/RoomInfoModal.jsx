@@ -1,5 +1,6 @@
-import { useState } from 'preact/hooks';
-import { resolveDisplayName, profileUrlForUserId, formatMessageTime } from './matrix.js';
+import { useEffect, useRef, useState } from 'preact/hooks';
+import { resolveDisplayName, profileUrlForUserId, avatarUrlForUserId, formatMessageTime } from './matrix.js';
+import { Avatar } from './Avatar.jsx';
 import { isRoomMuted, muteUntil, muteRoom, unmuteRoom, MUTE_OPTIONS } from './notifications.js';
 
 /**
@@ -7,6 +8,10 @@ import { isRoomMuted, muteUntil, muteRoom, unmuteRoom, MUTE_OPTIONS } from './no
  * rooms only; see below), member list with remove, "+ Dodaj osobę" (opens
  * the shared ContactPicker via onAddMember, see App.jsx), and "Opuść
  * rozmowę" (leave, removing yourself).
+ *
+ * Removing someone is offered only in a group, behind an inline confirm
+ * ("Usuń z rozmowy" -> "Usunąć?" Tak / Anuluj); in a 1:1 it would just
+ * end the conversation for the other person, which "Opuść rozmowę" covers.
  *
  * Renaming is hidden for a plain 1:1 DM (`others.length === 1`):
  * `roomDisplayName()` always prefers the other person's own name for a 1:1
@@ -18,6 +23,11 @@ export function RoomInfoModal({ client, config, room, contacts, serverName, link
   const [nameInput, setNameInput] = useState(room.name || '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [confirmingRemove, setConfirmingRemove] = useState(null);
+  const closeRef = useRef(null);
+  // Focus inside the dialog so Escape reaches its key handler; `autoFocus`
+  // is ignored for elements mounted after page load.
+  useEffect(() => closeRef.current?.focus(), []);
 
   const others = room
     .getMembersWithMembership('join')
@@ -50,6 +60,7 @@ export function RoomInfoModal({ client, config, room, contacts, serverName, link
       setError('Nie udało się usunąć osoby z rozmowy.');
     }
     setBusy(false);
+    setConfirmingRemove(null);
   };
 
   // The push rule / account data this changes come back over /sync, which
@@ -80,11 +91,11 @@ export function RoomInfoModal({ client, config, room, contacts, serverName, link
   };
 
   return (
-    <div class="lnc-picker-overlay" onClick={onClose}>
-      <div class="lnc-picker" onClick={(e) => e.stopPropagation()}>
+    <div class="lnc-picker-overlay" onClick={onClose} onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      <div class="lnc-picker" role="dialog" aria-label="Informacje o rozmowie" onClick={(e) => e.stopPropagation()}>
         <div class="lnc-picker-header">
           <span>Informacje o rozmowie</span>
-          <button type="button" class="lnc-picker-close" onClick={onClose}><i class="ri ri-close-line" aria-hidden="true"></i></button>
+          <button type="button" class="lnc-picker-close" aria-label="Zamknij" onClick={onClose} ref={closeRef}><i class="ri ri-close-line" aria-hidden="true"></i></button>
         </div>
         <div class="lnc-room-info-body">
           {isGroup && (
@@ -132,16 +143,29 @@ export function RoomInfoModal({ client, config, room, contacts, serverName, link
               const profileUrl = profileUrlForUserId(m.userId, serverName, contacts);
               return (
                 <div key={m.userId} class="lnc-room-info-member">
+                  <Avatar url={avatarUrlForUserId(m.userId, serverName, contacts)} name={name} size={28} />
                   {profileUrl ? (
-                    <a class="lnc-profile-link" href={profileUrl} target={linkTarget} rel="noopener" title="Otwórz profil">
+                    <a class="lnc-profile-link lnc-room-info-member-name" href={profileUrl} target={linkTarget} rel="noopener" title="Otwórz profil">
                       {name}
                     </a>
                   ) : (
-                    <span>{name}</span>
+                    <span class="lnc-room-info-member-name">{name}</span>
                   )}
-                  <button type="button" class="lnc-btn-secondary" onClick={() => handleRemove(m.userId)} disabled={busy}>
-                    Usuń
-                  </button>
+                  {isGroup &&
+                    (confirmingRemove === m.userId ? (
+                      <span class="lnc-room-delete-confirm">
+                        <button type="button" class="lnc-room-delete-confirm-btn" onClick={() => handleRemove(m.userId)} disabled={busy}>
+                          Usuń
+                        </button>
+                        <button type="button" class="lnc-room-delete-cancel-btn" onClick={() => setConfirmingRemove(null)} disabled={busy}>
+                          Anuluj
+                        </button>
+                      </span>
+                    ) : (
+                      <button type="button" class="lnc-btn-secondary" onClick={() => setConfirmingRemove(m.userId)} disabled={busy}>
+                        Usuń z rozmowy
+                      </button>
+                    ))}
                 </div>
               );
             })}

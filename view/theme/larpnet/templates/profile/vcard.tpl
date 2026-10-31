@@ -51,39 +51,11 @@
 			</nav>
 		{{/if}}
 
+		{{* Chat first and the only filled button: it's the action people come
+		    to a profile for. The rest are secondary (btn-default). The Atom
+		    feed is a small link under the buttons, not a button of its own. *}}
 		{{if $follow_link || $unfollow_link || $wallmessage_link || $matrix_chat_link}}
 			<div id="profile-extra-links">
-				{{if $follow_link || $unfollow_link}}
-					<div id="dfrn-request-link-button">
-						{{if $unfollow_link}}
-							<a id="dfrn-request-link" class="btn btn-labeled btn-primary" href="{{$unfollow_link}}">
-								<span><i class="ri ri-user-unfollow-line"></i></span>
-								<span>{{$unfollow}}</span>
-							</a>
-						{{else}}
-							<a id="dfrn-request-link" class="btn btn-labeled btn-primary" href="{{$follow_link}}">
-								<span><i class="ri ri-user-add-line"></i></span>
-								<span>{{$follow}}</span>
-							</a>
-						{{/if}}
-					</div>
-				{{/if}}
-				{{if $subscribe_feed_link}}
-					<div id="subscribe-feed-link-button">
-						<a id="subscribe-feed-link" class="btn btn-labeled btn-primary" href="{{$subscribe_feed_link}}">
-							<span><i class="ri ri-rss-line"></i></span>
-							<span>{{$subscribe_feed}}</span>
-						</a>
-					</div>
-				{{/if}}
-				{{if $wallmessage_link}}
-					<div id="wallmessage-link-button">
-						<button type="button" id="wallmessage-link" class="btn btn-labeled btn-primary" onclick="openWallMessage('{{$wallmessage_link}}')">
-							<span><i class="ri ri-mail-line"></i></span>
-							<span>{{$wallmessage}}</span>
-						</button>
-					</div>
-				{{/if}}
 				{{if $matrix_chat_link}}
 					<div id="matrix-chat-link-button">
 						{{* Opens the floating chat popup (js/matrix-chat-widget.js) when it's
@@ -96,6 +68,37 @@
 						</a>
 					</div>
 				{{/if}}
+				{{if $follow_link || $unfollow_link}}
+					<div id="dfrn-request-link-button">
+						{{if $unfollow_link}}
+							<a id="dfrn-request-link" class="btn btn-labeled btn-default" href="{{$unfollow_link}}">
+								<span><i class="ri ri-user-unfollow-line"></i></span>
+								<span>{{$unfollow}}</span>
+							</a>
+						{{else}}
+							<a id="dfrn-request-link" class="btn btn-labeled btn-default" href="{{$follow_link}}">
+								<span><i class="ri ri-user-add-line"></i></span>
+								<span>{{$follow}}</span>
+							</a>
+						{{/if}}
+					</div>
+				{{/if}}
+				{{if $wallmessage_link}}
+					<div id="wallmessage-link-button">
+						<button type="button" id="wallmessage-link" class="btn btn-labeled btn-default" onclick="openWallMessage('{{$wallmessage_link}}')">
+							<span><i class="ri ri-mail-line"></i></span>
+							<span>{{$wallmessage}}</span>
+						</button>
+					</div>
+				{{/if}}
+				{{if $network_label}}
+					<div id="showgroup-button">
+						<a id="showgroup" class="btn btn-labeled btn-default" href="{{$network_url}}">
+							<span><i class="ri ri-file-list-3-line"></i></span>
+							<span>{{$network_label}}</span>
+						</a>
+					</div>
+				{{/if}}
 				{{if $profile.addr && !$is_owner}}
 					<div id="jotOpen" class="pull-right">
 						<button type="button" id="mention-link" class="action-button btn btn-labeled btn-primary" onclick="openWallMessage('{{$mention_url}}')">
@@ -104,13 +107,10 @@
 						</button>
 					</div>
 				{{/if}}
-				{{if $network_label}}
-					<div id="showgroup-button">
-						<a id="showgroup" class="btn btn-labeled btn-primary" href="{{$network_url}}">
-							<span><i class="ri ri-group-line"></i></span>
-							<span>{{$network_label}}</span>
-						</a>
-					</div>
+				{{if $subscribe_feed_link}}
+					<a id="subscribe-feed-link" class="profile-feed-link" href="{{$subscribe_feed_link}}">
+						<i class="ri ri-rss-line" aria-hidden="true"></i> {{$subscribe_feed}}
+					</a>
 				{{/if}}
 			</div>
 		{{/if}}

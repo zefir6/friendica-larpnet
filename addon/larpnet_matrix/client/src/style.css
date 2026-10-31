@@ -333,18 +333,48 @@ body {
 }
 
 .lnc-picker-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
   text-align: left;
-  padding: 10px 14px;
+  padding: 8px 14px;
   background: none;
   border: none;
   border-top: 1px solid var(--lnc-border);
   cursor: pointer;
 }
 
-.lnc-picker-item:hover {
+.lnc-picker-item:hover,
+.lnc-picker-item-active {
   background: var(--lnc-accent-light);
+}
+
+.lnc-picker-item-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lnc-picker-item-name,
+.lnc-picker-item-nick {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lnc-picker-item-nick {
+  font-size: 0.8em;
+  color: var(--lnc-text-secondary);
+}
+
+.lnc-picker-section {
+  padding: 10px 14px 4px;
+  font-size: 0.75em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--lnc-text-secondary);
 }
 
 .lnc-recovery-modal {
@@ -439,6 +469,14 @@ body {
   gap: 8px;
   padding: 6px 0;
   border-bottom: 1px solid var(--lnc-border);
+}
+
+.lnc-room-info-member-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .lnc-settings-mxid {
@@ -705,6 +743,12 @@ body {
 .lnc-message {
   max-width: 75%;
   margin-bottom: 10px;
+}
+
+/* Pulled up to the previous bubble of the same sender's run (see
+   Conversation.jsx); the 10px gap stays between different senders. */
+.lnc-message-continued {
+  margin-top: -7px;
 }
 
 .lnc-message-sender {
