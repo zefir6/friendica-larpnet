@@ -345,6 +345,9 @@ anything describing the logged-in user.
   and full-page `.lnc-page` needs a real `height`, not just min-height.
   `Conversation.jsx` "sticks to bottom" only while the user is near the
   bottom; a ResizeObserver re-scrolls after async image decrypts/backfill.
+  Only an upward scroll unpins: judging by distance alone, a pending scroll
+  event that ran after content grew left a room opened far above its newest
+  message (2026-11).
 
 ## Display settings, profile links, emoji shortcodes
 
