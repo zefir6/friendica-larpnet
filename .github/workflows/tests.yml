@@ -46,7 +46,10 @@ jobs:
 
   database-tests:
     name: Database-Tests (PHP ${{ matrix.php-versions }})
-    runs-on: ubuntu-latest
+    # Not ubuntu-latest: libxml >= 2.14 (Ubuntu 26) turns the <?xml?> prefix
+    # league/html-to-markdown adds into a comment it fails to strip, which
+    # fails BBCodeTest::testToMarkdown. Production runs libxml 2.9.14.
+    runs-on: ubuntu-24.04
 
     services:
       mariadb:
@@ -99,8 +102,8 @@ jobs:
       - name: "Install Composer dependencies"
         uses: "ramsey/composer-install@v4"
 
-      # MariaDB itself runs as the service container above; ubuntu-latest no
-      # longer ships a database client (or server) of its own.
+      # MariaDB itself runs as the service container above; only the client
+      # is needed on the runner.
       - name: Install MariaDB client
         run: sudo apt-get update && sudo apt-get install -y mariadb-client
 
