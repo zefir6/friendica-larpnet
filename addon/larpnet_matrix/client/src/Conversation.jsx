@@ -27,16 +27,29 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
   const pinnedRef = useRef(true);
   const pinnedRoomRef = useRef(roomId);
   const observerRef = useRef(null);
+  const lastScrollTopRef = useRef(0);
   const scrollToBottomIfPinned = () => {
     const el = scrollRef.current;
     if (el && pinnedRef.current) {
       el.scrollTop = el.scrollHeight;
+      lastScrollTopRef.current = el.scrollTop;
     }
   };
   const onTimelineScroll = () => {
     const el = scrollRef.current;
     const wasPinned = pinnedRef.current;
-    pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    // Only an upward scroll can unpin. Distance alone isn't enough: a scroll
+    // event still pending from our own scrollToBottomIfPinned() can run after
+    // content grew (a decrypted image re-renders only itself) but before the
+    // ResizeObserver, and would otherwise read as "the user scrolled away",
+    // stranding the room far above its newest message.
+    if (nearBottom) {
+      pinnedRef.current = true;
+    } else if (el.scrollTop < lastScrollTopRef.current) {
+      pinnedRef.current = false;
+    }
+    lastScrollTopRef.current = el.scrollTop;
     setRoomAtBottom(pinnedRef.current ? roomId : null);
     if (pinnedRef.current && !wasPinned) {
       markReadIfActive();
