@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         operating-system: ['ubuntu-latest']
-        php: ['8.2', '8.3', '8.4', '8.5']
+        php: ['8.4', '8.5']
 
     steps:
       - name: Checkout
@@ -74,7 +74,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-versions: ['8.2', '8.3', '8.4', '8.5']
+        php-versions: ['8.4', '8.5']
 
     steps:
       - name: Checkout
@@ -99,8 +99,10 @@ jobs:
       - name: "Install Composer dependencies"
         uses: "ramsey/composer-install@v4"
 
-      - name: Start mysql service
-        run: sudo /etc/init.d/mysql start
+      # MariaDB itself runs as the service container above; ubuntu-latest no
+      # longer ships a database client (or server) of its own.
+      - name: Install MariaDB client
+        run: sudo apt-get update && sudo apt-get install -y mariadb-client
 
       - name: Copy default Friendica config
         run: cp config/local-sample.config.php config/local.config.php
@@ -109,15 +111,13 @@ jobs:
         env:
           PORT: ${{ job.services.mariadb.ports[3306] }}
         run: |
-          while ! mysqladmin ping -h"127.0.0.1" -P"$PORT" --silent; do
-            sleep 1
-          done
+          timeout 120 bash -c 'until mariadb-admin ping -h127.0.0.1 -P"$PORT" --silent; do sleep 1; done'
 
       - name: Setup MYSQL database
         env:
           PORT: ${{ job.services.mariadb.ports[3306] }}
         run: |
-          mysql -h"127.0.0.1" -P"$PORT" -utest -ptest test < database.sql
+          mariadb -h127.0.0.1 -P"$PORT" -utest -ptest test < database.sql
 
       - name: Test with phpunit
         run: vendor/bin/phpunit --configuration tests/phpunit.xml --coverage-clover clover.xml
