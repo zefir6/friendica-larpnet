@@ -8,6 +8,8 @@ import { ImageMessage, FileMessage } from './AttachmentMessage.jsx';
 
 // Same 60-second window as the iOS/Android ChatMessageGrouping.
 const GROUP_GAP_MS = 60 * 1000;
+// How long after a wheel/touch/key event a scroll still counts as the user's.
+const USER_INPUT_WINDOW_MS = 250;
 
 export function Conversation({ client, roomId, contacts, serverName, linkTarget, showMessageTimes, focusToken, focusBlocked }) {
   const scrollRef = useRef(null);
@@ -28,6 +30,24 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
   const pinnedRoomRef = useRef(roomId);
   const observerRef = useRef(null);
   const lastScrollTopRef = useRef(0);
+  const lastUserInputRef = useRef(-Infinity);
+  const pointerDownRef = useRef(false);
+  const noteUserInput = () => {
+    lastUserInputRef.current = performance.now();
+  };
+  const userIsScrolling = () => pointerDownRef.current || performance.now() - lastUserInputRef.current < USER_INPUT_WINDOW_MS;
+  // A scrollbar drag's pointerup can land outside the timeline.
+  useEffect(() => {
+    const release = () => {
+      pointerDownRef.current = false;
+    };
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
+    return () => {
+      window.removeEventListener('pointerup', release);
+      window.removeEventListener('pointercancel', release);
+    };
+  }, []);
   const scrollToBottomIfPinned = () => {
     const el = scrollRef.current;
     if (el && pinnedRef.current) {
@@ -39,14 +59,15 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
     const el = scrollRef.current;
     const wasPinned = pinnedRef.current;
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-    // Only an upward scroll can unpin. Distance alone isn't enough: a scroll
-    // event still pending from our own scrollToBottomIfPinned() can run after
-    // content grew (a decrypted image re-renders only itself) but before the
-    // ResizeObserver, and would otherwise read as "the user scrolled away",
-    // stranding the room far above its newest message.
+    // Only the user scrolling up can unpin. Neither distance nor direction is
+    // enough alone: a scroll event still pending from our own
+    // scrollToBottomIfPinned() can run after content changed (a decrypted image
+    // re-renders only itself) but before the ResizeObserver, and content
+    // shrinking also moves scrollTop up, so layout alone could look like the
+    // user scrolling away and strand the room above its newest message.
     if (nearBottom) {
       pinnedRef.current = true;
-    } else if (el.scrollTop < lastScrollTopRef.current) {
+    } else if (el.scrollTop < lastScrollTopRef.current && userIsScrolling()) {
       pinnedRef.current = false;
     }
     lastScrollTopRef.current = el.scrollTop;
@@ -63,6 +84,8 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
     if (node && typeof ResizeObserver !== 'undefined') {
       observerRef.current = new ResizeObserver(scrollToBottomIfPinned);
       observerRef.current.observe(node);
+      // The timeline itself can shrink too (window resize, a taller composer).
+      observerRef.current.observe(node.parentElement);
     }
     // scrollToBottomIfPinned only reads refs, so a stale closure is fine.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -163,7 +186,17 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
 
   return (
     <div class="lnc-conversation">
-      <div class="lnc-timeline" ref={scrollRef} onScroll={onTimelineScroll}>
+      <div
+        class="lnc-timeline"
+        ref={scrollRef}
+        onScroll={onTimelineScroll}
+        onWheel={noteUserInput}
+        onTouchMove={noteUserInput}
+        onKeyDown={noteUserInput}
+        onPointerDown={() => {
+          pointerDownRef.current = true;
+        }}
+      >
         <div ref={contentRef}>
           {events.map((ev, i) => {
             const mine = ev.getSender() === client.getUserId();
