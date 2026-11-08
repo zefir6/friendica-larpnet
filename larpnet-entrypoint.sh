@@ -56,6 +56,7 @@ if [ -f /var/www/html/index.php ]; then
     src/Module/Item/Vote.php \
     src/Content/Conversation/StatusEditor.php \
     src/Module/Home.php \
+    src/Util/Network.php \
     view/templates/item/compose.tpl \
     view/templates/content/question.tpl \
     build-version.txt
