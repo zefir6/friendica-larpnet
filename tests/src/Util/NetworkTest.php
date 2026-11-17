@@ -58,4 +58,42 @@ class NetworkTest extends TestCase
 		// Whitespace only
 		self::assertFalse(Network::isValidAtUrl('   '));
 	}
+
+	public function testEmailDomainNoListsAllowsAll(): void
+	{
+		self::assertTrue(Network::isEmailDomainAllowedByLists('jan@example.com', '', ''));
+		self::assertFalse(Network::isEmailDomainAllowedByLists('no-at-sign', '', ''));
+		self::assertFalse(Network::isEmailDomainAllowedByLists('jan@', '', ''));
+	}
+
+	public function testEmailDomainDisallowedListSeparators(): void
+	{
+		// One per line, as typed into the admin textarea.
+		$list = "spam.example\r\nbad.example\n*.junk.example";
+		self::assertFalse(Network::isEmailDomainAllowedByLists('a@spam.example', '', $list));
+		self::assertFalse(Network::isEmailDomainAllowedByLists('a@bad.example', '', $list));
+		self::assertFalse(Network::isEmailDomainAllowedByLists('a@mx.junk.example', '', $list));
+		self::assertTrue(Network::isEmailDomainAllowedByLists('a@good.example', '', $list));
+
+		// Commas with spaces, semicolons, a leading "@" and mixed case.
+		$list = 'spam.example, @Bad.Example;other.example';
+		self::assertFalse(Network::isEmailDomainAllowedByLists('a@SPAM.example', '', $list));
+		self::assertFalse(Network::isEmailDomainAllowedByLists('a@bad.example', '', $list));
+		self::assertFalse(Network::isEmailDomainAllowedByLists('a@other.example', '', $list));
+		self::assertTrue(Network::isEmailDomainAllowedByLists('a@good.example', '', $list));
+	}
+
+	public function testEmailDomainAllowedListRestricts(): void
+	{
+		$allowed = "example.com\n*.example.org";
+		self::assertTrue(Network::isEmailDomainAllowedByLists('a@example.com', $allowed, ''));
+		self::assertTrue(Network::isEmailDomainAllowedByLists('a@mail.example.org', $allowed, ''));
+		self::assertFalse(Network::isEmailDomainAllowedByLists('a@other.net', $allowed, ''));
+	}
+
+	public function testEmailDomainAllowedOverridesDisallowed(): void
+	{
+		self::assertTrue(Network::isEmailDomainAllowedByLists('a@example.com', 'example.com', '*'));
+		self::assertFalse(Network::isEmailDomainAllowedByLists('a@other.net', 'example.com', '*'));
+	}
 }

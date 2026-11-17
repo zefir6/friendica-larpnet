@@ -305,22 +305,68 @@ class Network
 	 */
 	public static function isEmailDomainAllowed(string $email): bool
 	{
-		$domain = strtolower(substr($email, strpos($email, '@') + 1));
-		if (!$domain) {
+		return self::isEmailDomainAllowedByLists(
+			$email,
+			(string) DI::config()->get('system', 'allowed_email'),
+			(string) DI::config()->get('system', 'disallowed_email'),
+		);
+	}
+
+	/**
+	 * Larpnet: the config-free core of isEmailDomainAllowed(), so it can be unit tested.
+	 *
+	 * Upstream #13920 made a non-empty allowed list only an exception list for the disallowed
+	 * one, so any other domain still registered, although the admin page says only listed
+	 * domains may. Here a domain on the allowed list is accepted (still overriding the
+	 * disallowed list, e.g. disallowed "*" with allowed "example.com"), a disallowed one is
+	 * rejected, and a non-empty allowed list rejects every other domain. Both lists are
+	 * admin-page textareas, so entries may be separated by commas, semicolons or whitespace
+	 * (one per line), and a leading "@" is ignored.
+	 *
+	 * @param string $email      email address
+	 * @param string $allowed    system.allowed_email
+	 * @param string $disallowed system.disallowed_email
+	 */
+	public static function isEmailDomainAllowedByLists(string $email, string $allowed, string $disallowed): bool
+	{
+		$at = strrpos($email, '@');
+		if ($at === false) {
+			return false;
+		}
+		$domain = strtolower(trim(substr($email, $at + 1)));
+		if ($domain === '') {
 			return false;
 		}
 
-		$allowed = DI::config()->get('system', 'allowed_email');
-		if (!empty($allowed) && self::isDomainMatch($domain, explode(',', (string) $allowed))) {
+		$allowedList    = self::parseDomainList($allowed);
+		$disallowedList = self::parseDomainList($disallowed);
+
+		if ($allowedList && self::isDomainMatch($domain, $allowedList)) {
 			return true;
 		}
-
-		$disallowed = DI::config()->get('system', 'disallowed_email');
-		if (!empty($disallowed) && self::isDomainMatch($domain, explode(',', (string) $disallowed))) {
+		if ($disallowedList && self::isDomainMatch($domain, $disallowedList)) {
 			return false;
 		}
 
-		return true;
+		return !$allowedList;
+	}
+
+	/**
+	 * Splits an admin-entered domain list on commas, semicolons and whitespace.
+	 *
+	 * @return string[] lowercase entries, without a leading "@"
+	 */
+	private static function parseDomainList(string $list): array
+	{
+		$entries = [];
+		foreach (preg_split('/[\s,;]+/', $list) ?: [] as $entry) {
+			$entry = ltrim(strtolower($entry), '@');
+			if ($entry !== '') {
+				$entries[] = $entry;
+			}
+		}
+
+		return $entries;
 	}
 
 	/**
