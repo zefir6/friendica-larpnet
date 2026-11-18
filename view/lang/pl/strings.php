@@ -3044,3 +3044,9 @@ $a->strings['Larpnet-only'] = 'Tylko Larpnet';
 $a->strings['Posts'] = 'Wpisy';
 $a->strings['Media posts'] = 'Multimedia';
 $a->strings['Group posts'] = 'Wpisy grupy';
+
+// larpnet: registration approval outside the allowed email domains (src/Module/Register.php, src/Module/Admin/Site.php)
+$a->strings['An admin approves registrations from email domains outside the approved list. Tell them why you want to join.'] = 'Rejestracje z domen e-mail spoza zatwierdzonej listy wymagają akceptacji administratora. Napisz, dlaczego chcesz dołączyć.';
+$a->strings['(No note. The email domain is outside the allowed list.)'] = '(Brak wiadomości. Domena e-mail jest spoza listy dozwolonych.)';
+$a->strings['Approve registrations outside the allowed email domains'] = 'Akceptuj ręcznie rejestracje spoza dozwolonych domen e-mail';
+$a->strings['Instead of rejecting an email address outside the allowed domains, create the account and wait for an admin to approve it, even with open registration. Domains on the disallowed list are still rejected. Has no effect while the allowed list is empty.'] = 'Zamiast odrzucać adres e-mail spoza dozwolonych domen, konto zostanie utworzone i będzie czekać na akceptację administratora, także przy otwartej rejestracji. Domeny z listy niedozwolonych są nadal odrzucane. Nie działa, gdy lista dozwolonych domen jest pusta.';

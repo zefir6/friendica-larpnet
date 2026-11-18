@@ -22,6 +22,7 @@ use Friendica\Event\ArrayFilterEvent;
 use Friendica\Model;
 use Friendica\Model\User;
 use Friendica\Util\DateTimeFormat;
+use Friendica\Util\Network;
 use Friendica\Util\Profiler;
 use Friendica\Util\Proxy;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -208,11 +209,18 @@ class Register extends BaseModule
 
 		$tpl = $hook_data['template'] ?? $tpl;
 
+		// Larpnet: with open registration, addresses outside the allowed email domains can
+		// still need approval (see post()), so offer the note to the admin as optional.
+		$domainApproval = self::getPolicy() === self::OPEN && Network::isEmailDomainApprovalActive();
+		$permonlybox    = $domainApproval
+			? ['permonlybox', DI::l10n()->t('Note for the admin'), '', DI::l10n()->t('An admin approves registrations from email domains outside the approved list. Tell them why you want to join.'), '']
+			: ['permonlybox', DI::l10n()->t('Note for the admin'), '', DI::l10n()->t('Leave a message for the admin, why you want to join this node'), DI::l10n()->t('Required')];
+
 		$o = Renderer::replaceMacros($tpl, [
 			'$notices'               => $notices,
 			'$invitations'           => DI::config()->get('system', 'invitation_only'),
-			'$permonly'              => self::getPolicy() === self::APPROVE,
-			'$permonlybox'           => ['permonlybox', DI::l10n()->t('Note for the admin'), '', DI::l10n()->t('Leave a message for the admin, why you want to join this node'), DI::l10n()->t('Required')],
+			'$permonly'              => self::getPolicy() === self::APPROVE || $domainApproval,
+			'$permonlybox'           => $permonlybox,
 			'$invite_desc'           => DI::l10n()->t('Membership on this site is by invitation only.'),
 			'$invite_label'          => DI::l10n()->t('Your invitation code: '),
 			'$invite_id'             => $invite_id,
@@ -298,7 +306,8 @@ class Register extends BaseModule
 			}
 		}
 
-		switch (self::getPolicy()) {
+		$policy = self::getPolicy();
+		switch ($policy) {
 			case self::OPEN:
 				$blocked  = 0;
 				$verified = 1;
@@ -366,6 +375,16 @@ class Register extends BaseModule
 			DI::baseUrl()->redirect('register?' . http_build_query($regdata));
 		}
 
+		// Larpnet: an address outside the allowed email domains, with the approval option on
+		// (Network::getEmailDomainStatus()), registers as if the policy were APPROVE.
+		$domainApproval = !$additional_account && $policy === self::OPEN
+			&& Network::getEmailDomainStatus((string) $post['email']) === Network::EMAIL_DOMAIN_APPROVAL;
+		if ($domainApproval) {
+			$policy   = self::APPROVE;
+			$blocked  = 1;
+			$verified = 0;
+		}
+
 		$post['blocked']  = $blocked;
 		$post['verified'] = $verified;
 		$post['language'] = L10n::detectLanguage($_SERVER, $_GET, DI::config()->get('system', 'language'));
@@ -381,7 +400,7 @@ class Register extends BaseModule
 
 		$base_url = (string) DI::baseUrl();
 
-		if ($netpublish && self::getPolicy() !== self::APPROVE) {
+		if ($netpublish && $policy !== self::APPROVE) {
 			$url = $base_url . '/profile/' . $user['nickname'];
 			Worker::add(Worker::PRIORITY_LOW, 'Directory', $url);
 		}
@@ -439,7 +458,7 @@ class Register extends BaseModule
 		$num_invites   = DI::config()->get('system', 'number_invites');
 		$invite_id     = (!empty($_POST['invite_id']) ? trim((string) $_POST['invite_id']) : '');
 
-		if (self::getPolicy() === self::OPEN) {
+		if ($policy === self::OPEN) {
 			if ($using_invites && $invite_id) {
 				Model\Register::deleteByHash($invite_id);
 				DI::pConfig()->set($user['uid'], 'system', 'invites_remaining', $num_invites);
@@ -477,15 +496,19 @@ class Register extends BaseModule
 				}
 				DI::baseUrl()->redirect();
 			}
-		} elseif (self::getPolicy() === self::APPROVE) {
+		} elseif ($policy === self::APPROVE) {
 			if (!User::getAdminEmailList()) {
 				$this->logger->critical('Registration policy is set to APPROVE but no admin email address has been set in config.admin_email');
 				DI::sysmsg()->addNotice(DI::l10n()->t('Your registration can not be processed.'));
 				DI::baseUrl()->redirect();
 			}
 
-			// Check if the note to the admin is actually filled out
-			if (empty($_POST['permonlybox'])) {
+			$note = trim((string) ($_POST['permonlybox'] ?? ''));
+			// Check if the note to the admin is actually filled out. Optional for a
+			// domain-triggered approval, where the form shows it as optional.
+			if ($note === '' && $domainApproval) {
+				$note = DI::l10n()->t('(No note. The email domain is outside the allowed list.)');
+			} elseif ($note === '') {
 				DI::sysmsg()->addNotice(DI::l10n()->t('You have to leave a request note for the admin.')
 					. DI::l10n()->t('Your registration can not be processed.'));
 
@@ -493,7 +516,7 @@ class Register extends BaseModule
 			}
 
 			try {
-				Model\Register::createForApproval($user['uid'], DI::config()->get('system', 'language'), $_POST['permonlybox']);
+				Model\Register::createForApproval($user['uid'], DI::config()->get('system', 'language'), $note);
 			} catch (\Throwable) {
 				$this->logger->error('Unable to create a `register` record.', ['user' => $user]);
 				DI::sysmsg()->addNotice(DI::l10n()->t('An internal error occured.')

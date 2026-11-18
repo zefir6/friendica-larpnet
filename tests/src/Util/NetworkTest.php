@@ -91,6 +91,23 @@ class NetworkTest extends TestCase
 		self::assertFalse(Network::isEmailDomainAllowedByLists('a@other.net', $allowed, ''));
 	}
 
+	public function testEmailDomainApprovalOutsideAllowed(): void
+	{
+		$allowed    = "example.com\n*.example.org";
+		$disallowed = 'spam.example';
+
+		self::assertSame(Network::EMAIL_DOMAIN_ALLOWED, Network::getEmailDomainStatusByLists('a@example.com', $allowed, $disallowed, true));
+		self::assertSame(Network::EMAIL_DOMAIN_ALLOWED, Network::getEmailDomainStatusByLists('a@mail.example.org', $allowed, $disallowed, true));
+		self::assertSame(Network::EMAIL_DOMAIN_APPROVAL, Network::getEmailDomainStatusByLists('a@other.net', $allowed, $disallowed, true));
+		// The disallowed list still rejects outright.
+		self::assertSame(Network::EMAIL_DOMAIN_REJECTED, Network::getEmailDomainStatusByLists('a@spam.example', $allowed, $disallowed, true));
+		// Without the option, outside the allowed list is rejected.
+		self::assertSame(Network::EMAIL_DOMAIN_REJECTED, Network::getEmailDomainStatusByLists('a@other.net', $allowed, $disallowed, false));
+		// Without an allowed list there is nothing to be outside of.
+		self::assertSame(Network::EMAIL_DOMAIN_ALLOWED, Network::getEmailDomainStatusByLists('a@other.net', '', $disallowed, true));
+		self::assertSame(Network::EMAIL_DOMAIN_REJECTED, Network::getEmailDomainStatusByLists('no-at-sign', $allowed, '', true));
+	}
+
 	public function testEmailDomainAllowedOverridesDisallowed(): void
 	{
 		self::assertTrue(Network::isEmailDomainAllowedByLists('a@example.com', 'example.com', '*'));
