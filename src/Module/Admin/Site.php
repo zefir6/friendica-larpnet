@@ -85,6 +85,9 @@ class Site extends BaseAdmin
 		$blocked_tags            = (!empty($_POST['blocked_tags']) ? trim((string) $_POST['blocked_tags'])  : '');
 		$cache_contact_avatar    = !empty($_POST['cache_contact_avatar']);
 
+		// Larpnet: see Network::getEmailDomainStatus()
+		$approve_outside_email = !empty($_POST['larpnet_approve_outside_allowed_email']);
+
 		$enable_multi_reg                = !empty($_POST['enable_multi_reg']);
 		$enable_openid                   = !empty($_POST['enable_openid']);
 		$enable_regfullname              = !empty($_POST['enable_regfullname']);
@@ -248,6 +251,7 @@ class Site extends BaseAdmin
 		$transactionConfig->set('system', 'allowed_sites', $allowed_sites);
 		$transactionConfig->set('system', 'allowed_email', $allowed_email);
 		$transactionConfig->set('system', 'disallowed_email', $disallowed_email);
+		$transactionConfig->set('system', 'larpnet_approve_outside_allowed_email', $approve_outside_email);
 		$transactionConfig->set('system', 'forbidden_nicknames', $forbidden_nicknames);
 		$transactionConfig->set('system', 'system_actor_name', $system_actor_name);
 		$transactionConfig->set('system', 'block_public', $block_public);
@@ -512,6 +516,7 @@ class Site extends BaseAdmin
 			'$allowed_sites'                   => ['allowed_sites', DI::l10n()->t('Allowed friend domains'), DI::config()->get('system', 'allowed_sites'), DI::l10n()->t('Comma separated list of domains which are allowed to establish friendships with this site. Wildcards are accepted. Empty to allow any domains')],
 			'$allowed_email'                   => ['allowed_email', DI::l10n()->t('Allowed email domains'), DI::config()->get('system', 'allowed_email'), DI::l10n()->t('Comma separated list of domains which are allowed in email addresses for registrations to this site. Wildcards are accepted. Empty to allow any domains')],
 			'$disallowed_email'                => ['disallowed_email', DI::l10n()->t('Disallowed email domains'), DI::config()->get('system', 'disallowed_email'), DI::l10n()->t('Comma separated list of domains which are rejected as email addresses for registrations to this site. Wildcards are accepted.')],
+			'$approve_outside_email'           => ['larpnet_approve_outside_allowed_email', DI::l10n()->t('Approve registrations outside the allowed email domains'), DI::config()->get('system', 'larpnet_approve_outside_allowed_email'), DI::l10n()->t('Instead of rejecting an email address outside the allowed domains, create the account and wait for an admin to approve it, even with open registration. Domains on the disallowed list are still rejected. Has no effect while the allowed list is empty.')],
 			'$block_public'                    => ['block_public', DI::l10n()->t('Block public'), DI::config()->get('system', 'block_public'), DI::l10n()->t('Check to block public access to all otherwise public personal pages on this site unless you are currently logged in.')],
 			'$force_publish'                   => ['publish_all', DI::l10n()->t('Force publish'), DI::config()->get('system', 'publish_all'), DI::l10n()->t('Check to force all profiles on this site to be listed in the site directory.') . '<strong>' . DI::l10n()->t('Enabling this may violate privacy laws like the GDPR') . '</strong>'],
 			'$global_directory'                => ['directory', DI::l10n()->t('Global directory URL'), DI::config()->get('system', 'directory'), DI::l10n()->t('URL to the global directory. If this is not set, the global directory is completely unavailable to the application.')],

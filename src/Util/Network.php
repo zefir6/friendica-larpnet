@@ -305,23 +305,47 @@ class Network
 	 */
 	public static function isEmailDomainAllowed(string $email): bool
 	{
-		return self::isEmailDomainAllowedByLists(
+		// An address that only needs approval may still create its (blocked) account;
+		// Module\Register puts it into the approval queue.
+		return self::getEmailDomainStatus($email) !== self::EMAIL_DOMAIN_REJECTED;
+	}
+
+	/** Larpnet: the email domain may register directly. */
+	public const EMAIL_DOMAIN_ALLOWED = 'allowed';
+	/** Larpnet: the email domain may register, but only with an admin's approval. */
+	public const EMAIL_DOMAIN_APPROVAL = 'approval';
+	/** Larpnet: the email domain may not register. */
+	public const EMAIL_DOMAIN_REJECTED = 'rejected';
+
+	/**
+	 * Larpnet: system.larpnet_approve_outside_allowed_email turns "not on the allowed list"
+	 * from a rejection into a registration that waits for an admin's approval.
+	 *
+	 * @return string One of the EMAIL_DOMAIN_* constants
+	 */
+	public static function getEmailDomainStatus(string $email): string
+	{
+		return self::getEmailDomainStatusByLists(
 			$email,
 			(string) DI::config()->get('system', 'allowed_email'),
 			(string) DI::config()->get('system', 'disallowed_email'),
+			(bool) DI::config()->get('system', 'larpnet_approve_outside_allowed_email'),
 		);
 	}
 
 	/**
-	 * Larpnet: the config-free core of isEmailDomainAllowed(), so it can be unit tested.
-	 *
-	 * Upstream #13920 made a non-empty allowed list only an exception list for the disallowed
-	 * one, so any other domain still registered, although the admin page says only listed
-	 * domains may. Here a domain on the allowed list is accepted (still overriding the
-	 * disallowed list, e.g. disallowed "*" with allowed "example.com"), a disallowed one is
-	 * rejected, and a non-empty allowed list rejects every other domain. Both lists are
-	 * admin-page textareas, so entries may be separated by commas, semicolons or whitespace
-	 * (one per line), and a leading "@" is ignored.
+	 * Larpnet: whether some email domains currently register only with an admin's approval,
+	 * i.e. the approval option is on and there is an allowed list to be outside of.
+	 */
+	public static function isEmailDomainApprovalActive(): bool
+	{
+		return DI::config()->get('system', 'larpnet_approve_outside_allowed_email')
+			&& self::parseDomainList((string) DI::config()->get('system', 'allowed_email'));
+	}
+
+	/**
+	 * Larpnet: the config-free core of isEmailDomainAllowed() without the approval option,
+	 * so it can be unit tested. See getEmailDomainStatusByLists().
 	 *
 	 * @param string $email      email address
 	 * @param string $allowed    system.allowed_email
@@ -329,26 +353,53 @@ class Network
 	 */
 	public static function isEmailDomainAllowedByLists(string $email, string $allowed, string $disallowed): bool
 	{
+		return self::getEmailDomainStatusByLists($email, $allowed, $disallowed, false) === self::EMAIL_DOMAIN_ALLOWED;
+	}
+
+	/**
+	 * Larpnet: the config-free core of getEmailDomainStatus(), so it can be unit tested.
+	 *
+	 * Upstream #13920 made a non-empty allowed list only an exception list for the disallowed
+	 * one, so any other domain still registered, although the admin page says only listed
+	 * domains may. Here a domain on the allowed list is accepted (still overriding the
+	 * disallowed list, e.g. disallowed "*" with allowed "example.com"), a disallowed one is
+	 * rejected, and with a non-empty allowed list every other domain is rejected, or needs
+	 * approval when $approveOutsideAllowed is set. Both lists are admin-page textareas, so
+	 * entries may be separated by commas, semicolons or whitespace (one per line), and a
+	 * leading "@" is ignored.
+	 *
+	 * @param string $email                 email address
+	 * @param string $allowed               system.allowed_email
+	 * @param string $disallowed            system.disallowed_email
+	 * @param bool   $approveOutsideAllowed system.larpnet_approve_outside_allowed_email
+	 *
+	 * @return string One of the EMAIL_DOMAIN_* constants
+	 */
+	public static function getEmailDomainStatusByLists(string $email, string $allowed, string $disallowed, bool $approveOutsideAllowed): string
+	{
 		$at = strrpos($email, '@');
 		if ($at === false) {
-			return false;
+			return self::EMAIL_DOMAIN_REJECTED;
 		}
 		$domain = strtolower(trim(substr($email, $at + 1)));
 		if ($domain === '') {
-			return false;
+			return self::EMAIL_DOMAIN_REJECTED;
 		}
 
 		$allowedList    = self::parseDomainList($allowed);
 		$disallowedList = self::parseDomainList($disallowed);
 
 		if ($allowedList && self::isDomainMatch($domain, $allowedList)) {
-			return true;
+			return self::EMAIL_DOMAIN_ALLOWED;
 		}
 		if ($disallowedList && self::isDomainMatch($domain, $disallowedList)) {
-			return false;
+			return self::EMAIL_DOMAIN_REJECTED;
+		}
+		if (!$allowedList) {
+			return self::EMAIL_DOMAIN_ALLOWED;
 		}
 
-		return !$allowedList;
+		return $approveOutsideAllowed ? self::EMAIL_DOMAIN_APPROVAL : self::EMAIL_DOMAIN_REJECTED;
 	}
 
 	/**
