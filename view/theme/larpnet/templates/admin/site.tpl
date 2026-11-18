@@ -84,6 +84,7 @@
 						{{include file="field_checkbox.tpl" field=$enable_regfullname}}
 						{{include file="field_checkbox.tpl" field=$register_notification}}
 						{{include file="field_textarea.tpl" field=$allowed_email}}
+						{{include file="field_checkbox.tpl" field=$approve_outside_email}}
 						{{include file="field_textarea.tpl" field=$disallowed_email}}
 						{{include file="field_textarea.tpl" field=$forbidden_nicknames}}
 					</div>

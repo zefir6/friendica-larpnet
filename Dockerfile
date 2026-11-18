@@ -328,5 +328,7 @@ COPY src/Module/Item/Vote.php                                /usr/src/friendica/
 COPY src/Content/Conversation/StatusEditor.php               /usr/src/friendica/src/Content/Conversation/StatusEditor.php
 COPY src/Module/Home.php                                     /usr/src/friendica/src/Module/Home.php
 COPY src/Util/Network.php                                    /usr/src/friendica/src/Util/Network.php
+COPY src/Module/Register.php                                 /usr/src/friendica/src/Module/Register.php
+COPY src/Module/Admin/Site.php                               /usr/src/friendica/src/Module/Admin/Site.php
 COPY view/templates/item/compose.tpl                         /usr/src/friendica/view/templates/item/compose.tpl
 COPY view/templates/content/question.tpl                     /usr/src/friendica/view/templates/content/question.tpl
