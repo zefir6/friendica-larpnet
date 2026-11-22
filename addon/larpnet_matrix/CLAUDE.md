@@ -342,7 +342,9 @@ anything describing the logged-in user.
 - **Timeline scrolling needs `min-height: 0`** on `.lnc-conversation` and
   `.lnc-timeline` (flex items default to content height, so without it the
   conversation grew and pushed the composer off-screen instead of scrolling),
-  and full-page `.lnc-page` needs a real `height`, not just min-height.
+  and every ancestor of `#app` needs a real `height`, not just min-height
+  (full page is a standalone document since 2026-11: `html, body, #app` are
+  `height: 100%`, no site nav or card around it).
   `Conversation.jsx` "sticks to bottom" only while the user is near the
   bottom; a ResizeObserver re-scrolls after async image decrypts/backfill.
   Only user input (wheel, touch, key, pointer) scrolling upward unpins. Judging
@@ -358,6 +360,10 @@ anything describing the logged-in user.
   `lnc_room_list_width` (side-by-side layouts only, set by dragging
   `.lnc-resizer`, clamped 180-480px and to leave the conversation 280px;
   double-click resets to 280).
+- Full-screen chat on a window >= 1100px shows room info as a right-hand
+  column (`RoomInfoModal` with `variant="panel"`), Messenger-style; "Info"
+  toggles it (`lnc_info_panel`). Narrower windows and the corner popup keep
+  the overlay.
 - Member names in Room info and sender names above incoming messages link
   to `/profile/<nickname>` via `matrix.js`'s `profileUrlForUserId()` (local
   mxids only). Full page opens a new tab; the corner popup uses

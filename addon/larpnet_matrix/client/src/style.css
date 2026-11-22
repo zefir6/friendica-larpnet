@@ -143,49 +143,50 @@ body {
   background: var(--lnc-border);
 }
 
-/* Full-chrome mode (larpnet_matrix_content()'s ?full=1 branch): .lnc-page is
-   now also .generic-page-wrapper, the site's real card (see
-   view/theme/larpnet/css/style.css's `section > .generic-page-wrapper`
-   rule) -- but that rule only sets `min-height`, never an explicit
-   `height`. A percentage height on a descendant (the plain `height: 100%`
-   the html/body/#app rule above gives #app) only resolves against an
-   ancestor height that's explicitly specified -- min-height alone doesn't
-   count, so #app's height:100% still collapses to its content height
-   there, same bug a previous `height: 80vh` hack on #app was papering
-   over (and which hard-capped the chat well short of the page's actual
-   bottom, looking like a small floating box rather than "the page").
-   Flexbox sidesteps the percentage-height rule entirely: flex-grow
-   distributes a container's own *used* size -- whatever it resolved to,
-   min-height included -- to its flex items, so making .lnc-page the flex
-   container and #app a flex-growing child fills the real card's height
-   without needing #app's own height to be percentage-resolvable at all. */
-.lnc-page {
-  display: flex;
-  flex-direction: column;
-  /* An explicit height (same value as the card's own min-height), not just
-     min-height: without it nothing ever bounds the card, so a long
-     conversation grew the whole page instead of scrolling .lnc-timeline. */
-  height: calc(100vh - 150px);
+/* Full-screen mode (larpnet_matrix_content()'s ?full=1): a standalone
+   document like the corner-bubble iframe, no site nav or card around it
+   (body.lnc-fullpage). The html/body/#app height:100% rule above makes the
+   chat fill the window; the timeline scrolls inside it. */
+body.lnc-fullpage {
+  background: #ffffff;
 }
 
-.lnc-page #app {
-  height: auto;
-  flex: 1 1 auto;
-  min-height: 480px;
+/* The way back to the site (App.jsx, full page only). Same logo image the
+   site nav uses (view/theme/larpnet/css/style.css #logo-img), tinted with
+   the accent colour through a mask. */
+.lnc-home-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 12px;
+  color: var(--lnc-accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.lnc-home-link:hover .lnc-home-text {
+  text-decoration: underline;
+}
+
+.lnc-home-logo {
+  width: 28px;
+  height: 28px;
+  background-color: var(--lnc-accent);
+  -webkit-mask: url("../view/theme/larpnet/img/friendica-32.png") center / contain no-repeat;
+  mask: url("../view/theme/larpnet/img/friendica-32.png") center / contain no-repeat;
+}
+
+@media (max-width: 600px) {
+  .lnc-home-text {
+    display: none;
+  }
 }
 
 /* Full-screen mode only (App.jsx adds this class once it reads
-   config.fullPage -- a component-owned concern, not something style.css
-   should sniff via a .lnc-page DOM ancestor). Drops the solid-purple
-   header entirely: the real site nav (#topbar-first) already sits
-   directly above it, and two stacked solid-purple bars is what reads as
-   "a separate embedded app" rather than part of the page. Restyled to
-   match the site's own established "light secondary bar under the purple
-   nav" look (#topbar-second in view/theme/larpnet/css/style.css: white
-   background, subtle border/shadow) instead of inventing a new treatment.
-   The corner-bubble widget is untouched -- its solid-purple header is
-   still correct there, it's a self-contained popup with no other page
-   chrome around it. */
+   config.fullPage). A light header (white, subtle border) with the Larpnet
+   logo link, like Messenger's, instead of the corner popup's solid-purple
+   bar. The corner-bubble widget is untouched -- its purple header is still
+   right there, as a self-contained popup inside another page. */
 .lnc-app-fullpage .lnc-header {
   background: #ffffff;
   color: var(--lnc-text);
@@ -437,6 +438,51 @@ body {
 .lnc-btn-secondary:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* Room info as a permanent right-hand column (full-screen chat on wide
+   windows, App.jsx infoAsPanel), Messenger-style. Same content as the
+   overlay; only the wrapper and the avatar + name head differ. */
+.lnc-room-info-panel {
+  flex: 0 0 320px;
+  min-height: 0;
+  overflow-y: auto;
+  border-left: 1px solid var(--lnc-border);
+  background: #ffffff;
+}
+
+.lnc-room-info-panel-head {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 14px 14px;
+  border-bottom: 1px solid var(--lnc-border);
+  text-align: center;
+}
+
+.lnc-room-info-panel-title {
+  font-weight: 700;
+  font-size: 1.05em;
+  overflow-wrap: anywhere;
+}
+
+.lnc-room-info-panel-head .lnc-picker-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: var(--lnc-text-secondary);
+}
+
+.lnc-room-info-panel-head .lnc-picker-close:hover {
+  color: var(--lnc-text);
+}
+
+.lnc-app-fullpage .lnc-header-btn.lnc-header-btn-active {
+  background: var(--lnc-accent);
+  border-color: var(--lnc-accent);
+  color: #ffffff;
 }
 
 .lnc-room-info-body {

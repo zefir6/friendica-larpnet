@@ -18,8 +18,14 @@ import { isRoomMuted, muteUntil, muteRoom, unmuteRoom, MUTE_OPTIONS } from './no
  * over the room's `name` state event (see matrix.js), so setting one here
  * would silently have no visible effect and just confuse whoever tries it.
  * It only ever matters once a room has more than one other member.
+ *
+ * variant="panel": the same content as a permanent right-hand column
+ * (full-screen chat on wide windows, Messenger-style, see App.jsx) instead
+ * of an overlay. `title`/`avatarUrl` head the panel; App.jsx keys it by
+ * room id so the rename field resets when the conversation changes.
  */
-export function RoomInfoModal({ client, config, room, contacts, serverName, linkTarget, onClose, onLeft, onAddMember }) {
+export function RoomInfoModal({ client, config, room, contacts, serverName, linkTarget, onClose, onLeft, onAddMember, variant, title, avatarUrl }) {
+  const isPanel = variant === 'panel';
   const [nameInput, setNameInput] = useState(room.name || '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -27,7 +33,11 @@ export function RoomInfoModal({ client, config, room, contacts, serverName, link
   const closeRef = useRef(null);
   // Focus inside the dialog so Escape reaches its key handler; `autoFocus`
   // is ignored for elements mounted after page load.
-  useEffect(() => closeRef.current?.focus(), []);
+  useEffect(() => {
+    if (!isPanel) {
+      closeRef.current?.focus();
+    }
+  }, []);
 
   const others = room
     .getMembersWithMembership('join')
@@ -90,6 +100,105 @@ export function RoomInfoModal({ client, config, room, contacts, serverName, link
     }
   };
 
+  const content = (
+    <div class="lnc-room-info-body">
+      {isGroup && (
+        <form onSubmit={handleRename} class="lnc-room-info-rename">
+          <input
+            type="text"
+            class="lnc-picker-search"
+            value={nameInput}
+            onInput={(e) => setNameInput(e.currentTarget.value)}
+            placeholder="Nazwa rozmowy…"
+          />
+          <button
+            type="submit"
+            class="lnc-btn-secondary"
+            disabled={busy || !nameInput.trim() || nameInput.trim() === room.name}
+          >
+            Zapisz
+          </button>
+        </form>
+      )}
+      <div class="lnc-room-info-notifications">
+        <span class="lnc-room-info-notifications-title">
+          {muted ? (until ? 'Wyciszona do ' + formatMessageTime(until) : 'Wyciszona') : 'Powiadomienia włączone'}
+        </span>
+        {muted ? (
+          <div class="lnc-room-info-mute-options">
+            <button type="button" class="lnc-btn-secondary" onClick={() => handleMute(undefined)} disabled={busy}>
+              Włącz powiadomienia
+            </button>
+          </div>
+        ) : (
+          <div class="lnc-room-info-mute-options">
+            <span>Wycisz na:</span>
+            {MUTE_OPTIONS.map((o) => (
+              <button key={o.label} type="button" class="lnc-btn-secondary" onClick={() => handleMute(o.ms)} disabled={busy}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div class="lnc-room-info-members">
+        {others.map((m) => {
+          const name = resolveDisplayName(m.userId, contacts) || m.name || m.userId;
+          const profileUrl = profileUrlForUserId(m.userId, serverName, contacts);
+          return (
+            <div key={m.userId} class="lnc-room-info-member">
+              <Avatar url={avatarUrlForUserId(m.userId, serverName, contacts)} name={name} size={28} />
+              {profileUrl ? (
+                <a class="lnc-profile-link lnc-room-info-member-name" href={profileUrl} target={linkTarget} rel="noopener" title="Otwórz profil">
+                  {name}
+                </a>
+              ) : (
+                <span class="lnc-room-info-member-name">{name}</span>
+              )}
+              {isGroup &&
+                (confirmingRemove === m.userId ? (
+                  <span class="lnc-room-delete-confirm">
+                    <button type="button" class="lnc-room-delete-confirm-btn" onClick={() => handleRemove(m.userId)} disabled={busy}>
+                      Usuń
+                    </button>
+                    <button type="button" class="lnc-room-delete-cancel-btn" onClick={() => setConfirmingRemove(null)} disabled={busy}>
+                      Anuluj
+                    </button>
+                  </span>
+                ) : (
+                  <button type="button" class="lnc-btn-secondary" onClick={() => setConfirmingRemove(m.userId)} disabled={busy}>
+                    Usuń z rozmowy
+                  </button>
+                ))}
+            </div>
+          );
+        })}
+      </div>
+      <button type="button" class="lnc-new-chat-btn" onClick={onAddMember} disabled={busy}>
+        + Dodaj osobę
+      </button>
+      {error && <div class="lnc-recovery-error">{error}</div>}
+      <button type="button" class="lnc-room-info-leave" onClick={handleLeave} disabled={busy}>
+        Opuść rozmowę
+      </button>
+    </div>
+  );
+
+  if (isPanel) {
+    return (
+      <aside class="lnc-room-info-panel" aria-label="Informacje o rozmowie">
+        <div class="lnc-room-info-panel-head">
+          <Avatar url={avatarUrl} name={title} size={56} />
+          <span class="lnc-room-info-panel-title">{title}</span>
+          <button type="button" class="lnc-picker-close" aria-label="Ukryj panel" title="Ukryj panel" onClick={onClose}>
+            <i class="ri ri-close-line" aria-hidden="true"></i>
+          </button>
+        </div>
+        {content}
+      </aside>
+    );
+  }
+
   return (
     <div class="lnc-picker-overlay" onClick={onClose} onKeyDown={(e) => e.key === 'Escape' && onClose()}>
       <div class="lnc-picker" role="dialog" aria-label="Informacje o rozmowie" onClick={(e) => e.stopPropagation()}>
@@ -97,87 +206,7 @@ export function RoomInfoModal({ client, config, room, contacts, serverName, link
           <span>Informacje o rozmowie</span>
           <button type="button" class="lnc-picker-close" aria-label="Zamknij" onClick={onClose} ref={closeRef}><i class="ri ri-close-line" aria-hidden="true"></i></button>
         </div>
-        <div class="lnc-room-info-body">
-          {isGroup && (
-            <form onSubmit={handleRename} class="lnc-room-info-rename">
-              <input
-                type="text"
-                class="lnc-picker-search"
-                value={nameInput}
-                onInput={(e) => setNameInput(e.currentTarget.value)}
-                placeholder="Nazwa rozmowy…"
-              />
-              <button
-                type="submit"
-                class="lnc-btn-secondary"
-                disabled={busy || !nameInput.trim() || nameInput.trim() === room.name}
-              >
-                Zapisz
-              </button>
-            </form>
-          )}
-          <div class="lnc-room-info-notifications">
-            <span class="lnc-room-info-notifications-title">
-              {muted ? (until ? 'Wyciszona do ' + formatMessageTime(until) : 'Wyciszona') : 'Powiadomienia włączone'}
-            </span>
-            {muted ? (
-              <div class="lnc-room-info-mute-options">
-                <button type="button" class="lnc-btn-secondary" onClick={() => handleMute(undefined)} disabled={busy}>
-                  Włącz powiadomienia
-                </button>
-              </div>
-            ) : (
-              <div class="lnc-room-info-mute-options">
-                <span>Wycisz na:</span>
-                {MUTE_OPTIONS.map((o) => (
-                  <button key={o.label} type="button" class="lnc-btn-secondary" onClick={() => handleMute(o.ms)} disabled={busy}>
-                    {o.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div class="lnc-room-info-members">
-            {others.map((m) => {
-              const name = resolveDisplayName(m.userId, contacts) || m.name || m.userId;
-              const profileUrl = profileUrlForUserId(m.userId, serverName, contacts);
-              return (
-                <div key={m.userId} class="lnc-room-info-member">
-                  <Avatar url={avatarUrlForUserId(m.userId, serverName, contacts)} name={name} size={28} />
-                  {profileUrl ? (
-                    <a class="lnc-profile-link lnc-room-info-member-name" href={profileUrl} target={linkTarget} rel="noopener" title="Otwórz profil">
-                      {name}
-                    </a>
-                  ) : (
-                    <span class="lnc-room-info-member-name">{name}</span>
-                  )}
-                  {isGroup &&
-                    (confirmingRemove === m.userId ? (
-                      <span class="lnc-room-delete-confirm">
-                        <button type="button" class="lnc-room-delete-confirm-btn" onClick={() => handleRemove(m.userId)} disabled={busy}>
-                          Usuń
-                        </button>
-                        <button type="button" class="lnc-room-delete-cancel-btn" onClick={() => setConfirmingRemove(null)} disabled={busy}>
-                          Anuluj
-                        </button>
-                      </span>
-                    ) : (
-                      <button type="button" class="lnc-btn-secondary" onClick={() => setConfirmingRemove(m.userId)} disabled={busy}>
-                        Usuń z rozmowy
-                      </button>
-                    ))}
-                </div>
-              );
-            })}
-          </div>
-          <button type="button" class="lnc-new-chat-btn" onClick={onAddMember} disabled={busy}>
-            + Dodaj osobę
-          </button>
-          {error && <div class="lnc-recovery-error">{error}</div>}
-          <button type="button" class="lnc-room-info-leave" onClick={handleLeave} disabled={busy}>
-            Opuść rozmowę
-          </button>
-        </div>
+        {content}
       </div>
     </div>
   );
