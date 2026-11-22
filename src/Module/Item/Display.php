@@ -137,7 +137,9 @@ class Display extends BaseModule
 
 		if (empty($item)) {
 			$this->page['aside'] = '';
-			$displayNotFound     = new DisplayNotFound($this->l10n, $this->baseUrl, $this->args, $this->logger, $this->profiler, $this->response, $this->server, $this->parameters);
+			// larpnet: answered with HTTP 200, so keep it out of search results
+			$this->page['htmlhead'] .= "<meta name=\"robots\" content=\"noindex\" />\n";
+			$displayNotFound = new DisplayNotFound($this->l10n, $this->baseUrl, $this->args, $this->logger, $this->profiler, $this->response, $this->server, $this->parameters);
 			return $displayNotFound->content();
 		}
 
@@ -273,7 +275,9 @@ class Display extends BaseModule
 
 		if (empty($item)) {
 			$this->page['aside'] = '';
-			$displayNotFound     = new DisplayNotFound($this->l10n, $this->baseUrl, $this->args, $this->logger, $this->profiler, $this->response, $this->server, $this->parameters);
+			// larpnet: answered with HTTP 200, so keep it out of search results
+			$this->page['htmlhead'] .= "<meta name=\"robots\" content=\"noindex\" />\n";
+			$displayNotFound = new DisplayNotFound($this->l10n, $this->baseUrl, $this->args, $this->logger, $this->profiler, $this->response, $this->server, $this->parameters);
 			return $displayNotFound->content();
 		}
 
