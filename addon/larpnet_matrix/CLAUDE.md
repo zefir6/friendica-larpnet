@@ -342,7 +342,9 @@ anything describing the logged-in user.
 - **Timeline scrolling needs `min-height: 0`** on `.lnc-conversation` and
   `.lnc-timeline` (flex items default to content height, so without it the
   conversation grew and pushed the composer off-screen instead of scrolling),
-  and full-page `.lnc-page` needs a real `height`, not just min-height.
+  and every ancestor of `#app` needs a real `height`, not just min-height
+  (full page is a standalone document since 2026-11: `html, body, #app` are
+  `height: 100%`, no site nav or card around it).
   `Conversation.jsx` "sticks to bottom" only while the user is near the
   bottom; a ResizeObserver re-scrolls after async image decrypts/backfill.
   Only user input (wheel, touch, key, pointer) scrolling upward unpins. Judging
