@@ -1,4 +1,6 @@
 import { useState } from 'preact/hooks';
+import { CopyButton } from './CopyButton.jsx';
+import { absoluteUrl } from './matrix.js';
 
 /**
  * The destructive reset action, plus a non-destructive "restore" entry
@@ -34,6 +36,9 @@ export function SettingsModal({
   // This user's own mxid, shown copyable so they can be added from any
   // other Matrix client.
   userId,
+  // This user's own Larpnet profile (relative), with open/copy buttons.
+  profileUrl,
+  linkTarget,
   // Corner-bubble popup only (App.jsx passes no handler in full-page mode,
   // where the list always sits beside the conversation).
   popupLayout,
@@ -79,6 +84,18 @@ export function SettingsModal({
         <div class="lnc-room-info-body">
           {!confirming ? (
             <>
+              {profileUrl && (
+                <div class="lnc-settings-mxid">
+                  <span class="lnc-settings-mxid-label">Twój profil na Larpnecie</span>
+                  <div class="lnc-profile-actions lnc-profile-actions-start">
+                    <a class="lnc-chip-btn" href={profileUrl} target={linkTarget} rel="noopener">
+                      <i class="ri ri-user-line" aria-hidden="true"></i>
+                      <span>Zobacz profil</span>
+                    </a>
+                    <CopyButton text={absoluteUrl(profileUrl)} label="Kopiuj link" title="Kopiuj link do Twojego profilu" />
+                  </div>
+                </div>
+              )}
               {userId && (
                 <div class="lnc-settings-mxid">
                   <span class="lnc-settings-mxid-label">Twój adres Matrix</span>

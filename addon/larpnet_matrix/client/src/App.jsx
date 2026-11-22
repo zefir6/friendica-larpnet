@@ -8,6 +8,7 @@ import {
   autoJoinLocalInvites,
   avatarUrlForUserId,
   roomPeerUserId,
+  profileUrlForUserId,
 } from './matrix.js';
 import { setUpRecovery, resetRecovery, restoreFromRecoveryKey } from './recovery.js';
 import { encryptionApi, ensureEncryption, switchToPrivate, switchToStandard, DeviceLockedError } from './encryption.js';
@@ -456,6 +457,9 @@ export function App({ config }) {
   // right after opening the bare bubble with no ?dm= target).
   const selectedRoom = selectedRoomId ? client.getRoom(selectedRoomId) : null;
   const headerTitle = selectedRoom ? roomDisplayName(selectedRoom, client, config.contacts) : 'Czat';
+  // The other person in a 1:1 (null for groups) and their Larpnet profile.
+  const peerUserId = selectedRoom ? roomPeerUserId(selectedRoom, client) : null;
+  const peerProfileUrl = peerUserId ? profileUrlForUserId(peerUserId, config.serverName, config.contacts) : null;
 
   const existingMemberNicknames = selectedRoom
     ? new Set(
@@ -492,7 +496,7 @@ export function App({ config }) {
         )}
         {singlePane ? (
           showingConversation && (
-            <button type="button" class="lnc-header-btn" title="Wróć do rozmów" onClick={() => setRoomListCollapsed(false)}>
+            <button type="button" class="lnc-header-btn" title="Wróć do rozmów" aria-label="Wróć do rozmów" onClick={() => setRoomListCollapsed(false)}>
               <i class="ri ri-arrow-left-line" aria-hidden="true"></i>
             </button>
           )
@@ -501,32 +505,40 @@ export function App({ config }) {
             type="button"
             class="lnc-header-btn"
             title={roomListCollapsed ? 'Pokaż rozmowy' : 'Zwiń rozmowy'}
+            aria-label={roomListCollapsed ? 'Pokaż rozmowy' : 'Zwiń rozmowy'}
             onClick={() => setRoomListCollapsed((c) => !c)}
           >
-            Rozmowy
+            <i class={'ri ' + (roomListCollapsed ? 'ri-menu-unfold-line' : 'ri-menu-fold-line')} aria-hidden="true"></i>
           </button>
         )}
         <span class="lnc-header-title">
-          {showingConversation && selectedRoom && (
-            <Avatar
-              url={avatarUrlForUserId(roomPeerUserId(selectedRoom, client), config.serverName, config.contacts)}
-              name={headerTitle}
-              size={26}
-            />
+          {showingConversation && selectedRoom && peerProfileUrl ? (
+            // 1:1: the person's avatar + name lead to their Larpnet profile.
+            <a class="lnc-header-person" href={peerProfileUrl} target={isFullPage ? '_blank' : '_top'} rel="noopener" title={'Profil: ' + headerTitle}>
+              <Avatar url={avatarUrlForUserId(peerUserId, config.serverName, config.contacts)} name={headerTitle} size={32} />
+              <span class="lnc-header-title-text">{headerTitle}</span>
+            </a>
+          ) : (
+            <>
+              {showingConversation && selectedRoom && (
+                <Avatar url={avatarUrlForUserId(peerUserId, config.serverName, config.contacts)} name={headerTitle} size={32} />
+              )}
+              <span class="lnc-header-title-text">{showingConversation ? headerTitle : 'Rozmowy'}</span>
+            </>
           )}
-          <span class="lnc-header-title-text">{showingConversation ? headerTitle : 'Rozmowy'}</span>
         </span>
         {selectedRoom && showingConversation && (
           <button
             type="button"
             class={'lnc-header-btn' + (infoAsPanel && infoPanelOpen ? ' lnc-header-btn-active' : '')}
             title={infoAsPanel ? (infoPanelOpen ? 'Ukryj informacje o rozmowie' : 'Pokaż informacje o rozmowie') : 'Informacje o rozmowie'}
+            aria-label="Informacje o rozmowie"
             onClick={() => (infoAsPanel ? handleInfoPanelChange(!infoPanelOpen) : setShowRoomInfo(true))}
           >
-            Info
+            <i class="ri ri-information-line" aria-hidden="true"></i>
           </button>
         )}
-        <button type="button" class="lnc-header-btn" title="Ustawienia" onClick={() => setShowSettings(true)}>
+        <button type="button" class="lnc-header-btn" title="Ustawienia" aria-label="Ustawienia" onClick={() => setShowSettings(true)}>
           <i class="ri ri-settings-3-line" aria-hidden="true"></i>
         </button>
       </div>
@@ -574,7 +586,8 @@ export function App({ config }) {
             key={selectedRoom.roomId}
             variant="panel"
             title={headerTitle}
-            avatarUrl={avatarUrlForUserId(roomPeerUserId(selectedRoom, client), config.serverName, config.contacts)}
+            avatarUrl={avatarUrlForUserId(peerUserId, config.serverName, config.contacts)}
+            profileUrl={peerProfileUrl}
             client={client}
             config={config}
             room={selectedRoom}
@@ -612,6 +625,7 @@ export function App({ config }) {
           client={client}
           config={config}
           room={selectedRoom}
+          profileUrl={peerProfileUrl}
           contacts={config.contacts}
           serverName={config.serverName}
           linkTarget={isFullPage ? '_blank' : '_top'}
@@ -637,6 +651,8 @@ export function App({ config }) {
           showMessageTimes={showMessageTimes}
           onShowMessageTimesChange={handleShowMessageTimesChange}
           userId={client.getUserId()}
+          profileUrl={profileUrlForUserId(client.getUserId(), config.serverName, config.contacts)}
+          linkTarget={isFullPage ? '_blank' : '_top'}
           popupLayout={popupLayout}
           onPopupLayoutChange={isFullPage ? undefined : handlePopupLayoutChange}
         />

@@ -225,7 +225,9 @@ export function Composer({ onSend, onSendFile, uploadLimitBytes, focusKey, focus
           onClick={() => setShowEmoji(false)}
           onBlur={() => setSuggest(null)}
         />
-        <button type="submit" disabled={sending || !text.trim()} onMouseDown={keepFocus}>Wyślij</button>
+        <button type="submit" class="lnc-send-btn" title="Wyślij" aria-label="Wyślij" disabled={sending || !text.trim()} onMouseDown={keepFocus}>
+          <i class="ri ri-send-plane-2-fill" aria-hidden="true"></i>
+        </button>
       </form>
     </div>
   );

@@ -269,6 +269,54 @@ export function formatFullTime(timestampMs) {
   return new Date(timestampMs).toLocaleString(chatLocale, { dateStyle: 'full', timeStyle: 'short' });
 }
 
+// Day separator label in the timeline: "Dzisiaj" / "Wczoraj" (via
+// Intl.RelativeTimeFormat, so it follows the chat locale), else the date.
+export function formatDayLabel(timestampMs) {
+  const d = new Date(timestampMs);
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (sameDay(d, now) || sameDay(d, yesterday)) {
+    const label = relativeTimeFormatter.format(sameDay(d, now) ? 0 : -1, 'day');
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+  const opts = { weekday: 'long', day: 'numeric', month: 'long' };
+  if (d.getFullYear() !== now.getFullYear()) {
+    opts.year = 'numeric';
+  }
+  return d.toLocaleDateString(chatLocale, opts);
+}
+
+export function isSameDay(aMs, bMs) {
+  return sameDay(new Date(aMs), new Date(bMs));
+}
+
+// A relative app link (profile/<nick>) as a full https:// URL, for copying.
+export function absoluteUrl(path) {
+  return new URL(path, document.baseURI).href;
+}
+
+// One-line preview of a room's newest message for the room list:
+// "Ty: …" for your own, "Zdjęcie"/"Plik" for attachments. '' if nothing
+// readable is loaded yet (or it couldn't be decrypted).
+export function lastMessagePreview(room, client) {
+  const events = room.getLiveTimeline().getEvents();
+  for (let i = events.length - 1; i >= 0; i--) {
+    const ev = events[i];
+    if (ev.getType() !== 'm.room.message' || ev.isRedacted?.()) {
+      continue;
+    }
+    if (ev.isDecryptionFailure?.()) {
+      return '';
+    }
+    const content = ev.getContent();
+    let text = content.msgtype === 'm.image' ? 'Zdjęcie' : content.msgtype === 'm.file' ? 'Plik' : String(content.body || '');
+    text = text.replace(/\s+/g, ' ').trim();
+    return ev.getSender() === client.getUserId() && text ? 'Ty: ' + text : text;
+  }
+  return '';
+}
+
 // Larpnet profile page for a local user's mxid, or null for anyone on
 // another homeserver. The localpart is the lowercased nickname
 // (larpnet_matrix_localpart()); config.contacts has the real-cased one
