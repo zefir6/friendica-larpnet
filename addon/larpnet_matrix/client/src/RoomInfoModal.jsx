@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { resolveDisplayName, profileUrlForUserId, avatarUrlForUserId, formatMessageTime } from './matrix.js';
+import { resolveDisplayName, profileUrlForUserId, avatarUrlForUserId, formatMessageTime, absoluteUrl } from './matrix.js';
+import { CopyButton } from './CopyButton.jsx';
 import { Avatar } from './Avatar.jsx';
 import { isRoomMuted, muteUntil, muteRoom, unmuteRoom, MUTE_OPTIONS } from './notifications.js';
 
@@ -21,10 +22,12 @@ import { isRoomMuted, muteUntil, muteRoom, unmuteRoom, MUTE_OPTIONS } from './no
  *
  * variant="panel": the same content as a permanent right-hand column
  * (full-screen chat on wide windows, Messenger-style, see App.jsx) instead
- * of an overlay. `title`/`avatarUrl` head the panel; App.jsx keys it by
+ * of an overlay. `title`/`avatarUrl` head the panel (linked to
+ * `profileUrl`, the 1:1 peer's Larpnet profile, with "Zobacz profil" /
+ * "Kopiuj link" under it -- the overlay shows those two at the top); App.jsx keys it by
  * room id so the rename field resets when the conversation changes.
  */
-export function RoomInfoModal({ client, config, room, contacts, serverName, linkTarget, onClose, onLeft, onAddMember, variant, title, avatarUrl }) {
+export function RoomInfoModal({ client, config, room, contacts, serverName, linkTarget, onClose, onLeft, onAddMember, variant, title, avatarUrl, profileUrl }) {
   const isPanel = variant === 'panel';
   const [nameInput, setNameInput] = useState(room.name || '');
   const [busy, setBusy] = useState(false);
@@ -100,86 +103,136 @@ export function RoomInfoModal({ client, config, room, contacts, serverName, link
     }
   };
 
+  // 1:1 only: open / copy the other person's Larpnet profile.
+  const profileActions = profileUrl && (
+    <div class="lnc-profile-actions">
+      <a class="lnc-chip-btn" href={profileUrl} target={linkTarget} rel="noopener">
+        <i class="ri ri-user-line" aria-hidden="true"></i>
+        <span>Zobacz profil</span>
+      </a>
+      <CopyButton text={absoluteUrl(profileUrl)} label="Kopiuj link" title="Kopiuj link do profilu" />
+    </div>
+  );
+
   const content = (
     <div class="lnc-room-info-body">
+      {!isPanel && profileActions}
       {isGroup && (
-        <form onSubmit={handleRename} class="lnc-room-info-rename">
-          <input
-            type="text"
-            class="lnc-picker-search"
-            value={nameInput}
-            onInput={(e) => setNameInput(e.currentTarget.value)}
-            placeholder="Nazwa rozmowy…"
-          />
-          <button
-            type="submit"
-            class="lnc-btn-secondary"
-            disabled={busy || !nameInput.trim() || nameInput.trim() === room.name}
-          >
-            Zapisz
-          </button>
-        </form>
-      )}
-      <div class="lnc-room-info-notifications">
-        <span class="lnc-room-info-notifications-title">
-          {muted ? (until ? 'Wyciszona do ' + formatMessageTime(until) : 'Wyciszona') : 'Powiadomienia włączone'}
-        </span>
-        {muted ? (
-          <div class="lnc-room-info-mute-options">
-            <button type="button" class="lnc-btn-secondary" onClick={() => handleMute(undefined)} disabled={busy}>
-              Włącz powiadomienia
+        <section class="lnc-info-section">
+          <h3 class="lnc-info-section-title">Nazwa rozmowy</h3>
+          <form onSubmit={handleRename} class="lnc-room-info-rename">
+            <input
+              type="text"
+              class="lnc-picker-search"
+              value={nameInput}
+              onInput={(e) => setNameInput(e.currentTarget.value)}
+              placeholder="Nazwa rozmowy…"
+            />
+            <button
+              type="submit"
+              class="lnc-btn-secondary"
+              disabled={busy || !nameInput.trim() || nameInput.trim() === room.name}
+            >
+              Zapisz
             </button>
-          </div>
-        ) : (
-          <div class="lnc-room-info-mute-options">
-            <span>Wycisz na:</span>
-            {MUTE_OPTIONS.map((o) => (
-              <button key={o.label} type="button" class="lnc-btn-secondary" onClick={() => handleMute(o.ms)} disabled={busy}>
-                {o.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      <div class="lnc-room-info-members">
-        {others.map((m) => {
-          const name = resolveDisplayName(m.userId, contacts) || m.name || m.userId;
-          const profileUrl = profileUrlForUserId(m.userId, serverName, contacts);
-          return (
-            <div key={m.userId} class="lnc-room-info-member">
-              <Avatar url={avatarUrlForUserId(m.userId, serverName, contacts)} name={name} size={28} />
-              {profileUrl ? (
-                <a class="lnc-profile-link lnc-room-info-member-name" href={profileUrl} target={linkTarget} rel="noopener" title="Otwórz profil">
-                  {name}
-                </a>
-              ) : (
-                <span class="lnc-room-info-member-name">{name}</span>
-              )}
-              {isGroup &&
-                (confirmingRemove === m.userId ? (
-                  <span class="lnc-room-delete-confirm">
-                    <button type="button" class="lnc-room-delete-confirm-btn" onClick={() => handleRemove(m.userId)} disabled={busy}>
-                      Usuń
-                    </button>
-                    <button type="button" class="lnc-room-delete-cancel-btn" onClick={() => setConfirmingRemove(null)} disabled={busy}>
-                      Anuluj
-                    </button>
-                  </span>
+          </form>
+        </section>
+      )}
+      <section class="lnc-info-section">
+        <h3 class="lnc-info-section-title">Powiadomienia</h3>
+        <div class="lnc-room-info-notifications">
+          <span class="lnc-room-info-notifications-state">
+            <i class={'ri ' + (muted ? 'ri-notification-off-line' : 'ri-notification-3-line')} aria-hidden="true"></i>
+            {muted ? (until ? 'Wyciszona do ' + formatMessageTime(until) : 'Wyciszona') : 'Włączone'}
+          </span>
+          {muted ? (
+            <button type="button" class="lnc-btn-secondary" onClick={() => handleMute(undefined)} disabled={busy}>
+              Włącz
+            </button>
+          ) : (
+            <select
+              class="lnc-select"
+              aria-label="Wycisz rozmowę"
+              disabled={busy}
+              value=""
+              onChange={(e) => {
+                const o = MUTE_OPTIONS[Number(e.currentTarget.value)];
+                e.currentTarget.value = '';
+                if (o) {
+                  handleMute(o.ms);
+                }
+              }}
+            >
+              <option value="" disabled>
+                Wycisz…
+              </option>
+              {MUTE_OPTIONS.map((o, i) => (
+                <option key={o.label} value={String(i)}>
+                  {o.ms === null ? o.label : 'Na ' + o.label}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      </section>
+      <section class="lnc-info-section">
+        <h3 class="lnc-info-section-title">{isGroup ? 'Osoby (' + others.length + ')' : 'Osoba'}</h3>
+        <div class="lnc-room-info-members">
+          {others.map((m) => {
+            const name = resolveDisplayName(m.userId, contacts) || m.name || m.userId;
+            const memberProfileUrl = profileUrlForUserId(m.userId, serverName, contacts);
+            const avatar = <Avatar url={avatarUrlForUserId(m.userId, serverName, contacts)} name={name} size={36} />;
+            return (
+              <div key={m.userId} class="lnc-room-info-member">
+                {memberProfileUrl ? (
+                  <a class="lnc-room-info-member-link" href={memberProfileUrl} target={linkTarget} rel="noopener" title={'Profil: ' + name}>
+                    {avatar}
+                    <span class="lnc-room-info-member-name">{name}</span>
+                  </a>
                 ) : (
-                  <button type="button" class="lnc-btn-secondary" onClick={() => setConfirmingRemove(m.userId)} disabled={busy}>
-                    Usuń z rozmowy
-                  </button>
-                ))}
-            </div>
-          );
-        })}
-      </div>
-      <button type="button" class="lnc-new-chat-btn" onClick={onAddMember} disabled={busy}>
-        + Dodaj osobę
-      </button>
+                  <span class="lnc-room-info-member-link">
+                    {avatar}
+                    <span class="lnc-room-info-member-name">{name}</span>
+                  </span>
+                )}
+                {memberProfileUrl && confirmingRemove !== m.userId && (
+                  <CopyButton compact text={absoluteUrl(memberProfileUrl)} title={'Kopiuj link do profilu: ' + name} />
+                )}
+                {isGroup &&
+                  (confirmingRemove === m.userId ? (
+                    <span class="lnc-room-delete-confirm">
+                      <button type="button" class="lnc-room-delete-confirm-btn" onClick={() => handleRemove(m.userId)} disabled={busy}>
+                        Usuń
+                      </button>
+                      <button type="button" class="lnc-room-delete-cancel-btn" onClick={() => setConfirmingRemove(null)} disabled={busy}>
+                        Anuluj
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      class="lnc-icon-btn lnc-icon-btn-danger"
+                      title={'Usuń z rozmowy: ' + name}
+                      aria-label={'Usuń z rozmowy: ' + name}
+                      onClick={() => setConfirmingRemove(m.userId)}
+                      disabled={busy}
+                    >
+                      <i class="ri ri-user-unfollow-line" aria-hidden="true"></i>
+                    </button>
+                  ))}
+              </div>
+            );
+          })}
+        </div>
+        <button type="button" class="lnc-new-chat-btn" onClick={onAddMember} disabled={busy}>
+          <i class="ri ri-user-add-line" aria-hidden="true"></i>
+          <span>Dodaj osobę</span>
+        </button>
+      </section>
       {error && <div class="lnc-recovery-error">{error}</div>}
       <button type="button" class="lnc-room-info-leave" onClick={handleLeave} disabled={busy}>
-        Opuść rozmowę
+        <i class="ri ri-logout-box-r-line" aria-hidden="true"></i>
+        <span>Opuść rozmowę</span>
       </button>
     </div>
   );
@@ -188,9 +241,19 @@ export function RoomInfoModal({ client, config, room, contacts, serverName, link
     return (
       <aside class="lnc-room-info-panel" aria-label="Informacje o rozmowie">
         <div class="lnc-room-info-panel-head">
-          <Avatar url={avatarUrl} name={title} size={56} />
-          <span class="lnc-room-info-panel-title">{title}</span>
-          <button type="button" class="lnc-picker-close" aria-label="Ukryj panel" title="Ukryj panel" onClick={onClose}>
+          {profileUrl ? (
+            <a class="lnc-room-info-panel-person" href={profileUrl} target={linkTarget} rel="noopener" title={'Profil: ' + title}>
+              <Avatar url={avatarUrl} name={title} size={72} />
+              <span class="lnc-room-info-panel-title">{title}</span>
+            </a>
+          ) : (
+            <span class="lnc-room-info-panel-person">
+              <Avatar url={avatarUrl} name={title} size={72} />
+              <span class="lnc-room-info-panel-title">{title}</span>
+            </span>
+          )}
+          {profileActions}
+          <button type="button" class="lnc-icon-btn lnc-room-info-panel-close" aria-label="Ukryj panel" title="Ukryj panel" onClick={onClose}>
             <i class="ri ri-close-line" aria-hidden="true"></i>
           </button>
         </div>

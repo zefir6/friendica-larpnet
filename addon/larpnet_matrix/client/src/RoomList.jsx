@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks';
-import { roomDisplayName, formatRelativeTime, avatarUrlForUserId, roomPeerUserId } from './matrix.js';
+import { roomDisplayName, formatRelativeTime, avatarUrlForUserId, roomPeerUserId, lastMessagePreview } from './matrix.js';
 import { Avatar } from './Avatar.jsx';
 import { roomUnreadCount, isRoomMuted } from './notifications.js';
 
@@ -34,7 +34,12 @@ export function RoomList({ rooms, selectedRoomId, onSelect, client, onNewChat, c
 
   return (
     <div class="lnc-room-list" style={width ? { width: width + 'px' } : undefined}>
-      <button type="button" class="lnc-new-chat-btn" onClick={onNewChat}>+ Nowy czat</button>
+      <div class="lnc-room-list-top">
+        <button type="button" class="lnc-new-chat-btn" onClick={onNewChat}>
+          <i class="ri ri-chat-new-line" aria-hidden="true"></i>
+          <span>Nowy czat</span>
+        </button>
+      </div>
       {rooms.length === 0 && <div class="lnc-room-list-empty">Brak rozmów</div>}
       {rooms.map((room) => {
         const lastActive = room.getLastActiveTimestamp();
@@ -44,6 +49,7 @@ export function RoomList({ rooms, selectedRoomId, onSelect, client, onNewChat, c
         const muted = isRoomMuted(client, room.roomId);
         const name = roomDisplayName(room, client, contacts);
         const avatarUrl = avatarUrlForUserId(roomPeerUserId(room, client), serverName, contacts);
+        const preview = lastMessagePreview(room, client);
         return (
           <div key={room.roomId} class="lnc-room-row">
             <button
@@ -55,17 +61,24 @@ export function RoomList({ rooms, selectedRoomId, onSelect, client, onNewChat, c
               }
               onClick={() => onSelect(room.roomId)}
             >
-              <Avatar url={avatarUrl} name={name} size={32} />
-              <span class="lnc-room-item-name">{name}</span>
-              {muted && <i class="ri ri-notification-off-line lnc-room-item-muted" title="Wyciszona" aria-label="Wyciszona"></i>}
-              {showTimestamps && lastActive > 0 && (
-                <span class="lnc-room-item-timestamp">{formatRelativeTime(lastActive)}</span>
-              )}
-              {unread > 0 && (
-                <span class="lnc-room-item-badge" aria-label={unread + ' nieprzeczytanych'}>
-                  {unread > 99 ? '99+' : unread}
+              <Avatar url={avatarUrl} name={name} size={44} />
+              <span class="lnc-room-item-text">
+                <span class="lnc-room-item-line">
+                  <span class="lnc-room-item-name">{name}</span>
+                  {muted && <i class="ri ri-notification-off-line lnc-room-item-muted" title="Wyciszona" aria-label="Wyciszona"></i>}
+                  {showTimestamps && lastActive > 0 && (
+                    <span class="lnc-room-item-timestamp">{formatRelativeTime(lastActive)}</span>
+                  )}
                 </span>
-              )}
+                <span class="lnc-room-item-line">
+                  <span class="lnc-room-item-preview">{preview || '\u00a0'}</span>
+                  {unread > 0 && (
+                    <span class="lnc-room-item-badge" aria-label={unread + ' nieprzeczytanych'}>
+                      {unread > 99 ? '99+' : unread}
+                    </span>
+                  )}
+                </span>
+              </span>
             </button>
             {confirmingRoomId === room.roomId ? (
               <span class="lnc-room-delete-confirm">
@@ -91,9 +104,10 @@ export function RoomList({ rooms, selectedRoomId, onSelect, client, onNewChat, c
                 type="button"
                 class="lnc-room-delete-btn"
                 title="Usuń rozmowę"
+                aria-label="Usuń rozmowę"
                 onClick={() => setConfirmingRoomId(room.roomId)}
               >
-                &times;
+                <i class="ri ri-close-line" aria-hidden="true"></i>
               </button>
             )}
           </div>
