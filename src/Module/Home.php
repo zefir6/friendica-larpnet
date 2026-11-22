@@ -8,6 +8,7 @@
 namespace Friendica\Module;
 
 use Friendica\BaseModule;
+use Friendica\Content\Text\BBCode;
 use Friendica\Core\Renderer;
 use Friendica\DI;
 use Friendica\Event\Event;
@@ -71,9 +72,18 @@ class Home extends BaseModule
 			new HtmlFilterEvent(HtmlFilterEvent::MOD_HOME_CONTENT, $content),
 		)->getHtml();
 
+		// larpnet: admin-editable front page text (Admin > Site), rendered
+		// server-side so search engines see it in the plain HTML.
+		$larpnetHome = '';
+		$homeText    = trim((string) $config->get('larpnet', 'home_text'));
+		if ($homeText !== '') {
+			$larpnetHome = BBCode::convert($homeText, false, BBCode::EXTERNAL);
+		}
+
 		$tpl = Renderer::getMarkupTemplate('home.tpl');
 		return Renderer::replaceMacros($tpl, [
 			'$defaultheader' => $defaultHeader,
+			'$larpnethome'   => $larpnetHome,
 			'$customhome'    => $customHome,
 			'$login'         => $login,
 			'$content'       => $content,
