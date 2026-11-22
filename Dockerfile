@@ -275,6 +275,10 @@ COPY addon/larpnet_fcm       /usr/src/friendica/addon/larpnet_fcm
 COPY addon/larpnet_apns      /usr/src/friendica/addon/larpnet_apns
 COPY addon/larpnet_matrix    /usr/src/friendica/addon/larpnet_matrix
 COPY --from=matrix-client-builder /build/dist /usr/src/friendica/addon/larpnet_matrix/client/dist
+# larpnet-patched upstream addon file (search engine allowlist). Must come
+# after the friendica-addons clone in the builder stage, which would
+# otherwise overwrite it.
+COPY addon/blockbot/blockbot.php /usr/src/friendica/addon/blockbot/blockbot.php
 
 # Core patches
 COPY src/Protocol/ActivityPub/Transmitter.php     /usr/src/friendica/src/Protocol/ActivityPub/Transmitter.php
@@ -328,6 +332,13 @@ COPY src/Module/Item/Vote.php                                /usr/src/friendica/
 COPY src/Content/Conversation/StatusEditor.php               /usr/src/friendica/src/Content/Conversation/StatusEditor.php
 COPY src/Module/Home.php                                     /usr/src/friendica/src/Module/Home.php
 COPY src/Util/Network.php                                    /usr/src/friendica/src/Util/Network.php
+
+# SEO (search engine access, meta tags, sitemap)
+COPY src/Util/LarpnetSeo.php                                 /usr/src/friendica/src/Util/LarpnetSeo.php
+COPY src/Module/LarpnetSitemap.php                           /usr/src/friendica/src/Module/LarpnetSitemap.php
+COPY src/Module/RobotsTxt.php                                /usr/src/friendica/src/Module/RobotsTxt.php
+COPY src/Module/Profile/Profile.php                          /usr/src/friendica/src/Module/Profile/Profile.php
+COPY src/Module/Profile/Conversations.php                    /usr/src/friendica/src/Module/Profile/Conversations.php
 COPY src/Module/Register.php                                 /usr/src/friendica/src/Module/Register.php
 COPY src/Module/Admin/Site.php                               /usr/src/friendica/src/Module/Admin/Site.php
 COPY view/templates/item/compose.tpl                         /usr/src/friendica/view/templates/item/compose.tpl

@@ -18,7 +18,9 @@
 {{else}}
 
 	<div class="col-md-7 col-sm-12 login-content">
-		{{if $customhome != false }}
+		{{if $larpnethome != '' }}
+			<div class="larpnet-home-text">{{$larpnethome nofilter}}</div>
+		{{elseif $customhome != false }}
 			{{include file="$customhome"}}
 		{{else}}
 			{{$defaultheader nofilter}}

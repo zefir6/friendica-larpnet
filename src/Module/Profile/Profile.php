@@ -35,6 +35,7 @@ use Friendica\Network\HTTPException;
 use Friendica\Network\HTTPException\InternalServerErrorException;
 use Friendica\Profile\ProfileField\Repository\ProfileField;
 use Friendica\Protocol\ActivityPub;
+use Friendica\Util\LarpnetSeo;
 use Friendica\Util\Network;
 use Friendica\Util\Profiler;
 use Friendica\Util\Temporal;
@@ -352,6 +353,11 @@ class Profile extends BaseProfile
 
 		if (!$profile['net-publish']) {
 			$htmlhead .= '<meta content="noindex, noarchive" name="robots" />' . "\n";
+		}
+
+		// larpnet: description, canonical, Open Graph and schema.org ProfilePage
+		if (!$blocked && !$userblock) {
+			$htmlhead .= LarpnetSeo::profileHead($profile, $nickname, $this->baseUrl . '/profile/' . $nickname . '/profile');
 		}
 
 		$htmlhead .= '<link rel="alternate" type="application/atom+xml" href="' . $this->baseUrl . '/feed/' . $nickname . '/" title="' . $this->t('%s\'s posts', htmlspecialchars((string) $profile['name'], ENT_COMPAT, 'UTF-8', true)) . '"/>' . "\n";

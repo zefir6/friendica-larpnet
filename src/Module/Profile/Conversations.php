@@ -38,6 +38,7 @@ use Friendica\Network\HTTPException;
 use Friendica\Protocol\Activity;
 use Friendica\Security\Security;
 use Friendica\Util\DateTimeFormat;
+use Friendica\Util\LarpnetSeo;
 use Friendica\Util\Profiler;
 use Friendica\Util\Strings;
 use Psr\Log\LoggerInterface;
@@ -93,6 +94,13 @@ class Conversations extends BaseProfile
 		}
 
 		$hashtags = $request['tag'] ?? '';
+
+		// larpnet: /profile/<nick> is this module; give it the profile's
+		// description/canonical/Open Graph/ProfilePage tags (unfiltered,
+		// unpaginated view only -- the rest keeps the site-wide defaults).
+		if (!$this->session->getLocalUserId() && $category === '' && $datequery === '' && $hashtags === '' && LarpnetSeo::isBareRequest()) {
+			$this->page['htmlhead'] .= LarpnetSeo::profileHead($profile, $profile['nickname'], $this->baseUrl . '/profile/' . $profile['nickname']);
+		}
 
 		$o = '';
 

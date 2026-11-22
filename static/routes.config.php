@@ -670,6 +670,8 @@ return [
 	'/register'        => [Module\Register::class,              [R::GET, R::POST]],
 	'/robots.txt'      => [Module\RobotsTxt::class,             [R::GET]],
 	'/rsd.xml'         => [Module\ReallySimpleDiscovery::class, [R::GET]],
+	// larpnet: public sitemap for search engines
+	'/sitemap.xml'     => [Module\LarpnetSitemap::class,         [R::GET]],
 	'/smilies[/json]'  => [Module\Smilies::class,               [R::GET]],
 	'/statistics.json' => [Module\Statistics::class,            [R::GET]],
 	'/toggle_mobile'   => [Module\ToggleMobile::class,          [R::GET]],

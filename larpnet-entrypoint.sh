@@ -61,6 +61,12 @@ if [ -f /var/www/html/index.php ]; then
     src/Module/Admin/Site.php \
     view/templates/item/compose.tpl \
     view/templates/content/question.tpl \
+    addon/blockbot/blockbot.php \
+    src/Util/LarpnetSeo.php \
+    src/Module/LarpnetSitemap.php \
+    src/Module/RobotsTxt.php \
+    src/Module/Profile/Profile.php \
+    src/Module/Profile/Conversations.php \
     build-version.txt
   do
     if [ -f "/usr/src/friendica/$f" ]; then
