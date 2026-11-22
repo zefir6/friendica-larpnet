@@ -68,6 +68,29 @@ class LarpnetSeoTest extends TestCase
 		self::assertStringNotContainsString('og:image', $html);
 	}
 
+	public function testKeywordsDedupeAndLimit(): void
+	{
+		self::assertSame(
+			['Larp', 'fantasy', 'Kraków'],
+			LarpnetSeo::keywords(['Larp', '#fantasy', 'Fantasy', 'larp', '', 'Kraków']),
+		);
+		self::assertCount(2, LarpnetSeo::keywords(['a', 'b', 'c'], 2));
+	}
+
+	public function testKeywordsMetaAndArticleTags(): void
+	{
+		$html = LarpnetSeo::metaTags([
+			'title'       => 'x',
+			'keywords'    => ['larp', 'Gra "terenowa"'],
+			'article:tag' => ['larp', 'Gra "terenowa"'],
+		]);
+
+		self::assertStringContainsString('<meta name="keywords" content="larp, Gra &quot;terenowa&quot;" />', $html);
+		self::assertStringContainsString('<meta property="article:tag" content="larp" />', $html);
+		self::assertStringContainsString('<meta property="article:tag" content="Gra &quot;terenowa&quot;" />', $html);
+		self::assertStringNotContainsString('name="keywords"', LarpnetSeo::metaTags(['title' => 'x', 'keywords' => []]));
+	}
+
 	public function testJsonLdCannotBreakOutOfScriptTag(): void
 	{
 		$html = LarpnetSeo::jsonLd(['text' => '</script><script>alert(1)</script>']);

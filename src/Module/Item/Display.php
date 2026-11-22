@@ -24,6 +24,7 @@ use Friendica\Model\Contact;
 use Friendica\Model\Item;
 use Friendica\Model\Post;
 use Friendica\Model\Profile;
+use Friendica\Model\Tag;
 use Friendica\Model\User;
 use Friendica\Module\Response;
 use Friendica\Module\Special\DisplayNotFound;
@@ -370,9 +371,13 @@ class Display extends BaseModule
 		$published = !empty($item['created']) ? DateTimeFormat::utc($item['created'], DateTimeFormat::ATOM) : '';
 		$modified  = !empty($item['edited']) ? DateTimeFormat::utc($item['edited'], DateTimeFormat::ATOM) : '';
 
+		$keywords = LarpnetSeo::keywords(array_column(Tag::getByURIId($item['uri-id'], [Tag::HASHTAG]) ?: [], 'name'));
+
 		$head .= LarpnetSeo::metaTags([
 			'title'                  => $headline,
 			'description'            => $description,
+			'keywords'               => $keywords,
+			'article:tag'            => $keywords,
 			'url'                    => $url,
 			'type'                   => 'article',
 			'image'                  => $image ?: $authorImage,
@@ -402,6 +407,9 @@ class Display extends BaseModule
 		}
 		if ($image !== '') {
 			$posting['image'] = $image;
+		}
+		if ($keywords) {
+			$posting['keywords'] = implode(', ', $keywords);
 		}
 		$head .= LarpnetSeo::jsonLd($posting);
 
