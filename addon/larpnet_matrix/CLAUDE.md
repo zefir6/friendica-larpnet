@@ -670,6 +670,7 @@ still get no backup until they open chat.
 | `client/src/recovery.js` | Cross-device E2EE history recovery (recovery-key setup/restore/reset) -- see "Cross-device key recovery" above. |
 | `client/src/RoomInfoModal.jsx` | Per-conversation member list (add/remove) + rename (group rooms only) + leave. Plain Matrix Client-Server API wrappers (`client.invite`/`kick`/`leave`/`setRoomName`) -- no crypto involved, no UIA surprises like the recovery-key flows above. |
 | `client/src/RoomList.jsx` | The room list itself, plus a per-row delete ("×" button, low-opacity by default so it's discoverable on touch too, not hover-only) -- same `client.leave()` call `RoomInfoModal`'s "Opuść rozmowę" uses, just reachable without opening the room first. Both call `App.jsx`'s shared `handleRoomLeft(roomId)`, which only clears the open conversation if the room just left is the one currently selected (deleting some other room from the list must not kick you out of an unrelated open conversation). |
+| `client/src/sessionFreshness.js` | `ensureFreshOutboundSession()`, called before every web send: force-refreshes the room members' device lists and discards the outbound Megolm session when the device set differs from the one last used (per-room signature in localStorage) -- see "Stale outbound session" below. |
 | `client/src/encryption.js` | Standard/private encryption modes: the `/larpnet_matrix/encryption` client, `ensureEncryption()` (run once per session) and the mode switches -- see "Encryption modes" above. |
 | `client/src/SettingsModal.jsx` | Encryption mode + switch, "show my phrase" (standard), restore/reset entry points (private), timestamps toggle. |
 
@@ -683,3 +684,17 @@ still get no backup until they open chat.
   not nginx -- there is no separate static-file location for this addon in
   `larpnet-config`'s nginx config, by design (same-origin, no CORS/storage
   partitioning concerns to work around).
+
+## Stale outbound session (2026-11)
+
+Web device IDs are persistent, so the outbound Megolm session lived in
+IndexedDB indefinitely and was reused without ever refreshing members'
+device lists. A recipient device not covered by the key share (e.g. a phone
+that re-registered after a chat reset) then showed "Nie można odszyfrować
+wiadomości" for web-sent messages, while native-app messages (fresh
+sessions) decrypted fine. `sessionFreshness.js` runs before `send`/`sendFile`
+in `Conversation.jsx`: `getUserDeviceInfo(members, true)`, compare with the
+last-used device set (`localStorage` `lnc-megolm-devices:<roomId>`), and
+`forceDiscardSession()` on a difference or when unknown (first send after
+deploy rotates once per room). Best-effort: failures are logged, the send
+proceeds. Needs verifying web -> phone on test.larpnet.pl.
