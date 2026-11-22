@@ -694,7 +694,39 @@ that re-registered after a chat reset) then showed "Nie można odszyfrować
 wiadomości" for web-sent messages, while native-app messages (fresh
 sessions) decrypted fine. `sessionFreshness.js` runs before `send`/`sendFile`
 in `Conversation.jsx`: `getUserDeviceInfo(members, true)`, compare with the
-last-used device set (`localStorage` `lnc-megolm-devices:<roomId>`), and
+last-used device set (`localStorage` `lnc-megolm-devices:<deviceId>:<roomId>`), and
 `forceDiscardSession()` on a difference or when unknown (first send after
 deploy rotates once per room). Best-effort: failures are logged, the send
 proceeds. Needs verifying web -> phone on test.larpnet.pl.
+
+## Device slots: one device per running chat (2026-11)
+
+matrix-sdk-crypto assumes one process owns a crypto store. With one device
+ID per browser, two chats running at once (two tabs, widget + full page)
+each saved their in-memory Olm account over the other's. Seen on test
+2026-11-22: a device's account went back to before keys it had already
+published, and every `/keys/upload` since failed with 400 "One time key ...
+already exists" -- the device never uploaded keys again.
+
+`client/src/deviceSlots.js`: each account has up to 3 device slots per
+browser (`larpnet_chat_devices:<mxid>` in localStorage). A running chat
+holds its slot with a Web Lock (`lnc-chat-slot:<mxid>:<n>`, released when
+the page goes away) and only opens that slot's store. One chat: always slot
+0 (which adopts the old shared `larpnet_chat_device_id` if the account has a
+store under it). A new page waits 2.5 s for slot 0 first, so a Friendica
+navigation doesn't create extra devices. All slots busy: "Czat jest już
+otwarty w kilku innych kartach" until one frees. Multiple chats at once are
+intended -- don't replace this with a single-tab lock (user decision).
+
+- A slot whose crypto store is missing gets a new device ID. Replaced
+  devices go on `larpnet_chat_retired:<mxid>` and are never used again
+  (not even via the legacy shared ID). `cleanUpRetiredDevices()` logs each
+  one out with its saved session (`larpnet_chat_session:<deviceId>`) and
+  deletes its store, retried on every start until both succeed. Re-creating an account under an old device ID left the
+  server with one-time keys signed by the old identity (zefir's Safari
+  device on test, 2026-09-24 store rename).
+- Self-repair: `matrix.js` wraps `client.http.authedRequest`; on the
+  "already exists" 400 from `/keys/upload` it retires the device, waits
+  5 s for key backup, stops the client, runs the cleanup above (Synapse
+  deletes the device's keys on logout) and reloads as a new device. At most once an hour per
+  account (`lnc_device_repair:<mxid>`).

@@ -1,20 +1,56 @@
 import { createClient } from 'matrix-js-sdk';
 import { createRecoveryKeyCache } from './recovery.js';
+import { claimDevice, retireDevice, cleanUpRetiredDevices, cryptoStorePrefix } from './deviceSlots.js';
 
-const DEVICE_ID_KEY = 'larpnet_chat_device_id';
+// Saved session per device (`larpnet_chat_session:<deviceId>`). The
+// unsuffixed key is the pre-slots single session, still read for the
+// device it belongs to.
 const SESSION_KEY = 'larpnet_chat_session';
+const REPAIR_KEY_PREFIX = 'lnc_device_repair:';
 
-// A stable (but non-secret) per-browser device id, so repeat logins reuse
-// the same Matrix device instead of registering a new one every time the
-// chat popup is opened -- Synapse's /login re-issues a fresh access token
-// for an existing device_id rather than creating a new device.
-function getOrCreateDeviceId() {
-  let id = localStorage.getItem(DEVICE_ID_KEY);
-  if (!id) {
-    id = 'larpnet_web_' + crypto.randomUUID();
-    localStorage.setItem(DEVICE_ID_KEY, id);
+function readSavedSession(deviceId) {
+  for (const key of [SESSION_KEY + ':' + deviceId, SESSION_KEY]) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) || 'null');
+      if (saved?.device_id === deviceId) {
+        return saved;
+      }
+    } catch (e) {
+      // ignore unreadable entries
+    }
   }
-  return id;
+  return null;
+}
+
+function forgetSavedSession(deviceId) {
+  try {
+    localStorage.removeItem(SESSION_KEY + ':' + deviceId);
+    if (JSON.parse(localStorage.getItem(SESSION_KEY) || 'null')?.device_id === deviceId) {
+      localStorage.removeItem(SESSION_KEY);
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+// Logs a retired device (deviceSlots.js) out on the server, which deletes
+// it and its keys there: a dead device's one-time keys only make other
+// devices' attempts to start an encrypted session with it fail. True once
+// there is nothing left to do (done, token already invalid, or no token).
+async function logoutRetiredDevice(cfg, deviceId) {
+  const saved = readSavedSession(deviceId);
+  if (!saved?.access_token) {
+    return true;
+  }
+  try {
+    await createClient({ baseUrl: cfg.homeserverUrl, accessToken: saved.access_token, userId: saved.user_id }).logout();
+  } catch (e) {
+    if (e?.httpStatus !== 401) {
+      return false; // network etc.: retry next start
+    }
+  }
+  forgetSavedSession(deviceId);
+  return true;
 }
 
 // The mxid the server-minted JWT is for (its `sub` claim is the localpart)
@@ -54,7 +90,7 @@ function expectedUserId(cfg) {
 async function obtainSession(cfg, deviceId) {
   const expected = expectedUserId(cfg);
   try {
-    const saved = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+    const saved = readSavedSession(deviceId);
     if (expected && saved?.access_token && saved.user_id === expected && saved.device_id === deviceId) {
       const probe = createClient({ baseUrl: cfg.homeserverUrl, accessToken: saved.access_token, userId: saved.user_id });
       const who = await probe.whoami();
@@ -74,7 +110,7 @@ async function obtainSession(cfg, deviceId) {
   });
   try {
     localStorage.setItem(
-      SESSION_KEY,
+      SESSION_KEY + ':' + res.device_id,
       JSON.stringify({ user_id: res.user_id, device_id: res.device_id, access_token: res.access_token }),
     );
   } catch (e) {
@@ -83,8 +119,55 @@ async function obtainSession(cfg, deviceId) {
   return res;
 }
 
-export async function loginAndStart(cfg) {
-  const deviceId = getOrCreateDeviceId();
+// The device's Olm account no longer matches what the server has for it
+// (see deviceSlots.js): Synapse rejects every key upload with 400 "One time
+// key ... already exists", and nothing on the client can fix that account.
+// Start over as a new device -- history comes back from key backup like on
+// any new device. At most once an hour per account, so a server-side
+// problem can't turn this into a loop.
+async function repairDevice(cfg, client, userId, deviceId) {
+  const key = REPAIR_KEY_PREFIX + userId;
+  try {
+    if (Date.now() - Number(localStorage.getItem(key) || 0) < 3600 * 1000) {
+      return;
+    }
+    localStorage.setItem(key, String(Date.now()));
+  } catch (e) {
+    return; // without storage we couldn't rate-limit this
+  }
+  console.warn('larpnet chat: device keys out of sync with the server, replacing device', deviceId);
+  // From here on this device is never used again; its server logout and
+  // store deletion also happen on the next start if they don't finish now.
+  retireDevice(userId, deviceId);
+  // Give the background key backup a moment to upload room keys this
+  // device still holds only locally.
+  await new Promise((r) => setTimeout(r, 5000));
+  client.stopClient();
+  await Promise.race([cleanUpRetiredDevices(userId, (id) => logoutRetiredDevice(cfg, id)), new Promise((r) => setTimeout(r, 5000))]);
+  location.reload();
+}
+
+function isOneTimeKeyConflict(path, err) {
+  return (
+    typeof path === 'string' &&
+    path.endsWith('/keys/upload') &&
+    err?.httpStatus === 400 &&
+    /One time key .* already exists/.test(String(err?.data?.error || err?.message || ''))
+  );
+}
+
+/**
+ * `onWaiting` is called when this browser already runs as many chats for
+ * this account as there are device slots, and this one waits for one to
+ * close (see deviceSlots.js).
+ */
+export async function loginAndStart(cfg, { onWaiting } = {}) {
+  const userId = expectedUserId(cfg) || 'unknown';
+  const { deviceId } = await claimDevice(userId, onWaiting);
+  // Not awaited: finishing earlier repairs must not delay the chat.
+  cleanUpRetiredDevices(userId, (id) => logoutRetiredDevice(cfg, id)).catch((e) =>
+    console.warn('larpnet chat: cleaning up retired devices failed', e),
+  );
   const res = await obtainSession(cfg, deviceId);
 
   // recoveryKeyCache backs cryptoCallbacks.getSecretStorageKey -- the crypto
@@ -125,7 +208,22 @@ export async function loginAndStart(cfg) {
   // Cross-signing/secret-storage/key-backup setup itself is NOT done here
   // -- it's a one-time-ever, user-facing flow (see recovery.js), not
   // something to trigger silently on every login.
-  await client.initRustCrypto({ cryptoDatabasePrefix: `${res.user_id}::${res.device_id}` });
+  //
+  // The crypto stack sends its requests (key uploads among them) through
+  // client.http; this is where a device's keys being out of sync with the
+  // server shows up -- see repairDevice().
+  const authedRequest = client.http.authedRequest.bind(client.http);
+  client.http.authedRequest = async (method, path, ...rest) => {
+    try {
+      return await authedRequest(method, path, ...rest);
+    } catch (err) {
+      if (isOneTimeKeyConflict(path, err)) {
+        repairDevice(cfg, client, res.user_id, res.device_id);
+      }
+      throw err;
+    }
+  };
+  await client.initRustCrypto({ cryptoDatabasePrefix: cryptoStorePrefix(res.user_id, res.device_id) });
 
   await client.startClient({ initialSyncLimit: 30 });
   // startClient() resolves once the sync loop is STARTED, not once rooms
