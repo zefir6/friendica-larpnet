@@ -31,6 +31,7 @@ const SLOT_COUNT = 3;
 const HANDOVER_WAIT_MS = 2500;
 const LEGACY_DEVICE_ID_KEY = 'larpnet_chat_device_id';
 const DEVICES_KEY_PREFIX = 'larpnet_chat_devices:';
+const RETIRED_KEY_PREFIX = 'larpnet_chat_retired:';
 
 function storageGet(key) {
   try {
@@ -155,27 +156,28 @@ async function acquireSlot(userId, onWaiting) {
  * device ID. Keep the returned `release` for as long as the client runs
  * (the page unloading releases it anyway). `onWaiting` is called if every
  * slot is busy and this chat has to wait for one.
- *
- * `staleDeviceId` is set when the slot's previous device had lost its
- * crypto store: that device is dead (its keys on the server can never be
- * used again) and the caller should delete it on the server if it can.
  */
 export async function claimDevice(userId, onWaiting) {
   const { slot, release } = await acquireSlot(userId, onWaiting);
   const ids = readDeviceIds(userId);
+  const retired = readRetired(userId);
   let deviceId = ids[slot] || null;
+  if (retired.includes(deviceId)) {
+    deviceId = null;
+  }
   // Before slots, every account in a browser shared one device ID. Slot 0
   // adopts it for an account that already has a crypto store under it, so
-  // existing users keep their device (and its keys).
-  if (!deviceId && slot === 0) {
+  // existing users keep their device (and its keys) -- once only: after
+  // that the slot list holds it, and a retired one is never adopted again.
+  if (!deviceId && slot === 0 && !ids.length) {
     const legacy = storageGet(LEGACY_DEVICE_ID_KEY);
-    if (legacy && (await cryptoStoreExists(userId, legacy)) !== false) {
+    if (legacy && !retired.includes(legacy) && (await cryptoStoreExists(userId, legacy)) !== false) {
       deviceId = legacy;
     }
   }
-  let staleDeviceId = null;
   if (deviceId && (await cryptoStoreExists(userId, deviceId)) === false) {
-    staleDeviceId = deviceId;
+    // Its store is gone, so it can never decrypt anything again.
+    retireDevice(userId, deviceId);
     deviceId = null;
   }
   if (!deviceId) {
@@ -183,14 +185,76 @@ export async function claimDevice(userId, onWaiting) {
   }
   ids[slot] = deviceId;
   writeDeviceIds(userId, ids);
-  return { deviceId, slot, release, staleDeviceId };
+  return { deviceId, slot, release };
 }
 
 /**
- * Forgets this slot's device so the next start creates a new one (see
- * matrix.js's repairDevice()).
+ * Retires a device for good (see matrix.js's repairDevice()): its slot gets
+ * a new device next start, and neither the slot list nor the legacy shared
+ * ID can ever bring it back. Its server-side logout and store deletion are
+ * finished by cleanUpRetiredDevices(), retried on every start until done.
  */
-export function forgetDevice(userId, deviceId) {
-  const ids = readDeviceIds(userId).map((id) => (id === deviceId ? null : id));
-  writeDeviceIds(userId, ids);
+export function retireDevice(userId, deviceId) {
+  writeDeviceIds(
+    userId,
+    readDeviceIds(userId).map((id) => (id === deviceId ? null : id)),
+  );
+  const retired = readRetired(userId);
+  if (!retired.includes(deviceId)) {
+    retired.push(deviceId);
+    storageSet(RETIRED_KEY_PREFIX + userId, JSON.stringify(retired));
+  }
+}
+
+function readRetired(userId) {
+  try {
+    const ids = JSON.parse(storageGet(RETIRED_KEY_PREFIX + userId) || '[]');
+    return Array.isArray(ids) ? ids : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function deleteDatabase(name) {
+  return new Promise((resolve) => {
+    try {
+      const req = indexedDB.deleteDatabase(name);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => resolve(false);
+      // Still open somewhere: the delete completes once it closes.
+      req.onblocked = () => resolve(false);
+    } catch (e) {
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * For each retired device: `logout(deviceId)` (resolving true once the
+ * device is gone from the server, or there's nothing left to do), then
+ * delete its local crypto store. Retired IDs stay listed (so they are never
+ * reused) but are only processed until both steps succeed.
+ */
+export async function cleanUpRetiredDevices(userId, logout) {
+  let done = [];
+  try {
+    done = JSON.parse(storageGet(RETIRED_KEY_PREFIX + userId + ':done') || '[]');
+  } catch (e) {
+    // unreadable: just redo the (idempotent) cleanup
+  }
+  for (const deviceId of readRetired(userId)) {
+    if (done.includes(deviceId)) {
+      continue;
+    }
+    if (!(await logout(deviceId))) {
+      continue;
+    }
+    const prefix = cryptoStorePrefix(userId, deviceId);
+    const deleted =
+      (await deleteDatabase(prefix + '::matrix-sdk-crypto')) && (await deleteDatabase(prefix + '::matrix-sdk-crypto-meta'));
+    if (deleted) {
+      done.push(deviceId);
+      storageSet(RETIRED_KEY_PREFIX + userId + ':done', JSON.stringify(done));
+    }
+  }
 }

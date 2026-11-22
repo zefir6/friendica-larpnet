@@ -718,13 +718,15 @@ navigation doesn't create extra devices. All slots busy: "Czat jest już
 otwarty w kilku innych kartach" until one frees. Multiple chats at once are
 intended -- don't replace this with a single-tab lock (user decision).
 
-- A slot whose crypto store is missing gets a new device ID; the dead
-  device is logged out if its saved session (`larpnet_chat_session:<deviceId>`)
-  is still there. Re-creating an account under an old device ID left the
+- A slot whose crypto store is missing gets a new device ID. Replaced
+  devices go on `larpnet_chat_retired:<mxid>` and are never used again
+  (not even via the legacy shared ID). `cleanUpRetiredDevices()` logs each
+  one out with its saved session (`larpnet_chat_session:<deviceId>`) and
+  deletes its store, retried on every start until both succeed. Re-creating an account under an old device ID left the
   server with one-time keys signed by the old identity (zefir's Safari
   device on test, 2026-09-24 store rename).
 - Self-repair: `matrix.js` wraps `client.http.authedRequest`; on the
-  "already exists" 400 from `/keys/upload` it waits 5 s for key backup,
-  forgets the slot's device, logs it out (Synapse deletes its keys),
-  clears the store and reloads as a new device. At most once an hour per
+  "already exists" 400 from `/keys/upload` it retires the device, waits
+  5 s for key backup, stops the client, runs the cleanup above (Synapse
+  deletes the device's keys on logout) and reloads as a new device. At most once an hour per
   account (`lnc_device_repair:<mxid>`).
