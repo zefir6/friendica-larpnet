@@ -82,6 +82,10 @@ venv/
 !/addon/larpnet_fcm
 !/addon/larpnet_apns
 !/addon/larpnet_matrix
+# larpnet-patched copy of one upstream friendica-addons file (search engine allowlist)
+!/addon/blockbot
+/addon/blockbot/*
+!/addon/blockbot/blockbot.php
 
 #ignore base .htaccess
 /.htaccess
