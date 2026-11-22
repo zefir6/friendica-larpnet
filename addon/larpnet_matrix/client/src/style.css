@@ -440,6 +440,51 @@ body.lnc-fullpage {
   cursor: default;
 }
 
+/* Room info as a permanent right-hand column (full-screen chat on wide
+   windows, App.jsx infoAsPanel), Messenger-style. Same content as the
+   overlay; only the wrapper and the avatar + name head differ. */
+.lnc-room-info-panel {
+  flex: 0 0 320px;
+  min-height: 0;
+  overflow-y: auto;
+  border-left: 1px solid var(--lnc-border);
+  background: #ffffff;
+}
+
+.lnc-room-info-panel-head {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 14px 14px;
+  border-bottom: 1px solid var(--lnc-border);
+  text-align: center;
+}
+
+.lnc-room-info-panel-title {
+  font-weight: 700;
+  font-size: 1.05em;
+  overflow-wrap: anywhere;
+}
+
+.lnc-room-info-panel-head .lnc-picker-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: var(--lnc-text-secondary);
+}
+
+.lnc-room-info-panel-head .lnc-picker-close:hover {
+  color: var(--lnc-text);
+}
+
+.lnc-app-fullpage .lnc-header-btn.lnc-header-btn-active {
+  background: var(--lnc-accent);
+  border-color: var(--lnc-accent);
+  color: #ffffff;
+}
+
 .lnc-room-info-body {
   padding: 14px;
   display: flex;
