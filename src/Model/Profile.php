@@ -513,6 +513,9 @@ class Profile
 			'$network_label'               => $network_label,
 			'$network_url'                 => $network_url,
 			'$network_icon'                => $network_icon,
+			'$profile_url'                 => $profile_url,
+			'$copy_link'                   => DI::l10n()->t('Copy profile link'),
+			'$copy_link_done'              => DI::l10n()->t('Copied'),
 		]);
 
 		$hook_data = [

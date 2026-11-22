@@ -115,6 +115,18 @@
 			</div>
 		{{/if}}
 
+		{{* Always shown (also logged out / on your own profile, where the
+		    buttons above aren't): copies the canonical profile URL. Inline
+		    handler rather than theme.js, which Cloudflare can serve stale. *}}
+		{{if $profile_url}}
+			<div class="profile-copy-link-row">
+				<button type="button" class="profile-copy-link" data-url="{{$profile_url}}" data-done="{{$copy_link_done}}" title="{{$profile_url}}"
+					onclick="var b=this,s=b.querySelector('span'),t=s.textContent;navigator.clipboard.writeText(b.dataset.url).then(function(){s.textContent=b.dataset.done;b.classList.add('is-copied');setTimeout(function(){s.textContent=t;b.classList.remove('is-copied')},1500)})">
+					<i class="ri ri-link" aria-hidden="true"></i> <span>{{$copy_link}}</span>
+				</button>
+			</div>
+		{{/if}}
+
 		<div class="clear"></div>
 
 		{{if $location}}

@@ -1459,6 +1459,27 @@ aside .vcard .icon {
 	font-size: 12px;
 	color: $font_color_darker;
 }
+.profile-copy-link-row {
+	text-align: center;
+	margin: -4px 0 10px;
+}
+.profile-copy-link {
+	background: none;
+	border: 0;
+	border-radius: 999px;
+	padding: 3px 10px;
+	font-size: 12px;
+	color: $font_color_darker;
+	cursor: pointer;
+}
+.profile-copy-link:hover,
+.profile-copy-link:focus-visible {
+	background: rgba(0, 0, 0, 0.05);
+	color: $link_color;
+}
+.profile-copy-link.is-copied {
+	color: #2e7d32;
+}
 /* vcard-short-info */
 #vcard-short-info,
 #nav-short-info .contact-wrapper {
