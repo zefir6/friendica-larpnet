@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { Fragment } from 'preact';
 import { Composer } from './Composer.jsx';
-import { resolveDisplayName, profileUrlForUserId, avatarUrlForUserId, formatMessageTime, formatFullTime } from './matrix.js';
+import { resolveDisplayName, profileUrlForUserId, avatarUrlForUserId, formatMessageTime, formatFullTime, formatDayLabel, isSameDay } from './matrix.js';
 import { Avatar } from './Avatar.jsx';
 import { getUploadLimitBytes, uploadEncryptedAttachment } from './mediaAttachments.js';
 import { isChatActive, onChatActivityChange, markRoomRead, setRoomAtBottom } from './notifications.js';
@@ -200,43 +201,66 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
         <div ref={contentRef}>
           {events.map((ev, i) => {
             const mine = ev.getSender() === client.getUserId();
-            // Consecutive messages from one sender (within GROUP_GAP_MS) form a run: the name
-            // shows once above the first, and the bubbles sit closer together.
+            // Consecutive messages from one sender (within GROUP_GAP_MS, same
+            // day) form a run: the name shows once above the first, the
+            // bubbles sit closer together and their inner corners tighten.
             const prev = events[i - 1];
-            const continued = !!prev && prev.getSender() === ev.getSender() && ev.getTs() - prev.getTs() < GROUP_GAP_MS;
+            const next = events[i + 1];
+            const newDay = !prev || !isSameDay(prev.getTs(), ev.getTs());
+            const continued = !newDay && prev.getSender() === ev.getSender() && ev.getTs() - prev.getTs() < GROUP_GAP_MS;
+            const continues =
+              !!next && next.getSender() === ev.getSender() && next.getTs() - ev.getTs() < GROUP_GAP_MS && isSameDay(next.getTs(), ev.getTs());
             const failed = ev.isDecryptionFailure?.();
             const content = ev.getContent();
             const senderName = resolveDisplayName(ev.getSender(), contacts) || room.getMember(ev.getSender())?.name || ev.getSender();
             const profileUrl = profileUrlForUserId(ev.getSender(), serverName, contacts);
+            const avatar = isGroup && <Avatar url={avatarUrlForUserId(ev.getSender(), serverName, contacts)} name={senderName} size={22} />;
             return (
-              <div key={ev.getId()} class={'lnc-message' + (mine ? ' lnc-message-mine' : '') + (continued ? ' lnc-message-continued' : '')}>
-                {!mine && !continued && (
-                  <div class="lnc-message-sender">
-                    {isGroup && <Avatar url={avatarUrlForUserId(ev.getSender(), serverName, contacts)} name={senderName} size={20} />}
-                    {profileUrl ? (
-                      <a class="lnc-profile-link" href={profileUrl} target={linkTarget} rel="noopener" title="Otwórz profil">
-                        {senderName}
-                      </a>
-                    ) : (
-                      senderName
-                    )}
+              <Fragment key={ev.getId()}>
+                {newDay && (
+                  <div class="lnc-day-separator">
+                    <span>{formatDayLabel(ev.getTs())}</span>
                   </div>
                 )}
-                <div class="lnc-message-line">
-                  <div class="lnc-message-body" title={formatFullTime(ev.getTs())}>
-                    {failed ? (
-                      <em>Nie można odszyfrować wiadomości</em>
-                    ) : content.msgtype === 'm.image' && content.file ? (
-                      <ImageMessage client={client} content={content} onOpenLightbox={setLightboxUrl} />
-                    ) : content.msgtype === 'm.file' && content.file ? (
-                      <FileMessage client={client} content={content} />
-                    ) : (
-                      content.body
-                    )}
+                <div
+                  class={
+                    'lnc-message' +
+                    (mine ? ' lnc-message-mine' : '') +
+                    (continued ? ' lnc-message-continued' : '') +
+                    (continues ? ' lnc-message-continues' : '')
+                  }
+                >
+                  {!mine && !continued && (
+                    <div class="lnc-message-sender">
+                      {profileUrl ? (
+                        <a class="lnc-profile-link" href={profileUrl} target={linkTarget} rel="noopener" title={'Profil: ' + senderName}>
+                          {avatar}
+                          <span>{senderName}</span>
+                        </a>
+                      ) : (
+                        <>
+                          {avatar}
+                          <span>{senderName}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  <div class="lnc-message-line">
+                    <div class="lnc-message-body" title={formatFullTime(ev.getTs())}>
+                      {failed ? (
+                        <em>Nie można odszyfrować wiadomości</em>
+                      ) : content.msgtype === 'm.image' && content.file ? (
+                        <ImageMessage client={client} content={content} onOpenLightbox={setLightboxUrl} />
+                      ) : content.msgtype === 'm.file' && content.file ? (
+                        <FileMessage client={client} content={content} />
+                      ) : (
+                        content.body
+                      )}
+                    </div>
+                    {showMessageTimes && <span class="lnc-message-time">{formatMessageTime(ev.getTs())}</span>}
                   </div>
-                  {showMessageTimes && <span class="lnc-message-time">{formatMessageTime(ev.getTs())}</span>}
                 </div>
-              </div>
+              </Fragment>
             );
           })}
         </div>
