@@ -230,7 +230,9 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
                     (continues ? ' lnc-message-continues' : '')
                   }
                 >
-                  {!mine && !continued && (
+                  {/* Names only in groups: in a 1:1 the header already says
+                      who it is (and links to their profile). */}
+                  {!mine && !continued && isGroup && (
                     <div class="lnc-message-sender">
                       {profileUrl ? (
                         <a class="lnc-profile-link" href={profileUrl} target={linkTarget} rel="noopener" title={'Profil: ' + senderName}>
