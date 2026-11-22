@@ -1,6 +1,6 @@
 import { createClient } from 'matrix-js-sdk';
 import { createRecoveryKeyCache } from './recovery.js';
-import { claimDevice, forgetDevice, cryptoStorePrefix } from './deviceSlots.js';
+import { claimDevice, retireDevice, cleanUpRetiredDevices, cryptoStorePrefix } from './deviceSlots.js';
 
 // Saved session per device (`larpnet_chat_session:<deviceId>`). The
 // unsuffixed key is the pre-slots single session, still read for the
@@ -33,20 +33,24 @@ function forgetSavedSession(deviceId) {
   }
 }
 
-// A device whose crypto store is gone can never decrypt anything again, and
-// its one-time keys on the server only make other devices' attempts to
-// start a session with it fail. Delete it, if we still have its token.
-async function deleteDeadDevice(cfg, deviceId) {
+// Logs a retired device (deviceSlots.js) out on the server, which deletes
+// it and its keys there: a dead device's one-time keys only make other
+// devices' attempts to start an encrypted session with it fail. True once
+// there is nothing left to do (done, token already invalid, or no token).
+async function logoutRetiredDevice(cfg, deviceId) {
   const saved = readSavedSession(deviceId);
-  forgetSavedSession(deviceId);
   if (!saved?.access_token) {
-    return;
+    return true;
   }
   try {
     await createClient({ baseUrl: cfg.homeserverUrl, accessToken: saved.access_token, userId: saved.user_id }).logout();
   } catch (e) {
-    // token already invalid etc. -- nothing more we can do from here
+    if (e?.httpStatus !== 401) {
+      return false; // network etc.: retry next start
+    }
   }
+  forgetSavedSession(deviceId);
+  return true;
 }
 
 // The mxid the server-minted JWT is for (its `sub` claim is the localpart)
@@ -121,7 +125,7 @@ async function obtainSession(cfg, deviceId) {
 // Start over as a new device -- history comes back from key backup like on
 // any new device. At most once an hour per account, so a server-side
 // problem can't turn this into a loop.
-async function repairDevice(client, userId, deviceId) {
+async function repairDevice(cfg, client, userId, deviceId) {
   const key = REPAIR_KEY_PREFIX + userId;
   try {
     if (Date.now() - Number(localStorage.getItem(key) || 0) < 3600 * 1000) {
@@ -132,24 +136,14 @@ async function repairDevice(client, userId, deviceId) {
     return; // without storage we couldn't rate-limit this
   }
   console.warn('larpnet chat: device keys out of sync with the server, replacing device', deviceId);
+  // From here on this device is never used again; its server logout and
+  // store deletion also happen on the next start if they don't finish now.
+  retireDevice(userId, deviceId);
   // Give the background key backup a moment to upload room keys this
   // device still holds only locally.
   await new Promise((r) => setTimeout(r, 5000));
-  forgetDevice(userId, deviceId);
-  forgetSavedSession(deviceId);
-  try {
-    await client.logout(true); // deletes the device and its keys on the server
-  } catch (e) {
-    console.warn('larpnet chat: logging out the old device failed', e);
-  }
-  try {
-    await Promise.race([
-      client.clearStores({ cryptoDatabasePrefix: cryptoStorePrefix(userId, deviceId) }),
-      new Promise((r) => setTimeout(r, 3000)),
-    ]);
-  } catch (e) {
-    // the new device uses a new store anyway
-  }
+  client.stopClient();
+  await Promise.race([cleanUpRetiredDevices(userId, (id) => logoutRetiredDevice(cfg, id)), new Promise((r) => setTimeout(r, 5000))]);
   location.reload();
 }
 
@@ -169,10 +163,11 @@ function isOneTimeKeyConflict(path, err) {
  */
 export async function loginAndStart(cfg, { onWaiting } = {}) {
   const userId = expectedUserId(cfg) || 'unknown';
-  const { deviceId, staleDeviceId } = await claimDevice(userId, onWaiting);
-  if (staleDeviceId) {
-    await deleteDeadDevice(cfg, staleDeviceId);
-  }
+  const { deviceId } = await claimDevice(userId, onWaiting);
+  // Not awaited: finishing earlier repairs must not delay the chat.
+  cleanUpRetiredDevices(userId, (id) => logoutRetiredDevice(cfg, id)).catch((e) =>
+    console.warn('larpnet chat: cleaning up retired devices failed', e),
+  );
   const res = await obtainSession(cfg, deviceId);
 
   // recoveryKeyCache backs cryptoCallbacks.getSecretStorageKey -- the crypto
@@ -223,7 +218,7 @@ export async function loginAndStart(cfg, { onWaiting } = {}) {
       return await authedRequest(method, path, ...rest);
     } catch (err) {
       if (isOneTimeKeyConflict(path, err)) {
-        repairDevice(client, res.user_id, res.device_id);
+        repairDevice(cfg, client, res.user_id, res.device_id);
       }
       throw err;
     }
