@@ -6,6 +6,7 @@ import { Avatar } from './Avatar.jsx';
 import { getUploadLimitBytes, uploadEncryptedAttachment } from './mediaAttachments.js';
 import { isChatActive, onChatActivityChange, markRoomRead, setRoomAtBottom } from './notifications.js';
 import { ImageMessage, FileMessage } from './AttachmentMessage.jsx';
+import { ensureFreshOutboundSession } from './sessionFreshness.js';
 
 // Same 60-second window as the iOS/Android ChatMessageGrouping.
 const GROUP_GAP_MS = 60 * 1000;
@@ -167,7 +168,10 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
     .getEvents()
     .filter((ev) => ev.getType() === 'm.room.message');
 
-  const send = (body) => client.sendTextMessage(roomId, body);
+  const send = async (body) => {
+    await ensureFreshOutboundSession(client, roomId);
+    return client.sendTextMessage(roomId, body);
+  };
 
   // Attachments are always sent via the room's normal E2EE megolm session --
   // uploadEncryptedAttachment() encrypts client-side before upload, so the
@@ -182,6 +186,7 @@ export function Conversation({ client, roomId, contacts, serverName, linkTarget,
       file: encryptedFile,
       info: { mimetype: file.type || 'application/octet-stream', size: file.size },
     };
+    await ensureFreshOutboundSession(client, roomId);
     await client.sendMessage(roomId, content);
   };
 
