@@ -245,22 +245,27 @@ body {
   flex: 0 0 auto;
   display: flex;
   justify-content: center;
-  padding: 6px 12px;
-  border-top: 1px solid var(--lnc-border);
+  padding: 8px 12px;
+  border-top: 1px solid var(--lnc-divider);
 }
 
 .lnc-footer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: var(--lnc-accent-light);
-  border: 1px solid var(--lnc-border);
+  border: none;
   color: var(--lnc-accent);
-  padding: 4px 10px;
-  border-radius: 3px;
+  padding: 6px 14px;
+  border-radius: 999px;
   font-size: 0.85em;
+  font-weight: 600;
   cursor: pointer;
+  transition: background var(--lnc-ease);
 }
 
 .lnc-footer-btn:hover {
-  background: var(--lnc-border);
+  background: var(--lnc-accent-soft);
 }
 
 /* Full-screen mode (larpnet_matrix_content()'s ?full=1): a standalone
