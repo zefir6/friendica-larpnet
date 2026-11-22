@@ -149,7 +149,7 @@ All files below are larpnet additions or patches. When rebasing onto a new Frien
 | `src/Util/LarpnetSeo.php` | New file. Multibyte-safe excerpts, escaping, meta/OG/Twitter tag and JSON-LD builders, `NOINDEX_MODULES`, and `defaultHead()` (site-wide defaults) |
 | `src/App/Page.php` | (also listed above) calls `LarpnetSeo::defaultHead()` before rendering `<head>`, and gives the logged-out front page a descriptive title |
 | `src/Module/Item/Display.php` | (also listed above) `addMetaTags()` rewritten: real description, post image/avatar as `og:image`, canonical, `article:*` dates, `DiscussionForumPosting` JSON-LD, page title "<post title> – <author>" |
-| `src/Module/Profile/Profile.php` | `buildSeoHead()`: description, canonical, `og:type=profile`, `ProfilePage` JSON-LD |
+| `src/Module/Profile/Profile.php`, `src/Module/Profile/Conversations.php` | Call `LarpnetSeo::profileHead()` (description, canonical, `og:type=profile`, `ProfilePage` JSON-LD). `/profile/<nick>` itself is served by `Conversations` (via `Profile\Index`), `/profile/<nick>/profile` by `Profile` |
 | `src/Module/RobotsTxt.php` | More disallows (login-only pages that return 200), `/photo` and `/avatar` allowed, `Sitemap:` line |
 | `src/Module/LarpnetSitemap.php` | New file, routed as `/sitemap.xml` in `static/routes.config.php`; cached for an hour |
 | `view/templates/item/compose.tpl` | Adds the poll-creation fields (up to `Question::MAX_OPTIONS` option inputs, multiple-choice checkbox, expiry select) as their own toggle-able section (dedicated toolbar icon, independent of the visibility/permissions panel) on the "post" compose form |

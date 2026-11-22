@@ -66,7 +66,7 @@ class LarpnetSitemap extends BaseModule
 		$indexableUids = [];
 		while ($profile = DBA::fetch($profiles)) {
 			$indexableUids[] = (int) $profile['uid'];
-			$urls[]          = ['loc' => $base . '/profile/' . rawurlencode($profile['nickname'])];
+			$urls[]          = ['loc' => $base . '/profile/' . rawurlencode((string) $profile['nickname'])];
 		}
 		DBA::close($profiles);
 
@@ -87,7 +87,7 @@ class LarpnetSitemap extends BaseModule
 			while ($post = Post::fetch($posts)) {
 				$lastmod = max((string) $post['edited'], (string) $post['commented'], (string) $post['created']);
 				$urls[]  = [
-					'loc'     => $base . '/display/' . rawurlencode($post['guid']),
+					'loc'     => $base . '/display/' . rawurlencode((string) $post['guid']),
 					'lastmod' => DateTimeFormat::utc($lastmod, DateTimeFormat::ATOM),
 				];
 			}

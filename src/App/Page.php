@@ -199,7 +199,7 @@ class Page implements ArrayAccess
 
 		// larpnet: the logged-out front page is what search results show for
 		// the site itself; "Dom | Larpnet" said nothing about it.
-		if (!$localUID && in_array($args->getModuleName(), ['', 'home'], true)) {
+		if (!$localUID && in_array($this->module, ['', 'home'], true)) {
 			$this->page['title'] = LarpnetSeo::HOME_TITLE;
 		} else {
 			// Append the sitename to the page title
@@ -231,7 +231,7 @@ class Page implements ArrayAccess
 
 		// larpnet: robots/description/canonical/Open Graph defaults for pages
 		// whose module didn't set its own (posts and profiles do).
-		$this->page['htmlhead'] .= LarpnetSeo::defaultHead($this->page['htmlhead'], $this->page['title'], $args->getModuleName(), $localUID > 0);
+		$this->page['htmlhead'] .= LarpnetSeo::defaultHead($this->page['htmlhead'], $this->page['title'], $this->module, $localUID > 0);
 
 		$this->page['htmlhead'] = $this->eventDispatcher->dispatch(
 			new HtmlFilterEvent(HtmlFilterEvent::HEAD, $this->page['htmlhead']),
