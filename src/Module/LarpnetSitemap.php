@@ -77,6 +77,8 @@ class LarpnetSitemap extends BaseModule
 				"`wall` AND `origin` AND NOT `deleted` AND `gravity` = ? AND `private` IN (" . implode(',', array_fill(0, count($privacy), '?')) . ")"
 				. " AND `uid` IN (" . implode(',', array_fill(0, count($indexableUids), '?')) . ")"
 				. " AND NOT `author-blocked` AND NOT `owner-blocked`"
+				// Item\Display serves anonymous visitors from the public (uid 0) copy only
+				. " AND EXISTS (SELECT `uri-id` FROM `post-user` WHERE `post-user`.`uri-id` = `post-thread-origin-view`.`uri-id` AND `post-user`.`uid` = 0)"
 				. " AND NOT EXISTS (SELECT `id` FROM `contact` WHERE `contact`.`id` IN (`post-thread-origin-view`.`author-id`, `post-thread-origin-view`.`owner-id`) AND `contact`.`unsearchable`)",
 				Item::GRAVITY_PARENT, ...$privacy, ...$indexableUids,
 			];
