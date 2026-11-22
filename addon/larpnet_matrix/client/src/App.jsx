@@ -607,6 +607,7 @@ export function App({ config }) {
       {!isFullPage && (
         <div class="lnc-footer">
           <button type="button" class="lnc-footer-btn" title="Otwórz w nowej karcie" onClick={openInNewTab}>
+            <i class="ri ri-fullscreen-line" aria-hidden="true"></i>
             Pełny ekran
           </button>
         </div>
