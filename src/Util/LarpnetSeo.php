@@ -7,6 +7,7 @@
 
 namespace Friendica\Util;
 
+use Friendica\Content\Text\BBCode;
 use Friendica\DI;
 
 /**
@@ -87,6 +88,59 @@ final class LarpnetSeo
 		return self::absoluteUrl(self::DEFAULT_IMAGE);
 	}
 
+	/** True when the request carries no query parameters (besides nginx's own "pagename"). */
+	public static function isBareRequest(): bool
+	{
+		return empty($_GET) || array_keys($_GET) === ['pagename'];
+	}
+
+	/**
+	 * Description, canonical, Open Graph and schema.org ProfilePage for a
+	 * local user's profile (the posts tab at /profile/<nick> and the "about"
+	 * tab at /profile/<nick>/profile).
+	 *
+	 * @param array  $profile  Profile::load() result
+	 * @param string $nickname
+	 * @param string $url      Canonical URL of the page being rendered
+	 */
+	public static function profileHead(array $profile, string $nickname, string $url): string
+	{
+		$name   = (string) ($profile['name'] ?? $nickname);
+		$about  = self::excerpt(BBCode::toPlaintext((string) ($profile['about'] ?? ''), false), 160);
+		$image  = self::absoluteUrl((string) ($profile['photo'] ?? ''));
+		$handle = '@' . $nickname . '@' . DI::baseUrl()->getHost();
+
+		$description = $about !== ''
+			? $about
+			: sprintf('%s (%s) w serwisie Larpnet – polskiej sieci społecznościowej dla larpowców.', $name, $handle);
+
+		$head = self::metaTags([
+			'title'            => $name . ' (' . $handle . ')',
+			'description'      => $description,
+			'url'              => $url,
+			'type'             => 'profile',
+			'image'            => $image,
+			'card'             => 'summary',
+			'profile:username' => $nickname,
+		]);
+
+		return $head . self::jsonLd(array_filter([
+			'@context'    => 'https://schema.org',
+			'@type'       => 'ProfilePage',
+			'url'         => $url,
+			'dateCreated' => !empty($profile['register_date']) ? DateTimeFormat::utc($profile['register_date'], DateTimeFormat::ATOM) : '',
+			'mainEntity'  => array_filter([
+				'@type'         => 'Person',
+				'name'          => $name,
+				'alternateName' => $handle,
+				'identifier'    => $nickname,
+				'description'   => $about,
+				'image'         => $image,
+				'url'           => DI::baseUrl() . '/profile/' . $nickname,
+			]),
+		]));
+	}
+
 	public static function jsonLd(array $data): string
 	{
 		$json = json_encode(
@@ -123,7 +177,7 @@ final class LarpnetSeo
 			'og:image'       => $tags['image']       ?? '',
 		];
 		foreach ($tags as $key => $value) {
-			if (preg_match('/^(og|article|profile):/', $key)) {
+			if (preg_match('/^(og|article|profile):/', (string) $key)) {
 				$og[$key] = $value;
 			}
 		}
@@ -188,7 +242,7 @@ final class LarpnetSeo
 		// of a page onto the canonical host.
 		if (!str_contains($htmlhead, 'rel="canonical"')) {
 			$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-			if (empty($_GET) || array_keys($_GET) === ['pagename']) {
+			if (self::isBareRequest()) {
 				$tags['url'] = $isHome ? DI::baseUrl() . '/' : DI::baseUrl() . '/' . ltrim($path, '/');
 			}
 		}
