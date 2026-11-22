@@ -58,7 +58,7 @@ export function App({ config }) {
   const isFullPage = !!config.fullPage;
   const [client, setClient] = useState(null);
   const [recoveryKeyCache, setRecoveryKeyCache] = useState(null);
-  const [status, setStatus] = useState('loading'); // loading | ready | error
+  const [status, setStatus] = useState('loading'); // loading | waiting-slot | ready | error
   const [error, setError] = useState(null);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   // null | 'new_chat' | 'add_member' -- which purpose the ContactPicker
@@ -184,7 +184,9 @@ export function App({ config }) {
     let cancelled = false;
     (async () => {
       try {
-        const { client: c, recoveryKeyCache: rkc } = await loginAndStart(config);
+        const { client: c, recoveryKeyCache: rkc } = await loginAndStart(config, {
+          onWaiting: () => !cancelled && setStatus('waiting-slot'),
+        });
         if (cancelled) {
           return;
         }
@@ -323,6 +325,13 @@ export function App({ config }) {
 
   if (status === 'loading') {
     return <div class="lnc-status">Logowanie do czatu…</div>;
+  }
+  if (status === 'waiting-slot') {
+    return (
+      <div class="lnc-status">
+        Czat jest już otwarty w kilku innych kartach. Zamknij jedną z nich, a czat uruchomi się tutaj.
+      </div>
+    );
   }
   if (status === 'error') {
     return <div class="lnc-status lnc-status-error">Nie udało się zalogować do czatu.<br />{String(error?.message || error)}</div>;
