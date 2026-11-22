@@ -13,6 +13,7 @@ use Friendica\BaseModule;
 use Friendica\Content\Conversation\StatusEditor;
 use Friendica\Content\Conversation\ConversationRenderer;
 use Friendica\Content\Item as ContentItem;
+use Friendica\Content\Post\Entity\PostMedia;
 use Friendica\Content\Text\BBCode;
 use Friendica\Core\Config\Capability\IManageConfigValues;
 use Friendica\Core\L10n;
@@ -29,7 +30,10 @@ use Friendica\Module\Special\DisplayNotFound;
 use Friendica\Navigation\Notifications\Repository\Notification;
 use Friendica\Navigation\Notifications\Repository\Notify;
 use Friendica\Protocol\ActivityPub;
+use Friendica\Util\DateTimeFormat;
+use Friendica\Util\LarpnetSeo;
 use Friendica\Util\Profiler;
+use Friendica\Util\Proxy;
 use Friendica\Network\HTTPException;
 use Friendica\Content\Widget;
 use Friendica\Core\System;
@@ -61,6 +65,8 @@ class Display extends BaseModule
 	protected $notification;
 	/** @var Notify */
 	protected $notify;
+	/** @var string larpnet: post title (or excerpt) for <title>, set by addMetaTags() */
+	protected $seoTitle = '';
 
 	public function __construct(L10n $l10n, App\BaseURL $baseUrl, App\Arguments $args, LoggerInterface $logger, Profiler $profiler, Response $response, IManageConfigValues $config, IManagePersonalConfigValues $pConfig, IHandleUserSessions $session, AppHelper $appHelper, App\Page $page, ContentItem $contentItem, StatusEditor $statusEditor, ConversationRenderer $htmlRenderer, Notification $notification, Notify $notify, array $server, array $parameters = [])
 	{
@@ -171,8 +177,9 @@ class Display extends BaseModule
 
 		$output .= $this->getDisplayData($item, false, false);
 
-		$author              = Contact::getByURLForUser($item['author-link'], $this->session->getLocalUserId());
-		$this->page['title'] = $this->l10n->t("Post by %s", $author['name']);
+		$author = Contact::getByURLForUser($item['author-link'], $this->session->getLocalUserId());
+		// larpnet: "<post title or excerpt> – <author>" instead of an untranslated "Post by <author>"
+		$this->page['title'] = $this->seoTitle !== '' ? $this->seoTitle . ' – ' . $author['name'] : $this->l10n->t("Post by %s", $author['name']);
 
 		return $output;
 	}
@@ -258,6 +265,8 @@ class Display extends BaseModule
 		$fields    = [
 			'parent-uri-id', 'body', 'title', 'author-name', 'author-avatar', 'plink', 'author-id',
 			'owner-id', 'contact-id', 'uid',
+			// larpnet: for the SEO meta tags / JSON-LD
+			'author-link', 'created', 'edited', 'private', 'origin',
 		];
 
 		$item = Post::selectFirstForUser($pageUid, $fields, $condition);
@@ -317,63 +326,81 @@ class Display extends BaseModule
 	 */
 	protected function addMetaTags(array $item)
 	{
-		// Preparing the meta header
-		$description = trim(BBCode::toPlaintext($item['body']));
-		$title       = trim(BBCode::toPlaintext($item['title'] ?? ''));
-		$author_name = $item['author-name'];
+		// larpnet: rewritten. Upstream cut the description with byte-based
+		// substr() (splitting Polish characters, which made htmlspecialchars()
+		// return ""), pointed og:image at the site root, and had no canonical,
+		// article dates or structured data.
+		$plain       = trim(BBCode::toPlaintext($item['body'], false));
+		$description = LarpnetSeo::excerpt($plain, 160);
+		$title       = trim(BBCode::toPlaintext($item['title'] ?? '', false));
+		$author_name = (string) $item['author-name'];
+		$headline    = $title !== '' ? $title : LarpnetSeo::excerpt($plain, 70);
 
-		$image = $this->baseUrl->remove($item['author-avatar']);
+		$this->seoTitle = $headline;
 
-		if ($title === '') {
-			$title = $author_name;
+		$url = $item['plink'] ?: $this->baseUrl . '/display/' . ($this->parameters['guid'] ?? '');
+
+		$image = '';
+		foreach (Post\Media::getByURIId($item['uri-id'], [PostMedia::TYPE_IMAGE]) as $media) {
+			if (preg_match('#^https?://#i', (string) $media['url'])) {
+				$image = $media['url'];
+				break;
+			}
 		}
-
-		// Limit the description to 160 characters
-		if (strlen($description) > 160) {
-			$description = substr($description, 0, 157) . '...';
+		if ($image === '' && preg_match('#\[img(?:=([^\]]+))?[^\]]*\]([^\[]*)#i', (string) $item['body'], $m)) {
+			$candidate = preg_match('#^https?://#i', $m[1]) ? $m[1] : trim($m[2]);
+			$image     = preg_match('#^https?://#i', $candidate) ? $candidate : '';
 		}
+		$authorImage = Contact::getAvatarUrlForId($item['author-id'], Proxy::SIZE_SMALL);
 
-		$description = htmlspecialchars($description, ENT_COMPAT, 'UTF-8', true); // allow double encoding here
-		$title       = htmlspecialchars((string) $title, ENT_COMPAT, 'UTF-8', true); // allow double encoding here
-		$author_name = htmlspecialchars((string) $author_name, ENT_COMPAT, 'UTF-8', true); // allow double encoding here
+		$noindex = Contact::exists(['unsearchable' => true, 'id' => [$item['contact-id'], $item['author-id'], $item['owner-id']]])
+			|| !$this->baseUrl->isLocalUrl($url)
+			|| (($item['private'] ?? null) == Item::SERVER_ONLY && !LarpnetSeo::indexServerOnlyPosts());
 
-		$page = $this->page;
-
-		if (Contact::exists([
-			'unsearchable' => true, 'id' => [$item['contact-id'], $item['author-id'], $item['owner-id']],
-		])) {
-			$page['htmlhead'] .= "<meta content=\"noindex, noarchive\" name=\"robots\" />\n";
+		$head = '';
+		if ($noindex) {
+			$head .= "<meta content=\"noindex, noarchive\" name=\"robots\" />\n";
 		}
+		$head .= '<meta name="author" content="' . LarpnetSeo::esc($author_name) . "\" />\n";
 
-		$page['htmlhead'] .= sprintf("<meta name=\"author\" content=\"%s\" />\n", $author_name);
-		$page['htmlhead'] .= sprintf("<meta name=\"title\" content=\"%s\" />\n", $title);
-		$page['htmlhead'] .= sprintf("<meta name=\"fulltitle\" content=\"%s\" />\n", $title);
-		$page['htmlhead'] .= sprintf("<meta name=\"description\" content=\"%s\" />\n", $description);
+		$published = !empty($item['created']) ? DateTimeFormat::utc($item['created'], DateTimeFormat::ATOM) : '';
+		$modified  = !empty($item['edited']) ? DateTimeFormat::utc($item['edited'], DateTimeFormat::ATOM) : '';
 
-		// Schema.org microdata
-		$page['htmlhead'] .= sprintf("<meta itemprop=\"name\" content=\"%s\" />\n", $title);
-		$page['htmlhead'] .= sprintf("<meta itemprop=\"description\" content=\"%s\" />\n", $description);
-		$page['htmlhead'] .= sprintf("<meta itemprop=\"image\" content=\"%s\" />\n", $image);
-		$page['htmlhead'] .= sprintf("<meta itemprop=\"author\" content=\"%s\" />\n", $author_name);
+		$head .= LarpnetSeo::metaTags([
+			'title'                  => $headline,
+			'description'            => $description,
+			'url'                    => $url,
+			'type'                   => 'article',
+			'image'                  => $image ?: $authorImage,
+			'card'                   => $image ? 'summary_large_image' : 'summary',
+			'article:published_time' => $published,
+			'article:modified_time'  => $modified !== $published ? $modified : '',
+			'article:author'         => (string) ($item['author-link'] ?? ''),
+		]);
 
-		// Twitter cards
-		$page['htmlhead'] .= "<meta name=\"twitter:card\" content=\"summary\" />\n";
-		$page['htmlhead'] .= sprintf("<meta name=\"twitter:title\" content=\"%s\" />\n", $title);
-		$page['htmlhead'] .= sprintf("<meta name=\"twitter:description\" content=\"%s\" />\n", $description);
-		$page['htmlhead'] .= sprintf("<meta name=\"twitter:image\" content=\"%s/%s\" />\n", $this->baseUrl, $image);
-		$page['htmlhead'] .= sprintf("<meta name=\"twitter:url\" content=\"%s\" />\n", $item["plink"]);
+		$posting = [
+			'@context'         => 'https://schema.org',
+			'@type'            => 'DiscussionForumPosting',
+			'mainEntityOfPage' => $url,
+			'url'              => $url,
+			'headline'         => mb_substr($headline, 0, 110),
+			'text'             => mb_substr($plain, 0, 5000),
+			'datePublished'    => $published,
+			'author'           => array_filter([
+				'@type' => 'Person',
+				'name'  => $author_name,
+				'url'   => (string) ($item['author-link'] ?? ''),
+			]),
+			'isPartOf' => ['@type' => 'WebSite', 'name' => LarpnetSeo::SITE_NAME, 'url' => $this->baseUrl . '/'],
+		];
+		if ($modified !== '' && $modified !== $published) {
+			$posting['dateModified'] = $modified;
+		}
+		if ($image !== '') {
+			$posting['image'] = $image;
+		}
+		$head .= LarpnetSeo::jsonLd($posting);
 
-		// Dublin Core
-		$page['htmlhead'] .= sprintf("<meta name=\"DC.title\" content=\"%s\" />\n", $title);
-		$page['htmlhead'] .= sprintf("<meta name=\"DC.description\" content=\"%s\" />\n", $description);
-
-		// Open Graph
-		$page['htmlhead'] .= "<meta property=\"og:type\" content=\"website\" />\n";
-		$page['htmlhead'] .= sprintf("<meta property=\"og:title\" content=\"%s\" />\n", $title);
-		$page['htmlhead'] .= sprintf("<meta property=\"og:image\" content=\"%s/%s\" />\n", $this->baseUrl, $image);
-		$page['htmlhead'] .= sprintf("<meta property=\"og:url\" content=\"%s\" />\n", $item["plink"]);
-		$page['htmlhead'] .= sprintf("<meta property=\"og:description\" content=\"%s\" />\n", $description);
-		$page['htmlhead'] .= sprintf("<meta name=\"og:article:author\" content=\"%s\" />\n", $author_name);
-		// article:tag
+		$this->page['htmlhead'] .= $head;
 	}
 }

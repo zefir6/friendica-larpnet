@@ -9,6 +9,7 @@ namespace Friendica\Module;
 
 use Friendica\BaseModule;
 use Friendica\Core\System;
+use Friendica\DI;
 
 /**
  * Return the default robots.txt
@@ -17,15 +18,45 @@ class RobotsTxt extends BaseModule
 {
 	protected function rawContent(array $request = [])
 	{
+		// larpnet: also keep crawlers out of the pages that answer anonymous
+		// visitors with a login form or permission error (HTTP 200 all the
+		// same -- see LarpnetSeo::NOINDEX_MODULES), and let them fetch
+		// /photo and /avatar so post images and avatars used in link
+		// previews / structured data are reachable.
 		$allDisallowed = [
 			'/settings/',
 			'/admin/',
-			'/message/',
+			'/message',
 			'/search',
 			'/help',
 			'/proxy',
-			'/photo',
-			'/avatar',
+			'/login',
+			'/register',
+			'/lostpass',
+			'/network',
+			'/compose',
+			'/contact',
+			'/channel',
+			'/notifications',
+			'/notes',
+			'/circle',
+			'/calendar',
+			'/events',
+			'/delegation',
+			'/larpnet_matrix',
+			'/item/',
+			'/post/',
+			'/ping',
+			'/oauth/',
+			'/api/',
+			'/bookmarklet',
+			'/filer',
+			'/follow',
+			'/unfollow',
+			'/magic',
+			'/probe',
+			'/ostatus_subscribe',
+			'/removeme',
 		];
 
 		header('Content-Type: text/plain');
@@ -45,6 +76,9 @@ class RobotsTxt extends BaseModule
 		echo PHP_EOL;
 		echo 'User-agent: GPTBot' . PHP_EOL;
 		echo 'Disallow: /' . PHP_EOL;
+
+		echo PHP_EOL;
+		echo 'Sitemap: ' . DI::baseUrl() . '/sitemap.xml' . PHP_EOL;
 
 		System::exit();
 	}

@@ -35,6 +35,8 @@ use Friendica\Network\HTTPException;
 use Friendica\Network\HTTPException\InternalServerErrorException;
 use Friendica\Profile\ProfileField\Repository\ProfileField;
 use Friendica\Protocol\ActivityPub;
+use Friendica\Util\DateTimeFormat;
+use Friendica\Util\LarpnetSeo;
 use Friendica\Util\Network;
 use Friendica\Util\Profiler;
 use Friendica\Util\Temporal;
@@ -354,6 +356,11 @@ class Profile extends BaseProfile
 			$htmlhead .= '<meta content="noindex, noarchive" name="robots" />' . "\n";
 		}
 
+		// larpnet: description, canonical, Open Graph and schema.org ProfilePage
+		if (!$blocked && !$userblock) {
+			$htmlhead .= $this->buildSeoHead($profile, $nickname);
+		}
+
 		$htmlhead .= '<link rel="alternate" type="application/atom+xml" href="' . $this->baseUrl . '/feed/' . $nickname . '/" title="' . $this->t('%s\'s posts', htmlspecialchars((string) $profile['name'], ENT_COMPAT, 'UTF-8', true)) . '"/>' . "\n";
 		$htmlhead .= '<link rel="alternate" type="application/atom+xml" href="' . $this->baseUrl . '/feed/' . $nickname . '/comments" title="' . $this->t('%s\'s comments', htmlspecialchars((string) $profile['name'], ENT_COMPAT, 'UTF-8', true)) . '"/>' . "\n";
 		$htmlhead .= '<link rel="alternate" type="application/atom+xml" href="' . $this->baseUrl . '/feed/' . $nickname . '/activity" title="' . $this->t('%s\'s timeline', htmlspecialchars((string) $profile['name'], ENT_COMPAT, 'UTF-8', true)) . '"/>' . "\n";
@@ -367,6 +374,50 @@ class Profile extends BaseProfile
 		}
 
 		return $htmlhead;
+	}
+
+	/**
+	 * larpnet: search engine / link preview tags for a profile page.
+	 */
+	private function buildSeoHead(array $profile, string $nickname): string
+	{
+		$name   = (string) ($profile['name'] ?? $nickname);
+		$about  = LarpnetSeo::excerpt(BBCode::toPlaintext((string) ($profile['about'] ?? ''), false), 160);
+		$url    = $this->baseUrl . '/profile/' . $nickname;
+		$image  = LarpnetSeo::absoluteUrl((string) ($profile['photo'] ?? ''));
+		$handle = '@' . $nickname . '@' . $this->baseUrl->getHost();
+
+		$description = $about !== ''
+			? $about
+			: sprintf('%s (%s) w serwisie Larpnet – polskiej sieci społecznościowej dla larpowców.', $name, $handle);
+
+		$head = LarpnetSeo::metaTags([
+			'title'            => $name . ' (' . $handle . ')',
+			'description'      => $description,
+			'url'              => $url,
+			'type'             => 'profile',
+			'image'            => $image,
+			'card'             => 'summary',
+			'profile:username' => $nickname,
+		]);
+
+		$person = array_filter([
+			'@type'         => 'Person',
+			'name'          => $name,
+			'alternateName' => $handle,
+			'identifier'    => $nickname,
+			'description'   => $about,
+			'image'         => $image,
+			'url'           => $url,
+		]);
+
+		return $head . LarpnetSeo::jsonLd(array_filter([
+			'@context'    => 'https://schema.org',
+			'@type'       => 'ProfilePage',
+			'url'         => $url,
+			'dateCreated' => !empty($profile['register_date']) ? DateTimeFormat::utc($profile['register_date'], DateTimeFormat::ATOM) : '',
+			'mainEntity'  => $person,
+		]));
 	}
 
 	/**
