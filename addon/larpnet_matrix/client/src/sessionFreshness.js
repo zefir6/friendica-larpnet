@@ -16,19 +16,21 @@
  * new session and shares it with every current device. Never throws: on any
  * failure the send proceeds as before.
  */
+// Keyed by this device too: each running chat can be its own device (see
+// deviceSlots.js), with its own outbound session per room.
 const STORE_PREFIX = 'lnc-megolm-devices:';
 
-function readSignature(roomId) {
+function readSignature(deviceId, roomId) {
   try {
-    return localStorage.getItem(STORE_PREFIX + roomId);
+    return localStorage.getItem(STORE_PREFIX + deviceId + ':' + roomId);
   } catch (e) {
     return null;
   }
 }
 
-function writeSignature(roomId, signature) {
+function writeSignature(deviceId, roomId, signature) {
   try {
-    localStorage.setItem(STORE_PREFIX + roomId, signature);
+    localStorage.setItem(STORE_PREFIX + deviceId + ':' + roomId, signature);
   } catch (e) {
     /* storage unavailable: next send just rotates again */
   }
@@ -52,9 +54,10 @@ export async function ensureFreshOutboundSession(client, roomId) {
     }
     const signature = entries.sort().join(',');
 
-    if (readSignature(roomId) !== signature) {
+    const deviceId = client.getDeviceId();
+    if (readSignature(deviceId, roomId) !== signature) {
       await crypto.forceDiscardSession(roomId);
-      writeSignature(roomId, signature);
+      writeSignature(deviceId, roomId, signature);
     }
   } catch (e) {
     console.warn('larpnet_matrix: could not refresh outbound session', e);
