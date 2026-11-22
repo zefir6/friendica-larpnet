@@ -465,6 +465,14 @@ export function App({ config }) {
   return (
     <div class={'lnc-app' + (isFullPage ? ' lnc-app-fullpage' : '') + (singlePane ? ' lnc-app-singlepane' : '')}>
       <div class="lnc-header">
+        {/* Full page has no site nav around it (it fills the window like
+            Messenger), so the logo is the way back to Larpnet. */}
+        {isFullPage && (
+          <a class="lnc-home-link" href="./" title="Wróć do Larpnetu">
+            <span class="lnc-home-logo" aria-hidden="true"></span>
+            <span class="lnc-home-text">Larpnet</span>
+          </a>
+        )}
         {singlePane ? (
           showingConversation && (
             <button type="button" class="lnc-header-btn" title="Wróć do rozmów" onClick={() => setRoomListCollapsed(false)}>

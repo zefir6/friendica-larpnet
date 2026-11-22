@@ -1288,15 +1288,13 @@ function larpnet_matrix_content(): string
 	// client/src/App.jsx's "Pełny ekran" button opens this same URL with
 	// ?full=1 appended -- that's the only signal this side has for "a real
 	// top-level tab, not the corner-bubble iframe" (see
-	// js/matrix-chat-widget.js), and it's what decides which of the two
-	// branches below runs. Also threaded into $config as 'fullPage' below,
+	// js/matrix-chat-widget.js); below it only changes the document's
+	// title/icon/body class. Also threaded into $config as 'fullPage' below,
 	// so App.jsx can tell the two contexts apart client-side too (it
 	// otherwise has no awareness at all -- same component tree renders
 	// identically in both today) and adjust its own chrome: full-screen
-	// mode drops the redundant second purple header bar (the real site nav
-	// already sits directly above it) and the now-pointless "Pełny ekran"
-	// button, neither of which make sense once already viewing the
-	// full-screen page.
+	// mode gets a light header with a Larpnet logo link back to the site,
+	// and drops the now-pointless "Pełny ekran" button.
 	$full = !empty($_GET['full']);
 
 	$config = [
@@ -1321,55 +1319,37 @@ function larpnet_matrix_content(): string
 
 	// The module script tag works fine wherever it lands in the document
 	// (browsers fetch/execute a <script type="module"> anywhere), so this
-	// part of the body is shared between both branches below.
+	// part of the body is shared by both modes.
 	$body = '<div id="app"></div>'
 		. '<script>window.LARPNET_CHAT_CONFIG = ' . json_encode($config) . ';</script>'
 		. '<script type="module" src="larpnet_matrix/app.js"></script>';
 
-	if ($full) {
-		// A normal module return: Friendica wraps this in the current
-		// theme's page chrome (nav bar included) same as any other page,
-		// and puts a registerStylesheet() link in <head> the proper way
-		// (cache-busted, same as any other theme/addon stylesheet) rather
-		// than the raw branch's own hand-written <head> below.
-		//
-		// generic-page-wrapper is the site's own real card class (see
-		// view/theme/larpnet/css/style.css) -- every other full-width page
-		// (Directory, Contacts, Settings, the homepage) already opts into
-		// it for the same padding/background/shadow/border-radius and a
-		// min-height that fills down near the viewport bottom. Previously
-		// .lnc-page carried none of that (no background/shadow/radius of
-		// its own at all) and instead hard-capped #app at a fixed 80vh via
-		// its own one-off CSS rule, which is why the chat used to look like
-		// a small floating box with visible grey margin on every side
-		// rather than "the page" -- confirmed live. Its own selector is
-		// `section > .generic-page-wrapper`; this div is still that
-		// section's direct child (see php/default.php's col-lg-12 branch),
-		// so it matches. See client/src/style.css's .lnc-page rule for how
-		// #app now stretches to fill this card's height instead.
-		DI::page()->registerStylesheet('larpnet_matrix/app.css');
-		DI::page()['title'] = DI::l10n()->t('Chat');
-		return '<div class="lnc-page generic-page-wrapper">' . $body . '</div>';
-	}
-
-	// Raw exit, not a normal module return: this is meant to be a clean
-	// standalone document (the corner-bubble iframe, see
-	// js/matrix-chat-widget.js), not wrapped in Friendica's own page chrome
-	// (nav bar, sidebar) the way a plain _content() string return would be.
-	header('Content-Type: text/html; charset=utf-8');
-	echo '<!doctype html><html><head><meta charset="utf-8">'
-		. '<title>Czat</title>'
-		// This standalone document has no connection to the site's own
-		// head.tpl, so it never gets the site's own fonts unless we link
-		// them here ourselves -- the full-screen (?full=1) branch above
-		// gets both for free via the real theme chrome. Same self-hosted
-		// files head.tpl itself links (view/theme/larpnet/templates/
-		// head.tpl), so the chat renders in the same typeface/icon font as
-		// every other page instead of a generic system-font/emoji look.
+	// Both modes are a raw standalone document, never wrapped in Friendica's
+	// own page chrome (nav bar, sidebar): the corner-bubble iframe (see
+	// js/matrix-chat-widget.js) because it sits inside another page, and the
+	// full-screen page (?full=1) because it is meant to be the chat alone,
+	// filling the window like Messenger. It used to be a normal module
+	// return inside the site nav and a .generic-page-wrapper card, which left
+	// the chat a smallish box with grey margins (2026-11). App.jsx puts a
+	// Larpnet logo link in its own header in full-page mode as the way back.
+	//
+	// This document has no connection to the site's head.tpl, so it links
+	// the site's own self-hosted fonts itself (same files head.tpl links).
+	$head = '<meta charset="utf-8">'
+		. '<meta name="viewport" content="width=device-width, initial-scale=1">'
+		. '<title>' . ($full ? 'Czat | Larpnet' : 'Czat') . '</title>'
 		. '<link rel="stylesheet" href="view/theme/larpnet/font/open_sans/open-sans.css">'
 		. '<link rel="stylesheet" href="view/asset/remixicon/fonts/remixicon.css">'
-		. '<link rel="stylesheet" href="larpnet_matrix/app.css">'
-		. '</head><body>' . $body . '</body></html>';
+		. '<link rel="stylesheet" href="larpnet_matrix/app.css">';
+	if ($full) {
+		$head .= '<link rel="icon" href="' . htmlspecialchars((string) (DI::config()->get('system', 'shortcut_icon') ?: 'view/theme/larpnet/img/larpnet-192.png')) . '">'
+			. '<link rel="manifest" href="friendica.webmanifest">'
+			. '<meta name="robots" content="noindex">';
+	}
+
+	header('Content-Type: text/html; charset=utf-8');
+	echo '<!doctype html><html lang="pl"><head>' . $head . '</head>'
+		. '<body' . ($full ? ' class="lnc-fullpage"' : '') . '>' . $body . '</body></html>';
 	exit;
 }
 
