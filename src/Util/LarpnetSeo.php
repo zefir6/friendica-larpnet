@@ -151,17 +151,47 @@ final class LarpnetSeo
 	}
 
 	/**
-	 * Description, canonical, Open Graph and Twitter Card tags.
+	 * Post hashtags as keywords: '#' stripped, whitespace collapsed,
+	 * case-insensitive duplicates dropped (first spelling wins), at most $max.
 	 *
-	 * @param array $tags title, description, url, image, type (og:type),
-	 *                    card (twitter:card), plus any extra 'og:*'/'article:*'/
-	 *                    'profile:*' => value pairs (value may be a list)
+	 * @param string[] $names
+	 * @return string[]
+	 */
+	public static function keywords(array $names, int $max = 10): array
+	{
+		$out = [];
+		foreach ($names as $name) {
+			$name = trim(preg_replace('/\s+/u', ' ', ltrim((string) $name, '#')) ?? '');
+			if ($name === '') {
+				continue;
+			}
+			$key = mb_strtolower($name);
+			if (!isset($out[$key])) {
+				$out[$key] = $name;
+			}
+			if (count($out) >= $max) {
+				break;
+			}
+		}
+		return array_values($out);
+	}
+
+	/**
+	 * Description, keywords, canonical, Open Graph and Twitter Card tags.
+	 *
+	 * @param array $tags title, description, keywords (list), url, image,
+	 *                    type (og:type), card (twitter:card), plus any extra
+	 *                    'og:*'/'article:*'/'profile:*' => value pairs
+	 *                    (value may be a list)
 	 */
 	public static function metaTags(array $tags): string
 	{
 		$out = '';
 		if (($tags['description'] ?? '') !== '') {
 			$out .= '<meta name="description" content="' . self::esc($tags['description']) . "\" />\n";
+		}
+		if (!empty($tags['keywords'])) {
+			$out .= '<meta name="keywords" content="' . self::esc(implode(', ', (array) $tags['keywords'])) . "\" />\n";
 		}
 		if (($tags['url'] ?? '') !== '') {
 			$out .= '<link rel="canonical" href="' . self::esc($tags['url']) . "\" />\n";
