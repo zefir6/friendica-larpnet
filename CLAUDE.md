@@ -152,6 +152,7 @@ All files below are larpnet additions or patches. When rebasing onto a new Frien
 | `src/Module/Profile/Profile.php`, `src/Module/Profile/Conversations.php` | Call `LarpnetSeo::profileHead()` (description, canonical, `og:type=profile`, `ProfilePage` JSON-LD). `/profile/<nick>` itself is served by `Conversations` (via `Profile\Index`), `/profile/<nick>/profile` by `Profile` |
 | `src/Module/RobotsTxt.php` | More disallows (login-only pages that return 200), `/photo` and `/avatar` allowed, `Sitemap:` line |
 | `src/Module/LarpnetSitemap.php` | New file, routed as `/sitemap.xml` in `static/routes.config.php`; cached for an hour |
+| `src/Module/Home.php`, `src/Module/Admin/Site.php` | (also listed above) "Front page text" in Admin > Site (`larpnet.home_text`, BBCode): rendered server-side next to the login form for logged-out visitors (larpnet `home.tpl` only), and its start becomes the front page meta description (`LarpnetSeo::homeDescription()`) |
 | `view/templates/item/compose.tpl` | Adds the poll-creation fields (up to `Question::MAX_OPTIONS` option inputs, multiple-choice checkbox, expiry select) as their own toggle-able section (dedicated toolbar icon, independent of the visibility/permissions panel) on the "post" compose form |
 | `view/templates/content/question.tpl` | Replaced the read-only result list with a vote `<form>` (radios/checkboxes per `Question::MAX_OPTIONS`) shown to a logged-in local user who hasn't voted yet and whose poll hasn't expired; falls back to the original read-only results otherwise |
 

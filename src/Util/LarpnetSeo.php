@@ -235,6 +235,22 @@ final class LarpnetSeo
 	}
 
 	/**
+	 * Front page description: the start of the admin's front page text
+	 * (Admin > Site, larpnet.home_text), or the default.
+	 */
+	public static function homeDescription(): string
+	{
+		$text = trim((string) DI::config()->get('larpnet', 'home_text'));
+		if ($text === '') {
+			return self::DEFAULT_DESCRIPTION;
+		}
+		// Headings are usually just the site name; describe with the body.
+		$text  = preg_replace('#\[h[1-6]\].*?\[/h[1-6]\]#is', '', $text) ?? $text;
+		$plain = trim(preg_replace('/\s+/u', ' ', BBCode::toPlaintext($text, false)) ?? '');
+		return $plain !== '' ? self::excerpt($plain, 160) : self::DEFAULT_DESCRIPTION;
+	}
+
+	/**
 	 * Fills in whatever the current module did not set itself: robots,
 	 * description, canonical, Open Graph defaults, and site-level JSON-LD on
 	 * the home page. Called by App\Page right before <head> is rendered.
@@ -260,7 +276,7 @@ final class LarpnetSeo
 		$isHome = in_array($module, ['', 'home'], true);
 		$tags   = [
 			'title'           => $isHome ? self::HOME_TITLE : preg_replace('/ \| ' . preg_quote(self::SITE_NAME, '/') . '$/', '', $title),
-			'description'     => str_contains($htmlhead, 'name="description"') ? '' : self::DEFAULT_DESCRIPTION,
+			'description'     => str_contains($htmlhead, 'name="description"') ? '' : ($isHome ? self::homeDescription() : self::DEFAULT_DESCRIPTION),
 			'image'           => self::defaultImage(),
 			'og:image:width'  => '1200',
 			'og:image:height' => '630',
@@ -289,7 +305,7 @@ final class LarpnetSeo
 						'@id'         => $base . '#website',
 						'name'        => self::SITE_NAME,
 						'url'         => $base,
-						'description' => self::DEFAULT_DESCRIPTION,
+						'description' => self::homeDescription(),
 						'inLanguage'  => 'pl',
 						'publisher'   => ['@id' => $base . '#organization'],
 					],

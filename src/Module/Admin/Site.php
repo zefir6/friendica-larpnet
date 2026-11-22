@@ -87,6 +87,8 @@ class Site extends BaseAdmin
 
 		// Larpnet: see Network::getEmailDomainStatus()
 		$approve_outside_email = !empty($_POST['larpnet_approve_outside_allowed_email']);
+		// Larpnet: BBCode shown to logged-out visitors on the front page, see Module\Home
+		$larpnet_home_text = trim((string) ($_POST['larpnet_home_text'] ?? ''));
 
 		$enable_multi_reg                = !empty($_POST['enable_multi_reg']);
 		$enable_openid                   = !empty($_POST['enable_openid']);
@@ -210,6 +212,11 @@ class Site extends BaseAdmin
 			$transactionConfig->delete('config', 'info');
 		} else {
 			$transactionConfig->set('config', 'info', $additional_info);
+		}
+		if ($larpnet_home_text === '') {
+			$transactionConfig->delete('larpnet', 'home_text');
+		} else {
+			$transactionConfig->set('larpnet', 'home_text', $larpnet_home_text);
 		}
 		if (DI::config()->isWritable('system', 'language')) {
 			$transactionConfig->set('system', 'language', $language);
@@ -489,6 +496,7 @@ class Site extends BaseAdmin
 			'$shortcut_icon'     => ['shortcut_icon', DI::l10n()->t('Shortcut icon'), DI::config()->get('system', 'shortcut_icon'), DI::l10n()->t('Link to an icon that will be used for browsers.')],
 			'$touch_icon'        => ['touch_icon', DI::l10n()->t('Touch icon'), DI::config()->get('system', 'touch_icon'), DI::l10n()->t('Link to an icon that will be used for tablets and mobiles.')],
 			'$additional_info'   => ['additional_info', DI::l10n()->t('Additional Info'), $additional_info, DI::l10n()->t('For public servers: you can add additional information here that will be listed at %s/servers.', Search::getGlobalDirectory())],
+			'$larpnet_home_text' => ['larpnet_home_text', DI::l10n()->t('Front page text'), DI::config()->get('larpnet', 'home_text'), DI::l10n()->t('Shown next to the login form to visitors who are not logged in, and read by search engines. BBCode, e.g. [h2]Heading[/h2], [b]bold[/b], [url=https://…]link[/url]. Its beginning is also used as the front page description in search results and link previews. Leave empty for the default.')],
 			'$language'          => ['language', DI::l10n()->t('System language'), DI::config()->get('system', 'language'), !DI::config()->isWritable('system', 'language') ? DI::l10n()->t("<strong>Read-only</strong> because it is set by an environment variable") : '', $lang_choices, !DI::config()->isWritable('system', 'language') ? 'disabled' : ''],
 			'$theme'             => ['theme', DI::l10n()->t('System theme'), DI::config()->get('system', 'theme'), DI::l10n()->t('Default system theme - may be over-ridden by user profiles - <a href="%s" id="cnftheme">Change default theme settings</a>', DI::baseUrl() . '/admin/themes'), $theme_choices],
 			'$theme_mobile'      => ['theme_mobile', DI::l10n()->t('Mobile system theme'), DI::config()->get('system', 'mobile-theme', '---'), DI::l10n()->t('Theme for mobile devices'), $theme_choices_mobile],

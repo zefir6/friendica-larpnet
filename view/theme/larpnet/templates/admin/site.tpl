@@ -48,6 +48,7 @@
 						{{include file="field_input.tpl" field=$shortcut_icon}}
 						{{include file="field_input.tpl" field=$touch_icon}}
 						{{include file="field_textarea.tpl" field=$additional_info}}
+						{{include file="field_textarea.tpl" field=$larpnet_home_text}}
 						{{include file="field_select.tpl" field=$language}}
 						{{include file="field_select.tpl" field=$theme}}
 						{{include file="field_select.tpl" field=$theme_mobile}}
