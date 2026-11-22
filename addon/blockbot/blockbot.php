@@ -79,6 +79,17 @@ function blockbot_init_1()
 
 	blockbot_log_activitypub($_SERVER['REQUEST_URI'], $_SERVER['HTTP_USER_AGENT']);
 
+	// larpnet: upstream rejects every search engine unconditionally (no admin
+	// option), which kept larpnet.pl out of Google/Bing entirely. Let the
+	// mainstream ones through; what they may index is governed by robots.txt,
+	// <meta name="robots"> and each user's "searchable" setting like for any
+	// visitor. No IP verification: a scraper faking a Googlebot UA only gets
+	// what an anonymous browser already gets.
+	if (blockbot_larpnet_is_allowed_searchbot($parts)) {
+		DI::logger()->debug('Allowed search engine found - accept', $logdata);
+		return;
+	}
+
 	if (blockbot_is_crawler($parts)) {
 		DI::logger()->debug('Crawler found - reject', $logdata);
 		blockbot_reject();
@@ -315,6 +326,34 @@ function blockbot_is_crawler(array $parts): bool
 			return true;
 		}
 
+		if (in_array($part, $agents)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * larpnet: search engines we want indexing the site (exact UA part match,
+ * as produced by blockbot_get_parts()). AI-training crawlers (GPTBot,
+ * Google-Extended, Applebot-Extended, ...) and SEO-tool crawlers (Ahrefs,
+ * Semrush, ...) are deliberately not here.
+ *
+ * @param array $parts
+ * @return boolean
+ */
+function blockbot_larpnet_is_allowed_searchbot(array $parts): bool
+{
+	$agents = [
+		'googlebot', 'googlebot-image', 'googlebot-news', 'googlebot-video', 'googlebot-mobile',
+		'google-inspectiontool', 'google-site-verification', 'storebot-google',
+		'bingbot', 'bingpreview', 'msnbot', 'msnbot-media',
+		'duckduckbot', 'duckduckbot-https', 'duckduckgo-favicons-bot',
+		'yandexbot', 'yandeximages', 'yandexmobilebot',
+		'seznambot', 'applebot', 'qwantbot', 'qwantify', 'mojeekbot',
+	];
+
+	foreach ($parts as $part) {
 		if (in_array($part, $agents)) {
 			return true;
 		}

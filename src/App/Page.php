@@ -25,6 +25,7 @@ use Friendica\DI;
 use Friendica\Event\HtmlFilterEvent;
 use Friendica\Network\HTTPException;
 use Friendica\Util\Images;
+use Friendica\Util\LarpnetSeo;
 use Friendica\Util\Network;
 use Friendica\Util\Profiler;
 use Friendica\Util\Strings;
@@ -196,8 +197,14 @@ class Page implements ArrayAccess
 			$this->page['title'] = $l10n->t(ucfirst($args->getModuleName()));
 		}
 
-		// Append the sitename to the page title
-		$this->page['title'] = (!empty($this->page['title']) ? $this->page['title'] . ' | ' : '') . $config->get('config', 'sitename', '');
+		// larpnet: the logged-out front page is what search results show for
+		// the site itself; "Dom | Larpnet" said nothing about it.
+		if (!$localUID && in_array($args->getModuleName(), ['', 'home'], true)) {
+			$this->page['title'] = LarpnetSeo::HOME_TITLE;
+		} else {
+			// Append the sitename to the page title
+			$this->page['title'] = (!empty($this->page['title']) ? $this->page['title'] . ' | ' : '') . $config->get('config', 'sitename', '');
+		}
 
 		if (!empty(Renderer::$theme['stylesheet'])) {
 			$stylesheet = Renderer::$theme['stylesheet'];
@@ -221,6 +228,10 @@ class Page implements ArrayAccess
 				$touch_icon = 'images/friendica-192.png';
 			}
 		}
+
+		// larpnet: robots/description/canonical/Open Graph defaults for pages
+		// whose module didn't set its own (posts and profiles do).
+		$this->page['htmlhead'] .= LarpnetSeo::defaultHead($this->page['htmlhead'], $this->page['title'], $args->getModuleName(), $localUID > 0);
 
 		$this->page['htmlhead'] = $this->eventDispatcher->dispatch(
 			new HtmlFilterEvent(HtmlFilterEvent::HEAD, $this->page['htmlhead']),
