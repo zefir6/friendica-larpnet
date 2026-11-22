@@ -360,6 +360,10 @@ anything describing the logged-in user.
   `lnc_room_list_width` (side-by-side layouts only, set by dragging
   `.lnc-resizer`, clamped 180-480px and to leave the conversation 280px;
   double-click resets to 280).
+- Full-screen chat on a window >= 1100px shows room info as a right-hand
+  column (`RoomInfoModal` with `variant="panel"`), Messenger-style; "Info"
+  toggles it (`lnc_info_panel`). Narrower windows and the corner popup keep
+  the overlay.
 - Member names in Room info and sender names above incoming messages link
   to `/profile/<nickname>` via `matrix.js`'s `profileUrlForUserId()` (local
   mxids only). Full page opens a new tab; the corner popup uses

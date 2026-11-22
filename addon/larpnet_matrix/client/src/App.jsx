@@ -162,6 +162,23 @@ export function App({ config }) {
   }, []);
   const singlePane = !isFullPage && (popupLayout === 'switch' || isNarrow);
 
+  // Full-screen chat on a wide window shows room info as a permanent
+  // right-hand column (Messenger-style) instead of the "Info" overlay;
+  // "Info" then toggles it, remembered in localStorage (lnc_info_panel).
+  const [isWide, setIsWide] = useState(() => window.matchMedia('(min-width: 1100px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1100px)');
+    const onChange = () => setIsWide(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  const infoAsPanel = isFullPage && isWide;
+  const [infoPanelOpen, setInfoPanelOpen] = useState(() => localStorage.getItem('lnc_info_panel') !== 'false');
+  const handleInfoPanelChange = (value) => {
+    setInfoPanelOpen(value);
+    localStorage.setItem('lnc_info_panel', value ? 'true' : 'false');
+  };
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -500,7 +517,12 @@ export function App({ config }) {
           <span class="lnc-header-title-text">{showingConversation ? headerTitle : 'Rozmowy'}</span>
         </span>
         {selectedRoom && showingConversation && (
-          <button type="button" class="lnc-header-btn" title="Informacje o rozmowie" onClick={() => setShowRoomInfo(true)}>
+          <button
+            type="button"
+            class={'lnc-header-btn' + (infoAsPanel && infoPanelOpen ? ' lnc-header-btn-active' : '')}
+            title={infoAsPanel ? (infoPanelOpen ? 'Ukryj informacje o rozmowie' : 'Pokaż informacje o rozmowie') : 'Informacje o rozmowie'}
+            onClick={() => (infoAsPanel ? handleInfoPanelChange(!infoPanelOpen) : setShowRoomInfo(true))}
+          >
             Info
           </button>
         )}
@@ -547,6 +569,23 @@ export function App({ config }) {
             focusBlocked={!!(pickerMode || showRoomInfo || showSettings || recoveryPrompt)}
           />
         )}
+        {infoAsPanel && infoPanelOpen && showingConversation && selectedRoom && (
+          <RoomInfoModal
+            key={selectedRoom.roomId}
+            variant="panel"
+            title={headerTitle}
+            avatarUrl={avatarUrlForUserId(roomPeerUserId(selectedRoom, client), config.serverName, config.contacts)}
+            client={client}
+            config={config}
+            room={selectedRoom}
+            contacts={config.contacts}
+            serverName={config.serverName}
+            linkTarget="_blank"
+            onClose={() => handleInfoPanelChange(false)}
+            onLeft={handleRoomLeft}
+            onAddMember={() => setPickerMode('add_member')}
+          />
+        )}
       </div>
       {/* Pointless once already viewing the full-screen page -- it would
           just open the same URL in yet another new tab. Corner-bubble mode
@@ -568,7 +607,7 @@ export function App({ config }) {
           onClose={() => setPickerMode(null)}
         />
       )}
-      {showRoomInfo && selectedRoom && (
+      {showRoomInfo && selectedRoom && !infoAsPanel && (
         <RoomInfoModal
           client={client}
           config={config}
