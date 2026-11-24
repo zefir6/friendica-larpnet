@@ -730,3 +730,22 @@ intended -- don't replace this with a single-tab lock (user decision).
   5 s for key backup, stops the client, runs the cleanup above (Synapse
   deletes the device's keys on logout) and reloads as a new device. At most once an hour per
   account (`lnc_device_repair:<mxid>`).
+
+## Chat message sound and "Czat" in person menus (2026-11)
+
+- **Sound.** Same 10 sounds, keys and default (`double_glass`) as the apps,
+  plus "system" (browser's sound) and "silent". Per browser, localStorage
+  `lnc_chat_sound`, picked in chat Settings. A web notification can't carry
+  a sound, so `view/theme/larpnet/js/chat-sound.js` (loaded on every theme
+  page and in both chat documents) plays it: on a chat push `sw.js` posts
+  `larpnet-chat-sound-request` to every window, one page plays it (Web Lock
+  + last id in localStorage) and answers `larpnet-chat-sound-played`, and
+  the notification is shown with `silent: true` (never together with
+  `renotify`: that throws). No answer within 1.5 s (no page open, autoplay
+  blocked before any click) = the browser's sound. The pages copy the choice
+  into the worker's Cache Storage (`larpnet-prefs`), since a worker can't
+  read localStorage. Files: `view/theme/larpnet/sounds/chat_<key>.mp3`.
+- **"Wiadomość" -> "Czat".** `contact_photo_menu` / `item_photo_menu` hooks
+  replace the legacy private message with chat for local users (matched by
+  profile URL, not nick). Remote contacts keep "Message". The larpnet
+  `hovercard.tpl` override renders it and opens the corner chat.
