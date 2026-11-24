@@ -832,18 +832,22 @@ a.lnc-room-info-member-link:hover .lnc-room-info-member-name {
 }
 
 .lnc-settings-sound-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   cursor: default;
 }
 
 .lnc-settings-sound {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 4px;
   min-width: 0;
 }
 
 .lnc-settings-select {
-  max-width: 190px;
+  flex: 1;
+  min-width: 0;
   padding: 6px 10px;
   border: 1px solid var(--lnc-border, #d0d5dd);
   border-radius: 8px;
