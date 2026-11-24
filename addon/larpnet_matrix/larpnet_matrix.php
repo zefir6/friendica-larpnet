@@ -106,16 +106,25 @@ function larpnet_matrix_ensure_hooks(): void
 /**
  * Nickname of the local user whose profile URL this is, or null for anyone
  * else (remote contacts included, even when their nick matches a local one).
+ * Compared with the user's own self-contact URL rather than this site's base
+ * URL, which differs from it on a copied database (test has prod's URLs).
+ * Cached per request: post menus ask once per post.
  */
 function larpnet_matrix_local_nickname_for_url(string $url): ?string
 {
-	$prefix = Strings::normaliseLink(rtrim((string) DI::baseUrl(), '/') . '/profile/');
-	$url    = Strings::normaliseLink($url);
-	if (!str_starts_with($url, $prefix)) {
-		return null;
+	static $cache = [];
+	if (array_key_exists($url, $cache)) {
+		return $cache[$url];
 	}
-	$nick = substr($url, strlen($prefix));
-	return ($nick !== '' && !str_contains($nick, '/')) ? $nick : null;
+	$nick = null;
+	if (preg_match('#/profile/([^/?\#]+)/?$#', $url, $m)) {
+		$user = User::getByNickname(urldecode($m[1]), ['uid', 'nickname']);
+		$self = $user ? Contact::selectFirst(['url'], ['uid' => $user['uid'], 'self' => true]) : null;
+		if ($self && Strings::compareLink((string) $self['url'], $url)) {
+			$nick = $user['nickname'];
+		}
+	}
+	return $cache[$url] = $nick;
 }
 
 /**
