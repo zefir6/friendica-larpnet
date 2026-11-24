@@ -30,7 +30,75 @@ self.addEventListener('message', function (event) {
     if (data.type === 'larpnet-ntfy-message' && data.message) {
         event.waitUntil(handleMessage(data.message));
     }
+    if (data.type === 'larpnet-chat-sound-choice' && typeof data.sound === 'string') {
+        event.waitUntil(saveChatSound(data.sound));
+    }
+    if (data.type === 'larpnet-chat-sound-played' && soundWaiters.has(data.id)) {
+        soundWaiters.get(data.id)(true);
+    }
 });
+
+// --- Chat message sound --------------------------------------------------------
+//
+// A notification can't carry its own sound, so an open page plays the
+// user's chosen one (js/chat-sound.js) and the notification is then shown
+// silently. The choice is copied here by the pages (this worker can't read
+// localStorage); with none stored yet, nothing is silenced.
+
+const SOUND_CACHE = 'larpnet-prefs';
+const SOUND_PREF_URL = '/__larpnet/chat-sound';
+const SOUND_WAIT_MS = 1500;
+const soundWaiters = new Map(); // request id -> resolve(played)
+
+async function saveChatSound(sound) {
+    try {
+        const cache = await caches.open(SOUND_CACHE);
+        await cache.put(SOUND_PREF_URL, new Response(sound));
+    } catch (e) {
+        // No Cache Storage: the browser's sound stays.
+    }
+}
+
+async function chatSound() {
+    try {
+        const res = await (await caches.open(SOUND_CACHE)).match(SOUND_PREF_URL);
+        return res ? await res.text() : 'system';
+    } catch (e) {
+        return 'system';
+    }
+}
+
+// Asks the open pages to play the sound; true once one of them has.
+function playInPage(windows, id) {
+    if (!windows.length) {
+        return Promise.resolve(false);
+    }
+    return new Promise(function (resolve) {
+        const done = function (played) {
+            if (soundWaiters.get(id) === done) {
+                soundWaiters.delete(id);
+                resolve(played);
+            }
+        };
+        soundWaiters.set(id, done);
+        setTimeout(function () { done(false); }, SOUND_WAIT_MS);
+        windows.forEach(function (c) { c.postMessage({ type: 'larpnet-chat-sound-request', id: id }); });
+    });
+}
+
+// Whether the notification should be silent: the user chose silence, or a
+// page already played their sound.
+async function chatSoundPlayed(windows, msg) {
+    const sound = await chatSound();
+    if (sound === 'silent') {
+        return true;
+    }
+    if (sound === 'system') {
+        return false;
+    }
+    const id = String(msg.id || '') || Date.now() + '-' + Math.random().toString(36).slice(2);
+    return playInPage(windows, id);
+}
 
 function chatRoomOf(msg) {
     const tags = msg.tags || [];
@@ -60,6 +128,7 @@ async function isRoomOnScreen(roomId) {
 
 async function handleMessage(msg) {
     const roomId = chatRoomOf(msg);
+    let silent = false;
 
     if (roomId) {
         // Lets the chat bubble on open pages refresh its unread badge now
@@ -70,6 +139,7 @@ async function handleMessage(msg) {
         if (await isRoomOnScreen(roomId)) {
             return;
         }
+        silent = await chatSoundPlayed(windows, msg);
     }
 
     const title   = msg.title || 'larpnet';
@@ -78,8 +148,10 @@ async function handleMessage(msg) {
         icon:  msg.icon   || '/images/friendica.svg',
         badge: '/images/friendica.svg',
         tag:   roomId ? 'chat:' + roomId : String(msg.id || ''),
-        // Re-alert for a newer message replacing an older one in the same room.
-        renotify: !!roomId,
+        // Re-alert for a newer message replacing an older one in the same
+        // room. Not with silent: the two together throw a TypeError.
+        renotify: !!roomId && !silent,
+        silent: silent,
         data:  { url: msg.click || msg.url || '/' },
     };
 

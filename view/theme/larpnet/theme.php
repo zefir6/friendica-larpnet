@@ -348,6 +348,8 @@ function larpnet_matrix_chat_widget_head(string &$b): void
 
 	DI::page()->registerStylesheet(larpnet_theme_asset('css/matrix-chat-widget.css'));
 	DI::page()->registerFooterScript(larpnet_theme_asset('js/matrix-chat-widget.js'));
+	// Chat message sound, played on a chat push (see js/chat-sound.js and sw.js).
+	DI::page()->registerFooterScript(larpnet_theme_asset('js/chat-sound.js'));
 }
 
 // ---------------------------------------------------------------------------
