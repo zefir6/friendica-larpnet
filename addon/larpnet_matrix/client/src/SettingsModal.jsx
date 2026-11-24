@@ -133,6 +133,7 @@ export function SettingsModal({
                   />
                 </label>
               )}
+              <ChatSoundSetting />
               {(isStandard || isPrivate) && (
                 <p class="lnc-recovery-text">
                   <strong>Szyfrowanie: {isStandard ? 'standardowe' : 'prywatne'}</strong>
@@ -204,6 +205,47 @@ export function SettingsModal({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Sound for new chat messages, same choices as the apps. The sound itself is
+// played by js/chat-sound.js (window.LarpnetChatSound, loaded by the chat
+// page) when a chat push arrives; picking one plays it once.
+function ChatSoundSetting() {
+  const sounds = window.LarpnetChatSound;
+  const [selected, setSelected] = useState(() => sounds?.get());
+  if (!sounds) {
+    return null;
+  }
+  const choose = (key) => {
+    setSelected(key);
+    sounds.set(key);
+    sounds.play(key);
+  };
+  return (
+    <div class="lnc-settings-toggle lnc-settings-sound-row">
+      <span id="lnc-sound-label">Dźwięk nowej wiadomości</span>
+      <span class="lnc-settings-sound">
+        <select class="lnc-settings-select" aria-labelledby="lnc-sound-label" value={selected} onChange={(e) => choose(e.currentTarget.value)}>
+          {sounds.sounds.map((s) => (
+            <option key={s.key} value={s.key}>{s.label}</option>
+          ))}
+        </select>
+        <button
+          type="button"
+          class="lnc-icon-btn"
+          title="Odtwórz"
+          aria-label="Odtwórz"
+          disabled={selected === 'system' || selected === 'silent'}
+          onClick={(e) => {
+            e.preventDefault();
+            sounds.play(selected);
+          }}
+        >
+          <i class="ri ri-play-line" aria-hidden="true" />
+        </button>
+      </span>
     </div>
   );
 }

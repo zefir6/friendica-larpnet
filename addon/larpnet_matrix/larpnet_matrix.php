@@ -77,6 +77,8 @@ function larpnet_matrix_install()
 	Hook::register('app_menu', __FILE__, 'larpnet_matrix_app_menu');
 	Hook::register('cron', __FILE__, 'larpnet_matrix_cron');
 	Hook::register('addon_settings', __FILE__, 'larpnet_matrix_addon_settings');
+	Hook::register('contact_photo_menu', __FILE__, 'larpnet_matrix_contact_photo_menu');
+	Hook::register('item_photo_menu', __FILE__, 'larpnet_matrix_item_photo_menu');
 	DI::logger()->info('installed addon larpnet_matrix');
 }
 
@@ -88,7 +90,7 @@ function larpnet_matrix_install()
  * never pick them up. Called from larpnet_matrix_app_menu() (every page);
  * the config check keeps it at zero DB queries once done.
  */
-const LARPNET_MATRIX_HOOKS_VERSION = 2;
+const LARPNET_MATRIX_HOOKS_VERSION = 3;
 
 function larpnet_matrix_ensure_hooks(): void
 {
@@ -96,7 +98,96 @@ function larpnet_matrix_ensure_hooks(): void
 		return;
 	}
 	Hook::register('addon_settings', __FILE__, 'larpnet_matrix_addon_settings');
+	Hook::register('contact_photo_menu', __FILE__, 'larpnet_matrix_contact_photo_menu');
+	Hook::register('item_photo_menu', __FILE__, 'larpnet_matrix_item_photo_menu');
 	DI::config()->set('larpnet_matrix', 'hooks_version', LARPNET_MATRIX_HOOKS_VERSION);
+}
+
+/**
+ * Nickname of the local user whose profile URL this is, or null for anyone
+ * else (remote contacts included, even when their nick matches a local one).
+ */
+function larpnet_matrix_local_nickname_for_url(string $url): ?string
+{
+	$prefix = Strings::normaliseLink(rtrim((string) DI::baseUrl(), '/') . '/profile/');
+	$url    = Strings::normaliseLink($url);
+	if (!str_starts_with($url, $prefix)) {
+		return null;
+	}
+	$nick = substr($url, strlen($prefix));
+	return ($nick !== '' && !str_contains($nick, '/')) ? $nick : null;
+}
+
+/**
+ * "Czat" instead of the legacy private message ("Wiadomość") in a contact's
+ * menu (hovercards, contact lists) for local users: new conversations go to
+ * chat (Friendica DMs are being retired). Remote contacts keep "Message",
+ * chat can't reach them. Entry: [label, link, new tab, nickname]; the
+ * larpnet hovercard.tpl opens it in the corner chat via openMatrixChat().
+ */
+function larpnet_matrix_contact_photo_menu(array &$data): void
+{
+	$contact = $data['contact'] ?? [];
+	if (!is_array($data['menu'] ?? null) || !empty($contact['self']) || !DI::userSession()->getLocalUserId()) {
+		return;
+	}
+	$nick = larpnet_matrix_local_nickname_for_url((string) ($contact['url'] ?? ''));
+	$link = $nick ? larpnet_matrix_chat_link_for_nickname($nick) : null;
+	if (!$link || $nick === DI::userSession()->getLocalUserNickname()) {
+		return;
+	}
+	$chat = [DI::l10n()->t('Chat'), $link, false, $nick];
+	$menu = [];
+	foreach ($data['menu'] as $key => $entry) {
+		if ($key === 'pm') {
+			$menu['chat'] = $chat;
+		} elseif ($key !== 'chat') {
+			$menu[$key] = $entry;
+		}
+	}
+	$menu['chat'] = $menu['chat'] ?? $chat;
+	$data['menu'] = $menu;
+}
+
+/**
+ * Same for the menu on a post's or comment's author (label => link). A
+ * "javascript:" value becomes the entry's onclick (Content\Item::photoMenu()).
+ */
+function larpnet_matrix_item_photo_menu(array &$data): void
+{
+	$item = $data['item'] ?? [];
+	if (!is_array($data['menu'] ?? null) || !DI::userSession()->getLocalUserId()) {
+		return;
+	}
+	$nick = larpnet_matrix_local_nickname_for_url((string) ($item['author-link'] ?? ''));
+	$link = $nick ? larpnet_matrix_chat_link_for_nickname($nick) : null;
+	if (!$link || $nick === DI::userSession()->getLocalUserNickname()) {
+		return;
+	}
+	// Nicknames are Matrix localparts here ([a-z0-9._=-]), safe inside the attribute.
+	$open    = "javascript:if (window.openMatrixChat) { openMatrixChat('" . $nick . "'); } else { location.href = '" . $link . "'; }";
+	$message = DI::l10n()->t('Message');
+	$label   = DI::l10n()->t('Chat');
+	$menu    = [];
+	foreach ($data['menu'] as $key => $value) {
+		if ($key === $message) {
+			$menu[$label] = $open;
+		} else {
+			$menu[$key] = $value;
+		}
+	}
+	if (!isset($menu[$label])) {
+		// Not a contact of the viewer, so there was no "Message": put it after "View Profile".
+		$menu = [];
+		foreach ($data['menu'] as $key => $value) {
+			$menu[$key] = $value;
+			if ($key === DI::l10n()->t('View Profile')) {
+				$menu[$label] = $open;
+			}
+		}
+		$menu[$label] = $menu[$label] ?? $open;
+	}
+	$data['menu'] = $menu;
 }
 
 /**
@@ -1322,6 +1413,9 @@ function larpnet_matrix_content(): string
 	// part of the body is shared by both modes.
 	$body = '<div id="app"></div>'
 		. '<script>window.LARPNET_CHAT_CONFIG = ' . json_encode($config) . ';</script>'
+		// Chat message sound: the settings picker uses it, and in the full
+		// page it is also what plays the sound on a chat push.
+		. '<script src="view/theme/larpnet/js/chat-sound.js?lv=' . (int) @filemtime(__DIR__ . '/../../view/theme/larpnet/js/chat-sound.js') . '"></script>'
 		. '<script type="module" src="larpnet_matrix/app.js"></script>';
 
 	// Both modes are a raw standalone document, never wrapped in Friendica's
