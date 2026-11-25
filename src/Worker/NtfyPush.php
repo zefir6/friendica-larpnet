@@ -59,7 +59,9 @@ class NtfyPush
 			$topic,
 			$title ?: DI::l10n()->t('Notification'),
 			$body ?: $title,
-			(string) DI::baseUrl() . '/notification',
+			// ?status_id= lets the Android app open that post/comment on tap
+			// (NtfyMessage.statusId); the web page ignores it.
+			(string) DI::baseUrl() . '/notification' . ($notification->targetUriId ? '?status_id=' . $notification->targetUriId : ''),
 			$actor['thumb'] ?? null,
 		);
 	}
