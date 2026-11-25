@@ -24,9 +24,11 @@ class ApnsPush
 	/**
 	 * $key identifies the notification ("social:<nid>", "mail:<id>") so a
 	 * repeat replaces it on the device -- optional because jobs queued
-	 * before it existed don't carry it.
+	 * before it existed don't carry it. $statusId (Mastodon API status id of
+	 * the notification's post or comment, empty for mail) lets the app open
+	 * that post on tap; optional for the same reason.
 	 */
-	public static function execute(int $uid, string $title, string $body, string $click, string $key = '')
+	public static function execute(int $uid, string $title, string $body, string $click, string $key = '', string $statusId = '')
 	{
 		$tokens = DBA::selectToArray('apns-token', ['token'], ['uid' => $uid]);
 		if (empty($tokens)) {
@@ -40,7 +42,7 @@ class ApnsPush
 			return;
 		}
 
-		$dead = larpnet_apns_send_to_tokens($tokens, $title, $body, $click, $key);
+		$dead = larpnet_apns_send_to_tokens($tokens, $title, $body, $click, $key, $statusId);
 		if (!empty($dead)) {
 			DBA::delete('apns-token', ['token' => $dead]);
 			DI::logger()->info('ApnsPush: pruned dead tokens', ['count' => count($dead)]);
