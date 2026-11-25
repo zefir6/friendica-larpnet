@@ -186,6 +186,9 @@ function larpnet_head(string &$b): void
 		return;
 	}
 
+	// Before the login check: the banner is mostly for visitors.
+	larpnet_app_banner_head($b);
+
 	$uid = DI::userSession()->getLocalUserId();
 	if (!$uid) {
 		return;
@@ -295,6 +298,51 @@ JS;
 	$b .= "<script>window.LarpnetPush = {$config};</script>\n";
 
 	DI::page()->registerFooterScript(larpnet_theme_asset('js/push.js'));
+}
+
+// Native apps, offered to phone browsers by larpnet_app_banner_head().
+const LARPNET_APP_STORE_ID    = '6809194485';
+const LARPNET_APP_STORE_URL   = 'https://apps.apple.com/pl/app/larpnet/id6809194485';
+// Not public on Google Play yet: the testing opt-in, same link as info.larpnet.pl.
+const LARPNET_ANDROID_APP_URL = 'https://play.google.com/apps/testing/pl.larpnet.android';
+
+/**
+ * Suggests the native apps to phone browsers: Safari on iPhone/iPad gets its
+ * own Smart App Banner (apple-itunes-app meta), other iOS browsers and
+ * Android get js/app-banner.js's dismissible bar.
+ *
+ * Never on the OAuth pages or a login that continues to them: the apps sign
+ * in through exactly this site in the system browser (Custom Tabs /
+ * ASWebAuthenticationSession), where suggesting the app would be absurd.
+ */
+function larpnet_app_banner_head(string &$b): void
+{
+	if (DI::args()->get(0) === 'oauth' || !empty($_REQUEST['return_authorize'])
+		|| str_starts_with((string) DI::session()->get('return_path'), 'oauth')) {
+		return;
+	}
+
+	$b .= '<meta name="apple-itunes-app" content="app-id=' . LARPNET_APP_STORE_ID . '">' . "\n";
+
+	$l10n = DI::l10n();
+	$b .= "<script>window.LarpnetAppBanner = " . json_encode([
+		'title'   => $l10n->t('Larpnet app'),
+		'close'   => $l10n->t('Close'),
+		'icon'    => 'view/theme/larpnet/img/larpnet-192.png',
+		'ios'     => [
+			'url'    => LARPNET_APP_STORE_URL,
+			'text'   => $l10n->t('Chat and notifications on your iPhone'),
+			'button' => $l10n->t('App Store'),
+		],
+		'android' => [
+			'url'    => LARPNET_ANDROID_APP_URL,
+			'text'   => $l10n->t('Join the Android app test on Google Play'),
+			'button' => $l10n->t('Join'),
+		],
+	], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ";</script>\n";
+
+	DI::page()->registerStylesheet(larpnet_theme_asset('css/app-banner.css'));
+	DI::page()->registerFooterScript(larpnet_theme_asset('js/app-banner.js'));
 }
 
 /**
