@@ -21,7 +21,7 @@ use Friendica\DI;
  */
 class FcmPush
 {
-	public static function execute(int $uid, string $title, string $body, string $click, ?string $icon = null)
+	public static function execute(int $uid, string $title, string $body, string $click, ?string $icon = null, string $statusId = '')
 	{
 		$tokens = DBA::selectToArray('fcm-token', ['token'], ['uid' => $uid]);
 		if (empty($tokens)) {
@@ -35,7 +35,7 @@ class FcmPush
 			return;
 		}
 
-		$dead = larpnet_fcm_send_to_tokens($tokens, $title, $body, $click, $icon);
+		$dead = larpnet_fcm_send_to_tokens($tokens, $title, $body, $click, $icon, $statusId);
 		if (!empty($dead)) {
 			DBA::delete('fcm-token', ['token' => $dead]);
 			DI::logger()->info('FcmPush: pruned dead tokens', ['count' => count($dead)]);
