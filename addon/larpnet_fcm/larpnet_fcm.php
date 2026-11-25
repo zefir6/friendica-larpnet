@@ -109,7 +109,10 @@ function larpnet_fcm_push_notification(array &$data)
 		$title ?: DI::l10n()->t('Notification'),
 		$body ?: $title,
 		(string) DI::baseUrl() . '/notification',
-		$actor['thumb'] ?? null
+		$actor['thumb'] ?? null,
+		// The target's uri-id = Mastodon API status id: the app opens that
+		// post/comment on tap (same as larpnet_apns for iOS).
+		$notification->targetUriId ? (string) $notification->targetUriId : ''
 	);
 }
 
@@ -224,7 +227,7 @@ function larpnet_fcm_post()
  *
  * @return string[] tokens FCM reported as unregistered/invalid — caller should delete these rows
  */
-function larpnet_fcm_send_to_tokens(array $tokens, string $title, string $body, string $click, ?string $icon = null): array
+function larpnet_fcm_send_to_tokens(array $tokens, string $title, string $body, string $click, ?string $icon = null, string $statusId = ''): array
 {
 	$account = larpnet_fcm_get_service_account();
 	if (empty($account['project_id'])) {
@@ -255,6 +258,8 @@ function larpnet_fcm_send_to_tokens(array $tokens, string $title, string $body, 
 					'type'  => 'social',
 					'click' => $click,
 					'icon'  => $icon,
+					// Android opens this post/comment on tap.
+					'status_id' => $statusId,
 				]),
 			],
 		];

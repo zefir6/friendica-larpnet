@@ -102,6 +102,13 @@
 		</div>
 		<div id="register-submit-end" class="clear"></div>
 
+		{{if !$additional && $appsurl}}
+			<div id="register-apps">
+				<h4><i class="fa fa-mobile" aria-hidden="true"></i> {{$appsh}}</h4>
+				<p>{{$appst}} <a href="{{$appsurl}}" target="_blank" rel="noopener">info.larpnet.pl</a></p>
+			</div>
+		{{/if}}
+
 		{{if !$additional}}
 			<h3>{{$importh}}</h3>
 			<div id ="import-profile">

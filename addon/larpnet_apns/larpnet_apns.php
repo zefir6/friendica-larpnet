@@ -123,7 +123,11 @@ function larpnet_apns_push_notification(array &$data)
 		$title ?: DI::l10n()->t('Notification'),
 		$body ?: $title,
 		(string) DI::baseUrl() . '/notification',
-		'social:' . $nid
+		'social:' . $nid,
+		// Same id the Mastodon notifications API gives as status.id (the
+		// target's uri-id), so a tap opens the post/comment like the
+		// in-app notification list does.
+		$notification->targetUriId ? (string) $notification->targetUriId : ''
 	);
 }
 
@@ -237,16 +241,16 @@ function larpnet_apns_post()
  * alert shown is already the final one.
  *
  * $click is carried as a plain custom payload field (not under 'aps'), for
- * a future notification-tap deep link -- unused today, matching this
- * session's current parity with Android (PushNotifications.kt also just
- * opens the app generically on tap, no per-type routing yet either).
+ * a future notification-tap deep link -- unused today. $statusId is what the
+ * iOS app routes a tap with instead: sent as 'status_id' when set, the app
+ * opens that post or comment (AppDelegate didReceive -> thread view).
  *
  * $key ("social:<nid>", "mail:<id>") becomes the apns-collapse-id, so the
  * same notification sent twice replaces itself instead of stacking.
  *
  * @return string[] tokens APNs reported as dead -- caller should delete these rows
  */
-function larpnet_apns_send_to_tokens(array $tokens, string $title, string $body, string $click, string $key = ''): array
+function larpnet_apns_send_to_tokens(array $tokens, string $title, string $body, string $click, string $key = '', string $statusId = ''): array
 {
 	require_once __DIR__ . '/../larpnet_matrix/larpnet_matrix.php';
 	if (!function_exists('larpnet_matrix_apns_deliver')) {
@@ -254,21 +258,26 @@ function larpnet_apns_send_to_tokens(array $tokens, string $title, string $body,
 		return [];
 	}
 
+	$payload = [
+		'aps' => [
+			'alert' => [
+				'title' => $title,
+				'body'  => $body,
+			],
+			'sound' => 'default',
+			// Stacked apart from chat, whose notifications use the room id.
+			'thread-id' => 'social',
+		],
+		'type'  => 'social',
+		'click' => $click,
+	];
+	if ($statusId !== '') {
+		$payload['status_id'] = $statusId;
+	}
+
 	$dead = [];
 	foreach ($tokens as $token) {
-		$isDead = larpnet_matrix_apns_deliver($token, [
-			'aps' => [
-				'alert' => [
-					'title' => $title,
-					'body'  => $body,
-				],
-				'sound' => 'default',
-				// Stacked apart from chat, whose notifications use the room id.
-				'thread-id' => 'social',
-			],
-			'type'  => 'social',
-			'click' => $click,
-		], '10', $key);
+		$isDead = larpnet_matrix_apns_deliver($token, $payload, '10', $key);
 		if ($isDead) {
 			$dead[] = $token;
 		}
