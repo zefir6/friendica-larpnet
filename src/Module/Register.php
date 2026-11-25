@@ -245,6 +245,11 @@ class Register extends BaseModule
 			'$email'                 => $email,
 			'$nickname'              => $nickname,
 			'$sitename'              => DI::baseUrl()->getHost(),
+			// Larpnet: points new users at the phone apps (info.larpnet.pl's
+			// "Na twoim smartfonie" section, with the store badges).
+			'$appsh'                 => DI::l10n()->t('Larpnet on your phone'),
+			'$appst'                 => DI::l10n()->t('Apps for iPhone and Android, and how to add Larpnet to your home screen:'),
+			'$appsurl'               => 'https://info.larpnet.pl/#smartfon',
 			'$importh'               => DI::l10n()->t('Import'),
 			'$importt'               => DI::l10n()->t('Import your profile to this friendica instance'),
 			'$showtoslink'           => DI::config()->get('system', 'tosdisplay'),

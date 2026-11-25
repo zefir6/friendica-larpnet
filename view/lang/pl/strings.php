@@ -3060,3 +3060,5 @@ $a->strings['Chat and notifications on your iPhone'] = 'Czat i powiadomienia na 
 $a->strings['App Store'] = 'App Store';
 $a->strings['Join the Android app test on Google Play'] = 'Dołącz do testów aplikacji na Androida w Google Play';
 $a->strings['Join'] = 'Dołącz';
+$a->strings['Larpnet on your phone'] = 'Larpnet na telefonie';
+$a->strings['Apps for iPhone and Android, and how to add Larpnet to your home screen:'] = 'Aplikacje na iPhone\'a i Androida oraz jak dodać Larpnet do ekranu głównego:';
