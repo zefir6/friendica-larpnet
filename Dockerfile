@@ -200,6 +200,12 @@ RUN set -ex; \
     } > /usr/local/etc/php/conf.d/friendica.ini; \
     ln -s /usr/local/etc/php/php.ini-production /usr/local/etc/php/php.ini
 
+# larpnet: the entrypoint writes runtime PHP settings (Redis sessions, the
+# non-root msmtp sendmail_path) here instead of into conf.d, which only root
+# can write. The leading ":" appends this directory to the compiled-in
+# conf.d rather than replacing it.
+ENV PHP_INI_SCAN_DIR=":/tmp/larpnet/php-conf.d"
+
 RUN set -ex; \
     echo access.format = '"%{REMOTE_ADDR}e - %u %t \"%m %r\" %s"' >> /usr/local/etc/php-fpm.d/docker.conf;
 
@@ -245,6 +251,13 @@ RUN git clone --depth 1 --branch "${FRIENDICA_VERSION}" https://github.com/frien
 RUN cd /usr/src/friendica && php bin/composer.phar install --no-dev --optimize-autoloader
 
 FROM base
+
+# Compose runs this image as 1006:1006 (larpnet-config's docker-compose.yaml,
+# the host's `larpnet` user that owns the volumes). Give that UID a passwd
+# entry so tools that look the user up (Friendica's System::getUser() for log
+# context, msmtp) find a name instead of failing.
+RUN groupadd -g 1006 larpnet \
+ && useradd -u 1006 -g 1006 -M -d /var/www -s /usr/sbin/nologin larpnet
 
 # Wrapper entrypoint: copies larpnet-patched files on every start,
 # since the Friendica entrypoint only rsyncs on version upgrades.
