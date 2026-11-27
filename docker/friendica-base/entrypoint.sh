@@ -4,7 +4,8 @@ set -eu
 # Run an argument vector with the www-data user
 run_as() {
   if [ "$(id -u)" -eq 0 ]; then
-    set -- gosu www-data "$@"
+    # larpnet: setpriv (util-linux) instead of gosu, which isn't in the image
+    set -- setpriv --reuid=www-data --regid=www-data --init-groups env HOME=/var/www "$@"
   fi
   ( cd /var/www/html && exec "$@" )
 }
