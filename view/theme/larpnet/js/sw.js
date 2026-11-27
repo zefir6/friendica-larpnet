@@ -18,6 +18,9 @@ self.addEventListener('activate', function (event) { event.waitUntil(self.client
 const CHAT_TAG = 'larpnet-chat';
 const CHAT_STATE_TTL_MS = 60000;
 const chatState = new Map(); // clientId -> {roomId, active, at}
+// Chat sound requests waiting for a page to answer (see the chat sound
+// section below); declared here because the message listener reads it.
+const soundWaiters = new Map(); // request id -> resolve(played)
 
 self.addEventListener('message', function (event) {
     const data = event.data || {};
@@ -48,7 +51,6 @@ self.addEventListener('message', function (event) {
 const SOUND_CACHE = 'larpnet-prefs';
 const SOUND_PREF_URL = '/__larpnet/chat-sound';
 const SOUND_WAIT_MS = 1500;
-const soundWaiters = new Map(); // request id -> resolve(played)
 
 async function saveChatSound(sound) {
     try {

@@ -607,7 +607,6 @@ function cleanContactUrl(url) {
 }
 
 function parseUrl(str, component) {
-	// eslint-disable-line camelcase
 	//       discuss at: http://locutusjs.io/php/parse_url/
 	//      original by: Steven Levithan (http://blog.stevenlevithan.com)
 	// reimplemented by: Brett Zamir (http://brett-zamir.me)
