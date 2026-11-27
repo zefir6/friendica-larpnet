@@ -12,56 +12,56 @@
 <meta name="viewport" content="initial-scale=1.0">
 
 {{* All needed css files - Note: css must be inserted before js files *}}
-<link rel="stylesheet" href="view/global.css?v={{$VERSION}}" type="text/css" media="all" />
-<link rel="stylesheet" href="view/asset/jquery-colorbox/example5/colorbox.css?v={{$VERSION}}"
+<link rel="stylesheet" href="view/global.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}" type="text/css" media="all" />
+<link rel="stylesheet" href="view/asset/jquery-colorbox/example5/colorbox.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
 	type="text/css" media="screen" />
-<link rel="stylesheet" href="view/asset/jgrowl/jquery.jgrowl.min.css?v={{$VERSION}}"
-	type="text/css" media="screen" />
-<link rel="stylesheet"
-	href="view/asset/jquery-datetimepicker/build/jquery.datetimepicker.min.css?v={{$VERSION}}"
+<link rel="stylesheet" href="view/asset/jgrowl/jquery.jgrowl.min.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
 	type="text/css" media="screen" />
 <link rel="stylesheet"
-	href="view/asset/perfect-scrollbar/dist/css/perfect-scrollbar.min.css?v={{$VERSION}}"
+	href="view/asset/jquery-datetimepicker/build/jquery.datetimepicker.min.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
+	type="text/css" media="screen" />
+<link rel="stylesheet"
+	href="view/asset/perfect-scrollbar/dist/css/perfect-scrollbar.min.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
 	type="text/css" media="screen" />
 
 <link rel="stylesheet"
-	href="view/theme/larpnet/frameworks/bootstrap/css/bootstrap.min.css?v={{$VERSION}}"
+	href="view/theme/larpnet/frameworks/bootstrap/css/bootstrap.min.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
 	type="text/css" media="screen" />
 <link rel="stylesheet"
-	href="view/theme/larpnet/frameworks/bootstrap/css/bootstrap-theme.min.css?v={{$VERSION}}"
+	href="view/theme/larpnet/frameworks/bootstrap/css/bootstrap-theme.min.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
 	type="text/css" media="screen" />
-<link rel="stylesheet" href="view/asset/remixicon/fonts/remixicon.css?v={{$VERSION}}"
-	type="text/css" media="screen" />
-<link rel="stylesheet"
-	href="view/theme/larpnet/frameworks/jasny/css/jasny-bootstrap.min.css?v={{$VERSION}}"
+<link rel="stylesheet" href="view/asset/remixicon/fonts/remixicon.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
 	type="text/css" media="screen" />
 <link rel="stylesheet"
-	href="view/theme/larpnet/frameworks/bootstrap-select/css/bootstrap-select.min.css?v={{$VERSION}}"
+	href="view/theme/larpnet/frameworks/jasny/css/jasny-bootstrap.min.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
 	type="text/css" media="screen" />
 <link rel="stylesheet"
-	href="view/theme/larpnet/frameworks/ekko-lightbox/ekko-lightbox.min.css?v={{$VERSION}}"
+	href="view/theme/larpnet/frameworks/bootstrap-select/css/bootstrap-select.min.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
 	type="text/css" media="screen" />
 <link rel="stylesheet"
-	href="view/theme/larpnet/frameworks/awesome-bootstrap-checkbox/awesome-bootstrap-checkbox.css?v={{$VERSION}}"
+	href="view/theme/larpnet/frameworks/ekko-lightbox/ekko-lightbox.min.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
 	type="text/css" media="screen" />
 <link rel="stylesheet"
-	href="view/theme/larpnet/frameworks/justifiedGallery/justifiedGallery.min.css?v={{$VERSION}}"
+	href="view/theme/larpnet/frameworks/awesome-bootstrap-checkbox/awesome-bootstrap-checkbox.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
 	type="text/css" media="screen" />
 <link rel="stylesheet"
-	href="view/theme/larpnet/frameworks/bootstrap-colorpicker/css/bootstrap-colorpicker.min.css?v={{$VERSION}}"
+	href="view/theme/larpnet/frameworks/justifiedGallery/justifiedGallery.min.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
 	type="text/css" media="screen" />
 <link rel="stylesheet"
-	href="view/theme/larpnet/frameworks/bootstrap-toggle/css/bootstrap-toggle.min.css?v={{$VERSION}}"
+	href="view/theme/larpnet/frameworks/bootstrap-colorpicker/css/bootstrap-colorpicker.min.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
 	type="text/css" media="screen" />
-<link rel="stylesheet" href="view/theme/larpnet/font/open_sans/open-sans.css?v={{$VERSION}}"
+<link rel="stylesheet"
+	href="view/theme/larpnet/frameworks/bootstrap-toggle/css/bootstrap-toggle.min.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
 	type="text/css" media="screen" />
-<link rel="stylesheet" href="view/js/fancybox/jquery.fancybox.min.css?v={{$VERSION}}"
+<link rel="stylesheet" href="view/theme/larpnet/font/open_sans/open-sans.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
+	type="text/css" media="screen" />
+<link rel="stylesheet" href="view/js/fancybox/jquery.fancybox.min.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
 	type="text/css" media="screen" />
 
 {{* own css files *}}
-<link rel="stylesheet" href="view/theme/larpnet/css/hovercard.css?v={{$VERSION}}" type="text/css"
+<link rel="stylesheet" href="view/theme/larpnet/css/hovercard.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}" type="text/css"
 	media="screen" />
-<link rel="stylesheet" href="view/theme/larpnet/css/font-awesome.custom.css?v={{$VERSION}}"
+<link rel="stylesheet" href="view/theme/larpnet/css/font-awesome.custom.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"
 	type="text/css" media="screen" />
 
 {{foreach $stylesheets as $stylesheetUrl => $media}}
@@ -87,29 +87,29 @@
 
 	{{* The js files we use *}}
 	<!--[if IE]>
-<script type="text/javascript" src="https://html5shiv.googlecode.com/svn/trunk/html5.js?v={{$VERSION}}"></script>
+<script type="text/javascript" src="https://html5shiv.googlecode.com/svn/trunk/html5.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 <![endif]-->
-	<script type="text/javascript" src="view/js/modernizr.js?v={{$VERSION}}"></script>
-	<script type="text/javascript" src="view/asset/jquery/dist/jquery.min.js?v={{$VERSION}}">
+	<script type="text/javascript" src="view/js/modernizr.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
+	<script type="text/javascript" src="view/asset/jquery/dist/jquery.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}">
 	</script>
-	<script type="text/javascript" src="view/js/jquery.textinputs.js?v={{$VERSION}}"></script>
+	<script type="text/javascript" src="view/js/jquery.textinputs.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 	<script type="text/javascript"
-		src="view/asset/jquery-textcomplete/dist/jquery.textcomplete.min.js?v={{$VERSION}}"></script>
-	<script type="text/javascript" src="view/js/autocomplete.js?v={{$VERSION}}"></script>
+		src="view/asset/jquery-textcomplete/dist/jquery.textcomplete.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
+	<script type="text/javascript" src="view/js/autocomplete.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 	<script type="text/javascript"
-		src="view/asset/jquery-colorbox/jquery.colorbox-min.js?v={{$VERSION}}"></script>
-	<script type="text/javascript" src="view/asset/jgrowl/jquery.jgrowl.min.js?v={{$VERSION}}">
-	</script>
-	<script type="text/javascript"
-		src="view/asset/jquery-datetimepicker/build/jquery.datetimepicker.full.min.js?v={{$VERSION}}">
+		src="view/asset/jquery-colorbox/jquery.colorbox-min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
+	<script type="text/javascript" src="view/asset/jgrowl/jquery.jgrowl.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}">
 	</script>
 	<script type="text/javascript"
-		src="view/asset/perfect-scrollbar/dist/js/perfect-scrollbar.jquery.min.js?v={{$VERSION}}">
+		src="view/asset/jquery-datetimepicker/build/jquery.datetimepicker.full.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}">
 	</script>
 	<script type="text/javascript"
-		src="view/asset/imagesloaded/imagesloaded.pkgd.min.js?v={{$VERSION}}"></script>
-	<script type="text/javascript" src="view/asset/base64/base64.min.js?v={{$VERSION}}"></script>
-	<script type="text/javascript" src="view/asset/dompurify/dist/purify.min.js?v={{$VERSION}}">
+		src="view/asset/perfect-scrollbar/dist/js/perfect-scrollbar.jquery.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}">
+	</script>
+	<script type="text/javascript"
+		src="view/asset/imagesloaded/imagesloaded.pkgd.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
+	<script type="text/javascript" src="view/asset/base64/base64.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
+	<script type="text/javascript" src="view/asset/dompurify/dist/purify.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}">
 	</script>
 	<script type="text/javascript">
 		const updateContent = {{$update_content}};
@@ -125,8 +125,8 @@
 	</script>
 	{{* main.js (preview_post et al.) calls showPosting()/showProcessing()/hideLoading(), defined
 		here -- also missing from this fork until now, which broke the composer's Preview tab. *}}
-	<script type="text/javascript" src="view/js/loading-indicator.js?v={{$VERSION}}"></script>
-	<script type="text/javascript" src="view/js/main.js?v={{$VERSION}}"></script>
+	<script type="text/javascript" src="view/js/loading-indicator.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
+	<script type="text/javascript" src="view/js/main.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 	{{* Deliberately not backporting frio's SPA-mode (unpoly) block ({{if $spa_mode}}...{{/if}}
 		loading unpoly.js/spa-unpoly-nav.js): $spa_mode is per-user pconfig, off by default, and
 		this theme's nav.js has its own AJAX-driven navigation untested against unpoly. The two
@@ -148,47 +148,47 @@
 		delay_title: "{{$spaErrors.delay_title nofilter}}"
 	};
 	</script>
-	<link rel="stylesheet" href="view/loading-indicator.css?v={{$VERSION}}" type="text/css" media="all" />
+	<link rel="stylesheet" href="view/loading-indicator.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}" type="text/css" media="all" />
 
 	<script type="text/javascript"
-		src="view/theme/larpnet/frameworks/bootstrap/js/bootstrap.min.js?v={{$VERSION}}"></script>
+		src="view/theme/larpnet/frameworks/bootstrap/js/bootstrap.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 	<script type="text/javascript"
-		src="view/theme/larpnet/frameworks/jasny/js/jasny-bootstrap.custom.js?v={{$VERSION}}"></script>
+		src="view/theme/larpnet/frameworks/jasny/js/jasny-bootstrap.custom.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 	<script type="text/javascript"
-		src="view/theme/larpnet/frameworks/bootstrap-select/js/bootstrap-select.min.js?v={{$VERSION}}">
+		src="view/theme/larpnet/frameworks/bootstrap-select/js/bootstrap-select.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}">
 	</script>
 	<script type="text/javascript"
-		src="view/theme/larpnet/frameworks/ekko-lightbox/ekko-lightbox.min.js?v={{$VERSION}}"></script>
+		src="view/theme/larpnet/frameworks/ekko-lightbox/ekko-lightbox.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 	<script type="text/javascript"
-		src="view/theme/larpnet/frameworks/justifiedGallery/jquery.justifiedGallery.min.js?v={{$VERSION}}">
+		src="view/theme/larpnet/frameworks/justifiedGallery/jquery.justifiedGallery.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}">
 	</script>
 	<script type="text/javascript"
-		src="view/theme/larpnet/frameworks/bootstrap-colorpicker/js/bootstrap-colorpicker.min.js?v={{$VERSION}}">
+		src="view/theme/larpnet/frameworks/bootstrap-colorpicker/js/bootstrap-colorpicker.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}">
 	</script>
 	<script type="text/javascript"
-		src="view/theme/larpnet/frameworks/flexMenu/flexmenu.custom.js?v={{$VERSION}}"></script>
+		src="view/theme/larpnet/frameworks/flexMenu/flexmenu.custom.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 	<script type="text/javascript"
-		src="view/theme/larpnet/frameworks/jquery-scrollspy/jquery-scrollspy.js?v={{$VERSION}}">
+		src="view/theme/larpnet/frameworks/jquery-scrollspy/jquery-scrollspy.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}">
 	</script>
 	<script type="text/javascript"
-		src="view/theme/larpnet/frameworks/autosize/autosize.min.js?v={{$VERSION}}"></script>
+		src="view/theme/larpnet/frameworks/autosize/autosize.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 	<script type="text/javascript"
-		src="view/theme/larpnet/frameworks/sticky-kit/jquery.sticky-kit.min.js?v={{$VERSION}}"></script>
+		src="view/theme/larpnet/frameworks/sticky-kit/jquery.sticky-kit.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 
 	{{* own js files *}}
-	<script type="text/javascript" src="view/theme/larpnet/js/theme.js?v={{$VERSION}}.1"></script>
+	<script type="text/javascript" src="view/theme/larpnet/js/theme.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}.1"></script>
 	<script type="text/javascript" src="view/theme/larpnet/js/nav-ajax.js?v=1"></script>
-	<script type="text/javascript" src="view/theme/larpnet/js/modal.js?v={{$VERSION}}"></script>
+	<script type="text/javascript" src="view/theme/larpnet/js/modal.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 	{{if ! $block_public}}
-		<script type="text/javascript" src="view/theme/larpnet/js/hovercard.js?v={{$VERSION}}"></script>
+		<script type="text/javascript" src="view/theme/larpnet/js/hovercard.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 	{{/if}}
-	<script type="text/javascript" src="view/theme/larpnet/js/textedit.js?v={{$VERSION}}"></script>
-	<script type="text/javascript" src="vendor/enyo/dropzone/dist/min/dropzone.min.js?v={{$VERSION}}"></script>
-	<script type="text/javascript" src="view/js/dropzone-factory.js?v={{$VERSION}}"></script>
+	<script type="text/javascript" src="view/theme/larpnet/js/textedit.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
+	<script type="text/javascript" src="vendor/enyo/dropzone/dist/min/dropzone.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
+	<script type="text/javascript" src="view/js/dropzone-factory.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 	<script type="text/javascript"> const dzFactory = new DzFactory({{$max_imagesize}});</script>
-	<script type="text/javascript" src="view/js/fancybox/jquery.fancybox.min.js?v={{$VERSION}}"></script>
-	<script type="text/javascript" src="view/js/fancybox/fancybox.config.js?v={{$VERSION}}"></script>
-	<script type="text/javascript" src="view/js/vanillaEmojiPicker/vanillaEmojiPicker.min.js?v={{$VERSION}}"></script>
+	<script type="text/javascript" src="view/js/fancybox/jquery.fancybox.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
+	<script type="text/javascript" src="view/js/fancybox/fancybox.config.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
+	<script type="text/javascript" src="view/js/vanillaEmojiPicker/vanillaEmojiPicker.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 	<script>
 	window.onload = function(){
 		new EmojiPicker({

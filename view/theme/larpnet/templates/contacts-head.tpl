@@ -5,4 +5,4 @@
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
 
-<script type="text/javascript" src="view/theme/larpnet/js/mod_contacts.js?v={{$VERSION}}"></script>
+<script type="text/javascript" src="view/theme/larpnet/js/mod_contacts.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>

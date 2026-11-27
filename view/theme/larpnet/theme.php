@@ -174,6 +174,23 @@ function larpnet_get_or_create_ntfy_topic(int $uid): string
  * and Cloudflare caches theme assets for 4 h -- so a changed script used to
  * reach browsers hours after a deploy.
  */
+/*
+ * Cache key for every asset the larpnet templates load with
+ * "?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}". $VERSION alone is
+ * Friendica's version, which doesn't change between larpnet deploys, and
+ * Cloudflare caches those URLs for 4 h -- after a dependency update (e.g.
+ * DOMPurify 1 -> 3 on 2026-11-27) browsers kept getting the old file. The
+ * image's git sha (build-version.txt) changes with every deploy.
+ */
+if (!defined('LARPNET_BUILD')) {
+	$larpnetBuild = @file_get_contents(dirname(__DIR__, 3) . '/build-version.txt');
+	define(
+		'LARPNET_BUILD',
+		$larpnetBuild !== false && preg_match('/^git_sha=([0-9a-f]+)$/m', $larpnetBuild, $m) ? $m[1] : 'dev'
+	);
+	unset($larpnetBuild, $m);
+}
+
 function larpnet_theme_asset(string $relativePath): string
 {
 	$path = __DIR__ . '/' . $relativePath;
