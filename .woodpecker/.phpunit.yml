@@ -4,10 +4,6 @@
 
 matrix:
   include:
-    - PHP_MAJOR_VERSION: 8.2
-      PHP_VERSION: 8.2.30
-    - PHP_MAJOR_VERSION: 8.3
-      PHP_VERSION: 8.3.30
     - PHP_MAJOR_VERSION: 8.4
       PHP_VERSION: 8.4.20
     - PHP_MAJOR_VERSION: 8.5

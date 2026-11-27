@@ -4,8 +4,8 @@
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
-<script src="{{$baseurl}}/view/theme/larpnet/js/jquery.tools.min.js?v={{$VERSION}}"></script>
-<script type="text/javascript" src="{{$baseurl}}/view/js/ajaxupload.js?v={{$VERSION}}"></script>
+<script src="{{$baseurl}}/view/theme/larpnet/js/jquery.tools.min.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
+<script type="text/javascript" src="{{$baseurl}}/view/js/ajaxupload.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 
 <div class="form-group field select">
 	<label for="id_{{$scheme.0}}">{{$scheme.1}}</label>

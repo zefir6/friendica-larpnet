@@ -4,8 +4,8 @@
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
-<script type="text/javascript" src="../../frameworks/jquery-color/jquery.color.js?v={{$VERSION}}"></script>
-<script type="text/javascript" src="../../js/mod_notifications.js?v={{$VERSION}}"></script>
+<script type="text/javascript" src="../../frameworks/jquery-color/jquery.color.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
+<script type="text/javascript" src="../../js/mod_notifications.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 
 <div class="generic-page-wrapper">
 	{{include file="section_title.tpl" title=$header}}

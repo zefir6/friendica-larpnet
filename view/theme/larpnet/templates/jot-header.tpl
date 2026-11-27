@@ -5,9 +5,9 @@
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
 
-<script type="text/javascript" src="{{$baseurl}}/view/js/ajaxupload.js?v={{$VERSION}}"></script>
-<script type="text/javascript" src="{{$baseurl}}/view/js/linkPreview.js?v={{$VERSION}}"></script>
-<script type="text/javascript" src="{{$baseurl}}/view/theme/larpnet/js/jot.js?v={{$VERSION}}"></script>
+<script type="text/javascript" src="{{$baseurl}}/view/js/ajaxupload.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
+<script type="text/javascript" src="{{$baseurl}}/view/js/linkPreview.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
+<script type="text/javascript" src="{{$baseurl}}/view/theme/larpnet/js/jot.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 
 <script type="text/javascript">
 	var editor = false;

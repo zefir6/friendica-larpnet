@@ -5,7 +5,7 @@
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
 
-<script type="text/javascript" src="view/theme/larpnet/js/mod_events.js?v={{$VERSION}}"></script>
+<script type="text/javascript" src="view/theme/larpnet/js/mod_events.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 
 <script type="text/javascript">
 	// pass php translation strings to js variables/arrays so we can make use of it in js files
