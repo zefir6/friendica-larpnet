@@ -1,4 +1,4 @@
-ARG PHP_IMAGE=php:8.4-fpm-trixie
+ARG PHP_IMAGE=php:8.5-fpm-trixie
 ARG FRIENDICA_VERSION=2026.08-rc
 
 # Builds the larpnet_matrix addon's own chat client (Preact + matrix-js-sdk,
@@ -18,7 +18,7 @@ RUN npm run build
 # at commit eb90b55, support files in docker/friendica-base/) instead of
 # FROM friendica:<tag>-fpm, so a PHP security release only has to wait for
 # docker-library's php image, not for Friendica's own image to be rebuilt
-# on top of it. Pin PHP_IMAGE to an exact patch (e.g. php:8.4.27-fpm-trixie)
+# on top of it. Pin PHP_IMAGE to an exact patch (e.g. php:8.5.13-fpm-trixie)
 # to force a specific release.
 #
 # Upstream's friendica:2026.08-rc-fpm also shipped without any Friendica

@@ -1,0 +1,85 @@
+# Security checks for the PHP side of Larpnet.
+#
+# - composer-audit: known vulnerabilities (Packagist/GitHub advisories) in
+#   the locked PHP dependencies. Runs on every push/PR and daily, so a new
+#   advisory against an unchanged composer.lock still turns this red.
+# - php-runtime: the PHP inside the published :prod and :test images must be
+#   the newest patch release of its minor (php.net), and that minor must
+#   still get security fixes. Images only pick up a PHP patch release when
+#   they're rebuilt (build.yml pulls a fresh php:<minor>-fpm-trixie base
+#   every build), so a failure here means "cut a release / push to
+#   larpnet-test to rebuild". Right after a php.net release this can fail for
+#   a day or so until docker-library publishes the matching php image.
+
+name: Security
+
+on:
+  push:
+    branches: [larpnet, larpnet-test]
+  pull_request:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  composer-audit:
+    name: Composer audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer
+          coverage: none
+
+      # Checks composer.lock directly; nothing needs installing. Abandoned
+      # packages (no replacement available) are listed but don't fail it.
+      - name: Audit locked PHP dependencies
+        run: composer audit --locked --abandoned=report
+
+  php-runtime:
+    name: PHP runtime patch level (${{ matrix.tag }})
+    # Needs the registry secrets, and checks what's deployed rather than the
+    # change itself, so it doesn't run for pull requests.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: [prod, test]
+    steps:
+      - name: Log in to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Compare image PHP with the latest php.net release
+        env:
+          IMAGE: ${{ vars.REGISTRY }}/${{ vars.IMAGE_NAME }}:${{ matrix.tag }}
+        run: |
+          set -euo pipefail
+          running=$(docker run --rm --pull always --entrypoint php "$IMAGE" -r 'echo PHP_VERSION;')
+          minor=$(echo "$running" | cut -d. -f1,2)
+          latest=$(curl -fsS "https://www.php.net/releases/?json&version=$minor" | jq -r .version)
+          state=$(curl -fsS "https://www.php.net/releases/states.php" | jq -r --arg m "$minor" '.[($m | split(".")[0])][$m].state // "unknown"')
+          echo "$IMAGE: PHP $running (latest $minor: $latest, branch state: $state)"
+          {
+            echo "### PHP in \`${{ matrix.tag }}\`"
+            echo "Running **$running**, latest $minor release **$latest**, branch state **$state**."
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$state" != "stable" ] && [ "$state" != "security" ]; then
+            echo "::error::PHP $minor no longer gets security fixes (state: $state) -- move PHP_IMAGE in the Dockerfile to a supported minor."
+            exit 1
+          fi
+          if [ "$running" != "$latest" ]; then
+            echo "::error::$IMAGE runs PHP $running but $latest is out -- rebuild the image (push to larpnet-test, then cut a release-* tag)."
+            exit 1
+          fi
