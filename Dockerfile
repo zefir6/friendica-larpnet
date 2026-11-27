@@ -252,6 +252,13 @@ RUN cd /usr/src/friendica && php bin/composer.phar install --no-dev --optimize-a
 
 FROM base
 
+# Compose runs this image as 1006:1006 (larpnet-config's docker-compose.yaml,
+# the host's `larpnet` user that owns the volumes). Give that UID a passwd
+# entry so tools that look the user up (Friendica's System::getUser() for log
+# context, msmtp) find a name instead of failing.
+RUN groupadd -g 1006 larpnet \
+ && useradd -u 1006 -g 1006 -M -d /var/www -s /usr/sbin/nologin larpnet
+
 # Wrapper entrypoint: copies larpnet-patched files on every start,
 # since the Friendica entrypoint only rsyncs on version upgrades.
 COPY larpnet-entrypoint.sh /larpnet-entrypoint.sh
