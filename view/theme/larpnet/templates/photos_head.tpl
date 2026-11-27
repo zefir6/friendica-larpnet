@@ -5,7 +5,7 @@
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
 
-<script type="text/javascript" src="view/theme/larpnet/js/mod_photos.js?v={{$VERSION}}"></script>
+<script type="text/javascript" src="view/theme/larpnet/js/mod_photos.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 <script type="text/javascript">
 	var ispublic = "{{$ispublic nofilter}}";
 </script>

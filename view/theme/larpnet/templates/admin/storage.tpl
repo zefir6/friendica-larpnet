@@ -4,7 +4,7 @@
   *
   * SPDX-License-Identifier: AGPL-3.0-or-later
   *}}
-<link rel="stylesheet" href="view/theme/larpnet/css/mod_admin.css?v={{$VERSION}}" type="text/css" media="screen"/>
+<link rel="stylesheet" href="view/theme/larpnet/css/mod_admin.css?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}" type="text/css" media="screen"/>
 
 <div id="adminpage" class="adminpage generic-page-wrapper">
 	<h1>{{$title}} - {{$page}}</h1>

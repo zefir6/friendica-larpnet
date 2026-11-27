@@ -9,7 +9,7 @@
     add or remove contacts to the contact circle.
 *}}
 
-<script type="text/javascript" src="view/theme/larpnet/js/mod_circle.js?v={{$VERSION}}"></script>
+<script type="text/javascript" src="view/theme/larpnet/js/mod_circle.js?v={{$VERSION}}-{{$smarty.const.LARPNET_BUILD}}"></script>
 
 <div class="generic-page-wrapper">
 	{{if $editable == 1}}
