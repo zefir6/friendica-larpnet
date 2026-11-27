@@ -1,4 +1,4 @@
-ARG PHP_IMAGE=php:8.4-fpm-trixie
+ARG PHP_IMAGE=php:8.5-fpm-trixie
 ARG FRIENDICA_VERSION=2026.08-rc
 
 # Builds the larpnet_matrix addon's own chat client (Preact + matrix-js-sdk,
@@ -18,7 +18,7 @@ RUN npm run build
 # at commit eb90b55, support files in docker/friendica-base/) instead of
 # FROM friendica:<tag>-fpm, so a PHP security release only has to wait for
 # docker-library's php image, not for Friendica's own image to be rebuilt
-# on top of it. Pin PHP_IMAGE to an exact patch (e.g. php:8.4.27-fpm-trixie)
+# on top of it. Pin PHP_IMAGE to an exact patch (e.g. php:8.5.13-fpm-trixie)
 # to force a specific release.
 #
 # Upstream's friendica:2026.08-rc-fpm also shipped without any Friendica
@@ -32,9 +32,13 @@ FROM ${PHP_IMAGE} AS base
 ARG FRIENDICA_VERSION
 
 # entrypoint.sh and cron.sh dependencies
+# larpnet: `apt-get upgrade` first, so Debian security updates land with the
+# next build instead of waiting for docker-library to rebuild the php image
+# (the Security workflow's image scan fails on fixable ones).
 RUN set -ex; \
     \
     apt-get update; \
+    apt-get upgrade -y; \
     apt-get install -y --no-install-recommends \
         rsync \
         bzip2 \
@@ -43,40 +47,10 @@ RUN set -ex; \
         tini \
     ;
 
-ENV GOSU_VERSION=1.19
-RUN set -eux; \
-# save list of currently installed packages for later so we can clean up
-	savedAptMark="$(apt-mark showmanual)"; \
-	apt-get update; \
-	apt-get install -y --no-install-recommends ca-certificates wget; \
-	if ! command -v gpg; then \
-		apt-get install -y --no-install-recommends gnupg2 dirmngr; \
-	elif gpg --version | grep -q '^gpg (GnuPG) 1\.'; then \
-# "This package provides support for HKPS keyservers." (GnuPG 1.x only)
-		apt-get install -y --no-install-recommends gnupg-curl; \
-	fi; \
-	rm -rf /var/lib/apt/lists/*; \
-	\
-	dpkgArch="$(dpkg --print-architecture | awk -F- '{ print $NF }')"; \
-	wget -O /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$dpkgArch"; \
-	wget -O /usr/local/bin/gosu.asc "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$dpkgArch.asc"; \
-	\
-# verify the signature
-	export GNUPGHOME="$(mktemp -d)"; \
-	gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4; \
-	gpg --batch --verify /usr/local/bin/gosu.asc /usr/local/bin/gosu; \
-	command -v gpgconf && gpgconf --kill all || :; \
-	rm -rf "$GNUPGHOME" /usr/local/bin/gosu.asc; \
-	\
-# clean up fetch dependencies
-	apt-mark auto '.*' > /dev/null; \
-	[ -z "$savedAptMark" ] || apt-mark manual $savedAptMark; \
-	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
-	\
-	chmod +x /usr/local/bin/gosu; \
-# verify that the binary works
-	gosu --version; \
-	gosu nobody true
+# larpnet: no gosu. Its releases are built with an old Go (dozens of stdlib
+# CVEs in the image scan), and the containers run as 1006 now anyway. The
+# legacy root path drops to www-data with util-linux's setpriv instead (see
+# entrypoint.sh/cron.sh), which Debian keeps patched.
 
 # install the PHP extensions we need
 # see https://friendi.ca/resources/requirements/
@@ -121,13 +95,15 @@ RUN set -ex; \
         gd \
         exif \
         zip \
-        opcache \
         ctype \
         pcntl \
         ldap \
         gmp \
         intl \
     ; \
+# larpnet: OPcache is compiled into PHP itself since 8.5 (installing it as
+# an extension there fails); still a shared extension on 8.4 and older.
+    php -m | grep -q '^Zend OPcache$' || docker-php-ext-install opcache; \
     \
 # larpnet: upstream pecl-installs these, but pecl.php.net was down (HTTP 500)
 # during the PHP2Shell release, so build the same versions from their
@@ -245,9 +221,13 @@ RUN rm -rf /usr/src/friendica/docker
 # Upstream keeps community addons in a separate repo; the official image
 # normally supplies them, so pull the branch matching our core version and
 # merge it in (our own larpnet_* addons, already copied above, are untouched).
+# advancedcontentfilter is dropped: it's not enabled on larpnet, and its
+# bundled vendor/ (symfony/expression-language) carries known
+# vulnerabilities that the Security workflow's image scan flags. To enable
+# it, remove it from this rm and update its vendor/ first.
 RUN git clone --depth 1 --branch "${FRIENDICA_VERSION}" https://github.com/friendica/friendica-addons.git /tmp/friendica-addons \
  && cp -r /tmp/friendica-addons/. /usr/src/friendica/addon/ \
- && rm -rf /tmp/friendica-addons
+ && rm -rf /tmp/friendica-addons /usr/src/friendica/addon/advancedcontentfilter
 RUN cd /usr/src/friendica && php bin/composer.phar install --no-dev --optimize-autoloader
 
 FROM base
@@ -356,3 +336,4 @@ COPY src/Module/Register.php                                 /usr/src/friendica/
 COPY src/Module/Admin/Site.php                               /usr/src/friendica/src/Module/Admin/Site.php
 COPY view/templates/item/compose.tpl                         /usr/src/friendica/view/templates/item/compose.tpl
 COPY view/templates/content/question.tpl                     /usr/src/friendica/view/templates/content/question.tpl
+COPY view/templates/widget/filter.tpl                        /usr/src/friendica/view/templates/widget/filter.tpl

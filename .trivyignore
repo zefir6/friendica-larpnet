@@ -1,0 +1,9 @@
+# Findings the Security workflow's image scan (Trivy) deliberately accepts.
+# Every entry needs a reason; remove it once the cause is gone.
+
+# jquery 2.2.4 (view/asset/jquery, composer "npm-asset/jquery": "^2.0"):
+# with an unset dataType, a cross-domain $.ajax() response is executed as
+# script. Frio and the larpnet theme only call same-origin endpoints, and
+# moving to jQuery 3 is a frontend migration upstream Friendica hasn't done
+# either. Revisit when upgrading jQuery.
+NSWG-ECO-328

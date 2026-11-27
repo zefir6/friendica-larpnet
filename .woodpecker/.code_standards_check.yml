@@ -46,7 +46,7 @@ steps:
       - /tmp/drone-cache:/tmp/cache
 
   check:
-    image: php:8.3
+    image: php:${PHP_MAJOR_VERSION}
     commands:
       - echo "**** Run `composer run cs:fix` in case of errors ****"
       - apt-get update -q
