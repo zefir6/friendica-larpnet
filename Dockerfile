@@ -200,6 +200,12 @@ RUN set -ex; \
     } > /usr/local/etc/php/conf.d/friendica.ini; \
     ln -s /usr/local/etc/php/php.ini-production /usr/local/etc/php/php.ini
 
+# larpnet: the entrypoint writes runtime PHP settings (Redis sessions, the
+# non-root msmtp sendmail_path) here instead of into conf.d, which only root
+# can write. The leading ":" appends this directory to the compiled-in
+# conf.d rather than replacing it.
+ENV PHP_INI_SCAN_DIR=":/tmp/larpnet/php-conf.d"
+
 RUN set -ex; \
     echo access.format = '"%{REMOTE_ADDR}e - %u %t \"%m %r\" %s"' >> /usr/local/etc/php-fpm.d/docker.conf;
 

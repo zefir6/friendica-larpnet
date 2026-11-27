@@ -39,6 +39,13 @@ file_env() {
     unset "$fileVar"
 }
 
+# larpnet: runtime-generated PHP ini files go to a writable directory that
+# PHP_INI_SCAN_DIR (set in the Dockerfile) appends to the default conf.d,
+# so the container also starts as a non-root user (compose `user:`), where
+# the image's own conf.d isn't writable.
+LARPNET_PHP_INI_DIR=/tmp/larpnet/php-conf.d
+mkdir -p "$LARPNET_PHP_INI_DIR"
+
 sh /setup_msmtp.sh
 
 # just check if we execute apache or php-fpm
@@ -66,7 +73,7 @@ if expr "$1" : "apache" 1>/dev/null || [ "$1" = "php-fpm" ]; then
       # redis.session.lock_wait_time is specified in microseconds.
       # Wait 10ms before retrying the lock rather than the default 2ms.
       echo "redis.session.lock_wait_time = 10000"
-    } > /usr/local/etc/php/conf.d/redis-session.ini
+    } > "$LARPNET_PHP_INI_DIR/redis-session.ini"
   fi
 
   # If another process is syncing the html folder, wait for
