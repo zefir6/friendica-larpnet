@@ -88,6 +88,7 @@ if [ -f /var/www/html/index.php ]; then
     src/Module/Admin/Site.php \
     view/templates/item/compose.tpl \
     view/templates/content/question.tpl \
+    view/templates/widget/filter.tpl \
     addon/blockbot/blockbot.php \
     src/Util/LarpnetSeo.php \
     src/Module/LarpnetSitemap.php \
