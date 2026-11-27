@@ -336,3 +336,4 @@ COPY src/Module/Register.php                                 /usr/src/friendica/
 COPY src/Module/Admin/Site.php                               /usr/src/friendica/src/Module/Admin/Site.php
 COPY view/templates/item/compose.tpl                         /usr/src/friendica/view/templates/item/compose.tpl
 COPY view/templates/content/question.tpl                     /usr/src/friendica/view/templates/content/question.tpl
+COPY view/templates/widget/filter.tpl                        /usr/src/friendica/view/templates/widget/filter.tpl

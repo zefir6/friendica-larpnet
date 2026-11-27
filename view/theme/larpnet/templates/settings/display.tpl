@@ -56,12 +56,14 @@
 						{{include file="field_input.tpl" field=$itemspage_network}}
 						{{include file="field_input.tpl" field=$itemspage_mobile_network}}
 						{{include file="field_checkbox.tpl" field=$enable_smile}}
+						{{include file="field_checkbox.tpl" field=$enable_spa}}
 						{{include file="field_checkbox.tpl" field=$update_content}}
 						{{include file="field_checkbox.tpl" field=$infinite_scroll}}
 						{{include file="field_checkbox.tpl" field=$enable_smart_threading}}
 						{{include file="field_checkbox.tpl" field=$enable_dislike}}
 						{{include file="field_checkbox.tpl" field=$display_resharer}}
 						{{include file="field_checkbox.tpl" field=$stay_local}}
+						{{include file="field_checkbox.tpl" field=$compact_timeline}}
 						{{include file="field_checkbox.tpl" field=$show_page_drop}}
 						{{include file="field_checkbox.tpl" field=$display_eventlist}}
 						{{include file="field_select.tpl" field=$preview_mode}}
