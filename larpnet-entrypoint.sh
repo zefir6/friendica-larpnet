@@ -15,6 +15,24 @@ fi
 # the sync is skipped and stale files stay on the volume. This wrapper
 # unconditionally copies our patched files on every container start.
 if [ -f /var/www/html/index.php ]; then
+  # The whole image tree first, the same rsync the Friendica entrypoint does
+  # on upgrades (upgrade.exclude keeps config/, storage, logs, .htaccess...).
+  # Without it, composer dependency updates (vendor/), frontend assets
+  # (view/asset/) and upstream addon updates never reached the volume: on
+  # 2026-11-27 test still served guzzle 7.15.1 and DOMPurify 1.0.11 from it
+  # although the image had the fixed versions. view/smarty3 is the compiled
+  # template cache, not part of the image.
+  if [ "$(id -u)" -eq 0 ]; then
+    sync_owner="--chown=www-data:www-data"
+  else
+    sync_owner=""
+  fi
+  # shellcheck disable=SC2086
+  rsync -rlD $sync_owner --delete --exclude-from=/upgrade.exclude \
+    --exclude=/view/smarty3/ \
+    /usr/src/friendica/ /var/www/html/
+
+  # Kept as a second, explicit pass over the larpnet-patched files.
   for f in \
     src/Protocol/ActivityPub/Transmitter.php \
     src/Worker/Notifier.php \
