@@ -1,6 +1,15 @@
 #!/bin/sh
 set -e
 
+# Runs as root (legacy) or as the compose `user:` (1006:1006). As non-root,
+# everything below needs the html volume to belong to that user -- fail
+# loudly with the fix instead of half-copying the patched files.
+if [ "$(id -u)" -ne 0 ] && [ -d /var/www/html ] && [ ! -w /var/www/html ]; then
+  echo "larpnet-entrypoint: /var/www/html is not writable by uid $(id -u)." >&2
+  echo "  On the docker host: sudo chown -R $(id -u):$(id -g) html_data media_data" >&2
+  exit 1
+fi
+
 # The Friendica entrypoint only rsyncs /usr/src/friendica → /var/www/html on
 # version upgrades. For larpnet-only redeployments (same Friendica version),
 # the sync is skipped and stale files stay on the volume. This wrapper

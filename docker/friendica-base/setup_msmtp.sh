@@ -10,21 +10,39 @@ if [ -n "${SMTP_DOMAIN+x}" ] && [ -n "${SMTP+x}" ] && [ "${SMTP}" != "localhost"
   smtp_port="${SMTP_PORT:=587}"
   smtp_tls="${SMTP_TLS:=on}"
 
-  # Setup MSMTP
-  usermod --comment "$(echo "$SITENAME" | tr -dc '[:print:]')" root
-  usermod --comment "$(echo "$SITENAME" | tr -dc '[:print:]')" www-data
+  if [ "$(id -u)" -eq 0 ]; then
+    msmtprc=/etc/msmtprc
+    aliases=/etc/aliases
+
+    # Setup MSMTP
+    usermod --comment "$(echo "$SITENAME" | tr -dc '[:print:]')" root
+    usermod --comment "$(echo "$SITENAME" | tr -dc '[:print:]')" www-data
+  else
+    # larpnet: non-root (compose `user:`) can't write /etc. Keep the config
+    # in the runtime dir instead -- owned by, and readable only by, the one
+    # user PHP runs as -- and point PHP's sendmail_path at it via the
+    # PHP_INI_SCAN_DIR directory the Dockerfile appends to conf.d.
+    mkdir -p /tmp/larpnet/php-conf.d
+    msmtprc=/tmp/larpnet/msmtprc
+    aliases=/tmp/larpnet/msmtp-aliases
+    echo "sendmail_path = \"/usr/bin/msmtp -C $msmtprc -t\"" >/tmp/larpnet/php-conf.d/msmtp.ini
+  fi
 
   # add possible mail-senders
   {
     echo "www-data: $smtp_from@$SMTP_DOMAIN"
     echo "root: $smtp_from@$SMTP_DOMAIN"
-  } >/etc/aliases
+  } >"$aliases"
 
   # Restrict new and existing files before writing any credentials.
-  # PHP invokes msmtp as www-data, so root-only permissions would break mail.
-  touch /etc/msmtprc
-  chmod 0640 /etc/msmtprc
-  chown root:www-data /etc/msmtprc
+  touch "$msmtprc"
+  if [ "$(id -u)" -eq 0 ]; then
+    # PHP invokes msmtp as www-data, so root-only permissions would break mail.
+    chmod 0640 "$msmtprc"
+    chown root:www-data "$msmtprc"
+  else
+    chmod 0600 "$msmtprc"
+  fi
 
   # create msmtp settings
   {
@@ -39,8 +57,8 @@ if [ -n "${SMTP_DOMAIN+x}" ] && [ -n "${SMTP+x}" ] && [ "${SMTP}" != "localhost"
     if [ -n "${SMTP_AUTH_USER+x}" ]; then echo "user \"$SMTP_AUTH_USER\""; fi
     if [ -n "${SMTP_AUTH_PASS+x}" ]; then echo "password \"$SMTP_AUTH_PASS\""; fi
     echo "logfile -"
-    echo "aliases /etc/aliases"
-  } >/etc/msmtprc
+    echo "aliases $aliases"
+  } >"$msmtprc"
 
   echo "Setup finished"
 fi
