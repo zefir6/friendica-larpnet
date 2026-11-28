@@ -40,10 +40,10 @@ class LarpnetOpenLink extends BaseModule
 			$action = strtolower((string) parse_url($target, PHP_URL_HOST));
 			parse_str((string) parse_url($target, PHP_URL_QUERY), $params);
 			if ($action === 'follow' && is_string($params['uri'] ?? null) && $params['uri'] !== '') {
-				return 'contact/follow?url=' . urlencode(ltrim(preg_replace('/^acct:/', '', $params['uri']), '@'));
+				return 'contact/follow?url=' . urlencode(ltrim((string) preg_replace('/^acct:/', '', $params['uri']), '@'));
 			}
 			if ($action === 'share') {
-				$text = trim(implode(' ', array_filter([$params['text'] ?? '', $params['url'] ?? ''], 'is_string')));
+				$text = trim(implode(' ', array_filter([$params['text'] ?? '', $params['url'] ?? ''], is_string(...))));
 				return 'compose?body=' . urlencode($text);
 			}
 			return '';

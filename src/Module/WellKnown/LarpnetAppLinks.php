@@ -53,7 +53,7 @@ class LarpnetAppLinks extends BaseModule
 				'applinks' => [
 					'details' => [[
 						'appIDs'     => [self::IOS_APP_ID],
-						'components' => array_map(fn (string $path) => ['/' => $path], self::PATHS),
+						'components' => array_map(fn (string $path): array => ['/' => $path], self::PATHS),
 					]],
 				],
 			];
@@ -68,9 +68,9 @@ class LarpnetAppLinks extends BaseModule
 	/** @return string[] */
 	private static function androidFingerprints(): array
 	{
-		$extra = array_map('trim', explode(',', (string) DI::config()->get('larpnet', 'android_cert_sha256', '')));
+		$extra = array_map(trim(...), explode(',', (string) DI::config()->get('larpnet', 'android_cert_sha256', '')));
 		$all   = array_merge([self::ANDROID_RELEASE_CERT], $extra);
-		$all   = array_map('strtoupper', array_filter($all, fn (string $fp) => preg_match('/^([0-9A-Fa-f]{2}:){31}[0-9A-Fa-f]{2}$/', $fp) === 1));
+		$all   = array_map(strtoupper(...), array_filter($all, fn (string $fp): bool => preg_match('/^([0-9A-Fa-f]{2}:){31}[0-9A-Fa-f]{2}$/', $fp) === 1));
 		return array_values(array_unique($all));
 	}
 }
