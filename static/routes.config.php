@@ -161,6 +161,8 @@ return [
 	'/' => [Module\Home::class, [R::GET]],
 
 	'/.well-known' => [
+		// larpnet: iOS Universal Links / Android App Links for the native apps.
+		'/{file:apple-app-site-association|assetlinks\.json}' => [Module\WellKnown\LarpnetAppLinks::class, [R::GET]],
 		'/nodeinfo'       => [Module\WellKnown\NodeInfo::class,     [R::GET]],
 		'/security.txt'   => [Module\WellKnown\SecurityTxt::class,  [R::GET]],
 		'/webfinger'      => [Module\Xrd::class,                    [R::GET]],
@@ -384,6 +386,8 @@ return [
 	'/community[/{content}]' => [Module\Conversation\Community::class, [R::GET]],
 
 	'/compose[/{type}]' => [Module\Item\Compose::class, [R::GET, R::POST]],
+	// larpnet: browser handler for web+mastodon:// and web+ap:// links.
+	'/open-link'        => [Module\LarpnetOpenLink::class, [R::GET]],
 
 	'/contact' => [
 		'[/]'          => [Module\Contact::class,                [R::GET]],

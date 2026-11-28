@@ -55,6 +55,12 @@ function blockbot_init_1()
 		return;
 	}
 
+	// larpnet: Apple's and Google's app-link verifiers are bots by design;
+	// these two files are public metadata (see LarpnetAppLinks).
+	if (in_array(parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH), ['/.well-known/apple-app-site-association', '/.well-known/assetlinks.json'], true)) {
+		return;
+	}
+
 	$crawlerDetect = new CrawlerDetect();
 
 	$isCrawler = $crawlerDetect->isCrawler();
