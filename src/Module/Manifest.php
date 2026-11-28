@@ -28,6 +28,11 @@ class Manifest extends BaseModule
 			'lang'        => $config->get('system', 'language'),
 			'dir'         => 'auto',
 			'categories'  => ['social network', 'internet'],
+			// larpnet: lets Chrome on Android tell the page whether the app is
+			// installed (navigator.getInstalledRelatedApps, js/app-banner.js).
+			'related_applications' => [
+				['platform' => 'play', 'id' => 'pl.larpnet.android'],
+			],
 			'shortcuts'   => [
 				[
 					'name' => 'Latest posts',

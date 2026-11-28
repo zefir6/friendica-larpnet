@@ -330,6 +330,8 @@ COPY src/Util/Network.php                                    /usr/src/friendica/
 COPY src/Util/LarpnetSeo.php                                 /usr/src/friendica/src/Util/LarpnetSeo.php
 COPY src/Module/LarpnetSitemap.php                           /usr/src/friendica/src/Module/LarpnetSitemap.php
 COPY src/Module/RobotsTxt.php                                /usr/src/friendica/src/Module/RobotsTxt.php
+COPY src/Module/WellKnown/LarpnetAppLinks.php                /usr/src/friendica/src/Module/WellKnown/LarpnetAppLinks.php
+COPY src/Module/LarpnetOpenLink.php                          /usr/src/friendica/src/Module/LarpnetOpenLink.php
 COPY src/Module/Profile/Profile.php                          /usr/src/friendica/src/Module/Profile/Profile.php
 COPY src/Module/Profile/Conversations.php                    /usr/src/friendica/src/Module/Profile/Conversations.php
 COPY src/Module/Register.php                                 /usr/src/friendica/src/Module/Register.php
