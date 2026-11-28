@@ -211,6 +211,10 @@ function larpnet_head(string &$b): void
 		return;
 	}
 
+	if (DI::args()->get(0) === 'settings' && DI::args()->get(1) === 'display') {
+		larpnet_protocol_handler_head($b);
+	}
+
 	$b .= <<<'JS'
 <script>
 (function() {
@@ -339,22 +343,32 @@ function larpnet_app_banner_head(string &$b): void
 		return;
 	}
 
-	$b .= '<meta name="apple-itunes-app" content="app-id=' . LARPNET_APP_STORE_ID . '">' . "\n";
+	// app-argument: Safari's banner shows "Open" when the app is installed,
+	// and that opens this page in the app (larpnet-ios LinkRouter).
+	$here = DI::baseUrl() . '/' . ltrim(DI::args()->getQueryString(), '/');
+	$b .= '<meta name="apple-itunes-app" content="app-id=' . LARPNET_APP_STORE_ID
+		. ', app-argument=' . htmlspecialchars($here, ENT_QUOTES) . '">' . "\n";
 
 	$l10n = DI::l10n();
 	$b .= "<script>window.LarpnetAppBanner = " . json_encode([
 		'title'   => $l10n->t('Larpnet app'),
 		'close'   => $l10n->t('Close'),
 		'icon'    => 'view/theme/larpnet/img/larpnet-192.png',
+		// Both apps open larpnet://open?url=<page>, so the banner can offer
+		// "Open" (falls back to the store when the app isn't there).
+		'scheme'  => 'larpnet',
 		'ios'     => [
-			'url'    => LARPNET_APP_STORE_URL,
-			'text'   => $l10n->t('Chat and notifications on your iPhone'),
-			'button' => $l10n->t('App Store'),
+			'url'        => LARPNET_APP_STORE_URL,
+			'text'       => $l10n->t('Open this page in the app, or get it from the App Store'),
+			'button'     => $l10n->t('Open app'),
 		],
 		'android' => [
-			'url'    => LARPNET_ANDROID_APP_URL,
-			'text'   => $l10n->t('Join the Android app test on Google Play'),
-			'button' => $l10n->t('Join'),
+			'url'        => LARPNET_ANDROID_APP_URL,
+			'package'    => 'pl.larpnet.android',
+			'text'       => $l10n->t('Join the Android app test on Google Play'),
+			'button'     => $l10n->t('Join'),
+			'openText'   => $l10n->t('Open this page in the Larpnet app'),
+			'openButton' => $l10n->t('Open app'),
 		],
 	], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ";</script>\n";
 
@@ -550,4 +564,22 @@ function larpnet_display_item(&$arr): void
 		];
 	}
 	$arr['output']['complete_thread'] = $completeThread;
+}
+
+/**
+ * Settings > Display: a button that makes this browser open web+mastodon://
+ * and web+ap:// links on Larpnet (js/protocol-handler.js, Module\LarpnetOpenLink).
+ */
+function larpnet_protocol_handler_head(string &$b): void
+{
+	$l10n = DI::l10n();
+	$b .= "<script>window.LarpnetProtocolHandler = " . json_encode([
+		'url'         => DI::baseUrl() . '/open-link?target=%s',
+		'title'       => $l10n->t('Fediverse links'),
+		'description' => $l10n->t('Open web+mastodon:// links ("Follow", "Share" and "Open in your app" buttons on Mastodon and other fediverse sites) on Larpnet in this browser.'),
+		'button'      => $l10n->t('Open them on Larpnet'),
+		'done'        => $l10n->t('Done. Your browser may ask you to confirm.'),
+		'unsupported' => $l10n->t('This browser does not support it.'),
+	], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ";</script>\n";
+	DI::page()->registerFooterScript(larpnet_theme_asset('js/protocol-handler.js'));
 }

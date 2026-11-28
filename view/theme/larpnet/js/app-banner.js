@@ -2,9 +2,16 @@
  * theme.php's larpnet_app_banner_head()).
  *
  * - iPhone/iPad in Safari: nothing here -- Safari shows its own Smart App
- *   Banner from the apple-itunes-app meta tag (with "Open" once installed).
- * - iPhone/iPad in another browser, and Android: a dismissible bar at the
- *   bottom with a link to the App Store / the Google Play testing opt-in.
+ *   Banner from the apple-itunes-app meta tag ("Open" once installed, which
+ *   opens this page in the app via app-argument).
+ * - iPhone/iPad in another browser: a dismissible bar whose "Open" tries
+ *   larpnet://open?url=<this page> and goes to the App Store when nothing
+ *   took it (no browser lets a page check whether an app is installed).
+ * - Android: the same bar. Its link is an intent:// URL for the app's
+ *   larpnet://open, which Android opens in the app when installed and
+ *   otherwise sends to browser_fallback_url (the Google Play opt-in). Where
+ *   Chrome can tell (getInstalledRelatedApps, needs related_applications in
+ *   the web manifest and the app's asset_statements), it says "Open" up front.
  *
  * Dismissing hides it for DISMISS_DAYS in this browser. While shown, the
  * chat bubble moves up above it (body.lnc-app-banner-shown, see
@@ -52,7 +59,40 @@
     return node;
   }
 
-  function show() {
+  var here = location.href.split('#')[0];
+  var openUrl = (cfg.scheme || 'larpnet') + '://open?url=' + encodeURIComponent(here);
+
+  function androidIntentUrl() {
+    return 'intent://open?url=' + encodeURIComponent(here)
+      + '#Intent;scheme=' + (cfg.scheme || 'larpnet')
+      + ';package=' + platform.package
+      + ';S.browser_fallback_url=' + encodeURIComponent(platform.url)
+      + ';end';
+  }
+
+  // iOS outside Safari: hand the page to the app; if we're still here and
+  // visible a moment later, nothing took it, so go to the App Store.
+  function openOnIos(event) {
+    event.preventDefault();
+    var left = false;
+    function onHide() {
+      if (document.hidden) {
+        left = true;
+      }
+    }
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onHide);
+    location.href = openUrl;
+    setTimeout(function () {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onHide);
+      if (!left && !document.hidden) {
+        location.href = platform.url;
+      }
+    }, 1500);
+  }
+
+  function show(installed) {
     var bar = el('div');
     bar.id = 'lnc-app-banner';
     bar.setAttribute('role', 'region');
@@ -64,12 +104,18 @@
 
     var text = el('div', 'lnc-app-banner-text');
     text.appendChild(el('strong', null, cfg.title));
-    text.appendChild(el('span', null, platform.text));
+    text.appendChild(el('span', null, installed ? platform.openText : platform.text));
 
-    var link = el('a', 'lnc-app-banner-get', platform.button);
-    link.href = platform.url;
-    link.target = '_blank';
-    link.rel = 'noopener';
+    var link = el('a', 'lnc-app-banner-get', installed ? platform.openButton : platform.button);
+    if (isAndroid) {
+      // Same tab: Android takes intent:// out of the browser either way.
+      link.href = androidIntentUrl();
+    } else {
+      link.href = platform.url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.addEventListener('click', openOnIos);
+    }
 
     var close = el('button', 'lnc-app-banner-close');
     close.type = 'button';
@@ -86,8 +132,13 @@
       document.body.classList.remove('lnc-app-banner-shown');
     }
     close.addEventListener('click', hide);
-    // Going to the store counts as an answer too.
-    link.addEventListener('click', hide);
+    // Going to the store counts as an answer too. Opening the app doesn't:
+    // the bar should still offer it on the next page.
+    if (!installed) {
+      link.addEventListener('click', function () {
+        setTimeout(hide, 2000);
+      });
+    }
 
     bar.appendChild(icon);
     bar.appendChild(text);
@@ -98,9 +149,23 @@
     document.body.style.setProperty('--lnc-app-banner-h', bar.offsetHeight + 'px');
   }
 
+  function start() {
+    if (isAndroid && navigator.getInstalledRelatedApps) {
+      navigator.getInstalledRelatedApps().then(function (apps) {
+        show(apps.some(function (app) {
+          return app.id === platform.package;
+        }));
+      }, function () {
+        show(false);
+      });
+    } else {
+      show(false);
+    }
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', show);
+    document.addEventListener('DOMContentLoaded', start);
   } else {
-    show();
+    start();
   }
 })();

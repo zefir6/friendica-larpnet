@@ -93,6 +93,8 @@ if [ -f /var/www/html/index.php ]; then
     src/Util/LarpnetSeo.php \
     src/Module/LarpnetSitemap.php \
     src/Module/RobotsTxt.php \
+    src/Module/WellKnown/LarpnetAppLinks.php \
+    src/Module/LarpnetOpenLink.php \
     src/Module/Profile/Profile.php \
     src/Module/Profile/Conversations.php \
     build-version.txt
